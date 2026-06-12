@@ -1,0 +1,5 @@
+#!/bin/sh
+#PBS -V
+#PBS -l select=@NNODES@:ncpus=@NCPU_PER_NODE@:mpiprocs=@NPES_PER_NODE@:ompthreads=@NCPUS@
+#PBS -q normal
+#PBS -j eo

@@ -1,0 +1,84 @@
+EXECUTABLE = mtn.x
+OBJ_MTN = mtn_sph_lat.o        mtn_gaussian_lat.o      mtn_legendre.o    \
+	mtn_make_orography.o   mtn_make_statistics.o   mtn_driver.o      \
+	mtn_quick_print.o      mtn_trans_wave_grid.o   mtn_solver.o      \
+	mtn_solver_scm.o       mtn_dfs_lat.o
+
+OBJ_DFS = dfs_fft_transform.o dfs_sincos_lat.o dfs_cut_alias.o
+
+OBJS=@OBJ_DFS@ ${OBJ_MTN} @OBJ_RMP@ @OBJ_SPH@
+
+SRC_DFS = ${OBJ_DFS:.o=.F90}
+SRC_RMP = ${OBJ_RMP:.o=.F90}
+SRC_SPH = ${OBJ_SPH:.o=.F90}
+SRC_MTN = ${OBJ_MTN:.o=.F90}
+SRCS = @SRC_DFS@ ${SRC_MTN} @SRC_RMP@ @SRC_SPH@
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77@
+FORT_FLAGS = @FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALL_DIR = @INSTALL_DIR@
+EXTRA_LIBS = @EXTRA_LIBS@
+EXTRA_LIBS_MTN = @EXTRA_LIBS_MTN@
+EXP_PARENT = ..
+
+LIBS = ${INSTALL_DIR}/common.a ${INSTALL_DIR}/share.a ${LIB_DIR}/modelib.a ${LIB_DIR}/w3lib.a ${EXTRA_LIBS_MTN} 
+
+${EXECUTABLE} : ${SRCS} ${OBJS} ${LIBS}
+	if [ @MACHINE@ = mac ] ; then \
+		ranlib -s ${LIBS} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS}
+	${CP} $@ ${INSTALL_DIR}
+
+${SRCS} :
+	if [ -f ${EXP_PARENT}/share/$@ ]; then \
+		ln -fs ${EXP_PARENT}/share/$@ $@; \
+	elif [ -f ${EXP_PARENT}/fcst/$@ ]; then \
+		ln -fs ${EXP_PARENT}/fcst/$@ $@; \
+	elif [ -f ${EXP_PARENT}/pgb/$@ ]; then \
+		ln -fs ${EXP_PARENT}/pgb/$@ $@; \
+	fi
+
+${INSTALL_DIR}/.mtn : ${EXECUTABLE}
+	@MTNSUBMIT@ ./mtn.sh || exit 8
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	sed 's/ *use *[0-z_]*/&_ser/;s/_ser_ser/_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TMP.F90
+	${CPP} -P ${INCLUDE_DIR} TMP.F90 >$*.i ; rm TMP.F90
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+
+.F90.o :
+	sed 's/ *use *[0-z_]*/&_ser/;s/_ser_ser/_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TMP.F90
+	${CPP} -P ${INCLUDE_DIR} TMP.F90 >$*.i ; rm TMP.F90
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o *.x core @SRC_SPH@ @SRC_DFS@ @SRC_RMP@ ${INSTALL_DIR}/.mtn
+	- ${RM} -f top*.asc
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -f top*.asc *.ctl *.out Makefile
+	- ${RM} -rf rii_files

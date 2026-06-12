@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# At the end of each simulation year, reset dates to Jan. 1st and 
+# forecast hour to zero.
+#
+#  use existence of r_sig_initial and r_sfc_initial file as flag
+#  for restart directory.
+#
+# If not at the end of the year, detect the current simulation year
+# and return current forecast hour
+# 
+set -x
+#
+YYYY=$1
+YYYYS=$2
+SFC_FILE_TYPE=$3
+#
+if [ ! -s r_sig_initial -o ! -s r_sfc_initial ] ; then
+	YYYYM=`expr $YYYY - 1`
+	if [ ! -s ../$YYYYM/r_sigit -o ! -s ../$YYYYM/r_sfci ] ; then
+		if [ $YYYY -gt $YYYYS ] ; then
+			echo "$0:r_sigi and/or r_sfci for $YYYYM not found." >>ERROR.out
+			exit 8
+		fi
+		# 
+		# set flag for need to do cold start
+		#
+		h=-999
+	else
+		@ETC_DIR@/date ../$YYYYM/r_sigit >date.$$ || exit 8
+		read orighh origmm origdd origyy origfh <date.$$ ; rm date.$$
+		#
+		#  Reset initial date
+		#
+		@ETC_DIR@/incdte \
+					$origyy $origmm $origdd $orighh $origfh >incdte.$$ || exit 8
+		read yyyy_reset mm dd hh <incdte.$$ ; rm incdte.$$
+		if [ $yyyy_reset -ne $YYYY ] ; then
+			echo "`date` $0: Date Error.  yyyy_reset=$yyyy_reset   Should be $YYYY" >>ERROR.out
+			exit 8
+		fi
+		if [ $mm != 01 -o $dd != 01 -o $hh != 00 ] ; then
+			echo "`date` $0: Date Error. mm=$mm dd=$dd hh=$hh.  Should be 01 01 0 0" >>ERROR.out
+			exit 8
+		fi
+		#
+		#  reset forecast hour and date
+		#
+		@ETC_DIR@/scnvrt rsm $SFC_FILE_TYPE \
+				@JCAP@:@IGRD1@:@JGRD1@:@LEVS@ \
+				$YYYY:01:01:00:0 \
+				bin:bin \
+				../$YYYYM/r_sigit:../$YYYYM/r_sfci \
+				r_sig_initial:r_sfc_initial || exit 8
+		#
+		cp r_sig_initial r_sigit
+		cp r_sig_initial r_sigitdt
+		cp r_sfc_initial r_sfci
+		h=0
+	fi
+else
+	if [ ! -s r_sigit -o ! -s r_sigitdt -o ! -s r_sfci ] ; then
+		echo Restart file missing
+		exit 8
+	fi
+	h=`@ETC_DIR@/fhour r_sigit` || exit 8
+fi
+echo $h

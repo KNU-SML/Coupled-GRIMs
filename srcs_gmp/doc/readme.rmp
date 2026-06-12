@@ -1,0 +1,76 @@
+RSM execution requires:
+
+1.  r_sigit   ..  atmospheric initial condition at t0
+2.  r_sigitdt ..  atmospheric initial condition at t0+dt (same as r_sigit at t=0)
+3.  r_sfci    ..  surface initial condition
+4.  sigit     ..  global atmospheric state at t0
+5.  sigitdt   ..  global atmospheric state at t+nesting_hour   
+
+6.  regional orography  (constant through out forecast)
+7.  regional orography variance (constant through out forecast)
+8.  co2 vertical profile (constant through out forecast)
+9.  ozone production (constant through out forecast)
+10.  ozone loss (constant through out forecast)
+11.  cloudiness tuning (constant through out forecast)
+12.  ozone latitude-height profile (constant through out forecast)
+
+13.  regional land sea mask (constant through out forecast)
+14.  grib global high resolution mask (constant through out forecast)
+15.  grib glacier points (constant through out forecast)
+16.  grib maximum ice extent (constant through out forecast)
+17.  grib sea ice cover (daily variable)
+18.  grib snow cover (daily variable)
+19.  grib sst (daily variable)
+20.  grib albedo fractiona(seasonally variable)
+21.  grib vegetation fraction (monthly variable)
+
+How the files are generated:
+
+1, and 3 are generated from sigit and sfci of global model using rinpg program at t=0.
+4 and 5 are always given as input file that varies with time.
+
+6, 7 are computed by rmtn program at t=0
+
+8, 9, 10, 11, 12 are binary files in libs/con directory.  They are originally ascii files but are converted to binary when 'make' is issued in libs diretory.
+
+13 is computed by rmtn program at t=0
+
+14-21 are grib files in libs/con directory.  They are originally a packed binary grib file but are unpacked when 'make' is issued in libs directory.
+
+tparm data:
+
+SWHR_GBL ..  short wave radiation computation interval for global model (do not change)
+
+LWHR_GBL .. same as above but for long wave radiation.
+
+INCHOUR .. Forecast hour per one exeution of rfcst.x (depend on the wall clock time required to make forecast.  At least 24.  240-720 recommended).
+
+INSTIG .. r_sig file output interval.  1 hour is target.
+
+ENDHOUR .. End of the forecast integration.  For your project, this is 50year*365days*24hour.
+
+DELTAT_REG .. 10-40 secs.  We should try to use as large a value as possible.
+
+NEST_SEC .. Nesting interval.  We have reanalysis every 6 hours, thus this should be 6*3600
+
+SWHR_REG .. short wave radiation computation interval for regional model (1 hour)
+
+LWHR_REG .. long wave radiation computation interval for regional model (1 hour)
+
+STRHR_REG .. start forecast hour (not used and should be set to 0.)
+
+LOCDF_REG ..  Local diffusion option (should be 0.)
+
+BNDRLXREG ..  Switch for boundary relaxation (should be 1.)
+
+INTSFCX .. Grib surface file merging interval (should be greater than or equal to 24.  24 recommended)
+
+
+Output from r_fcst
+
+R_sig.ft*, r_flx.ft* , r_pgb.ft*, r_sfc.ft*, r_sigit, r_sigitdt, r_sfci
+
+R_pgb.ft* is generated from r_sig.ft* and r_flx.ft* using rpgb program.
+
+r_sigit, r_sigitdt and rsfi files are restart files. 
+

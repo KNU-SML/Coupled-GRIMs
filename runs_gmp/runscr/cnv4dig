@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+#  change 2-digit year to 4-digit year in sigma and sfc file
+# 
+#  $1 is input sigma file
+#  $2 is input sfc file 
+#  $3 is output sigma file
+#  $4 is output sfc file
+#  $5 is sfc_file_type [old,new]
+# 
+if [ $# -ne 6 ];then
+	echo "$0 in_sig in_sfc out_sig out_sfc sfc_file_type century"
+	exit 1
+fi
+in_sig=$1
+in_sfc=$2
+out_sig=$3
+out_sfc=$4
+sfc_file_type=$5
+cent=$6
+#
+if [ -s $in_sig ] ; then
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/date $in_sig >date.out || exit 8
+	read hh mm dd yyyy fh <date.out
+fi
+if [ -s $in_sfc ] ; then
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/date $in_sfc >date.out || exit 8
+	read hhs mms dds yyyys fhs <date.out
+fi
+if [ -s $in_sig -a -s $in_sfc ] ; then
+	if [ "sph" != rmp ] ; then
+		if [ $mm != $mms -o $dd != $dds -o $hh != $hhs -o \
+					$fh != $fhs ] ; then
+			echo 'date record of sig and sfc does not match'
+			echo "sigma: $yyyy/$mm/$dd/$hh/$fh"
+			echo "sfc  : $yyyys/$mms/$dds/$hhs/$fhs"
+			exit 1
+		fi
+	fi
+elif [ -s $in_sfc ] ; then
+	hh=$hhs
+	mm=$mms
+	dd=$dds
+	yyyy=$yyyys
+	fh=$fhs
+fi
+if [ $yyyy -gt $yyyys ]; then
+	yyyy=$yyyys
+fi
+if [ $yyyy -le 100 ] ; then
+	yyyy=`expr \( \( $cent - 1 \) \* 100 \) + $yyyy`
+	echo "yyyy lt 100 and will be modified to 4-digit $yyyy"
+	if [ "$sfc_file_type" = new ] ; then
+		if [ ! -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/chgdates.x ] ; then
+			echo "/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/chgdates.x does not exist"
+			exit 8
+		fi
+		 /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/chgdates $yyyy:$mm:$dd:$hh:$fh \
+		$in_sig:$in_sfc $out_sig:$out_sfc || exit 8
+	else
+		 /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/chgdates $yyyy:$mm:$dd:$hh:$fh \
+		$in_sig:$in_sfc $out_sig:$out_sfc || exit 8
+	fi
+else
+	cp $in_sig $out_sig
+	if [ $? -ne 0 ] ; then
+		echo "`date` $0: cp $in_sig $out_sig failed" >>ERROR.out
+		exit 8
+	fi
+	cp $in_sfc $out_sfc
+	if [ $? -ne 0 ] ; then
+		echo "`date` $0: cp $in_sfc $out_sfc failed" >>ERROR.out
+	fi
+fi

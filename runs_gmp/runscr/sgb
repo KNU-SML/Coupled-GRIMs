@@ -1,0 +1,55 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=1
+#PBS -V
+##PBS -j eo
+#------------------------------------------------------------------end_of_header
+#
+# sgb
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending forecast hour
+#  $3 ... forecast hour increment
+#
+#  This script assumes that the input sigma file is the form sig.ftxx
+#  The output pressure file is the form sgb.ftxx
+#
+fhs=${fhs:=$1}
+fhe=${fhe:=$2}
+fhinc=${fhinc:=$3}
+EXECDIR=${EXECDIR:=$4}
+if [ "$fhinc" = "" ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+if [ "$EXECDIR" != "" ]; then
+	cd $EXECDIR
+fi
+#
+PROG=sgb
+cat >$PROG.parm <<EOF
+&NAMSGB
+ ICEN2=1,
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+ KEID=0,
+/
+EOF
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+fi
+if [ linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ] ; then
+	assign -R
+fi
+rm -f $PROG.x
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/$PROG.x             $PROG.x
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp  fort.1
+ulimit -s unlimited
+ulimit -c unlimited
+ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm -f filenv.$$ >/dev/null
+exit 0

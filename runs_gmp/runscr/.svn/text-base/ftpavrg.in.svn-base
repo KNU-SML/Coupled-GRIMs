@@ -1,0 +1,83 @@
+#!/bin/sh
+#
+#  ftp file $1 to $2 directory $3
+#
+#  $1 ... file to be ftp'ed (put)
+#  $2 ... flag to delete file if ftp is successful
+#  $3 ... directory to put the file
+#  $4 ... ftp platform name (e.g., ftp.ncep.noaa.gov)
+#  $5 ... communication protocol (e.g., ftp, sftp, ...)
+#
+set -x
+#
+if [ $# -ne 5 ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+file=$1
+FLAG=$2
+FTPDIR=$3
+PLATFORM=$4
+FTP=$5
+#
+#yhbs
+#
+if [ $FTP != cp ]  ;then
+#
+#yhbe
+#
+if [ -n "$PLATFORM" -a -n "$FTPDIR" ] ; then
+	echo 'binary' >ftpdat.$file
+	echo 'passive off' >>ftpdat.$file
+	echo 'umask 022' >>ftpdat.$file
+	echo $FTPDIR | grep '^/' >/dev/null
+	if [ $? -eq 0 ] ; then
+		head=/
+	else
+		head=
+	fi
+	for dir in $head`echo $FTPDIR | sed 's?/? ?g' | sed 's/^ //g'`
+	do
+		echo "mkdir $dir" >>ftpdat.$file
+		echo "cd $dir" >>ftpdat.$file
+	done
+	echo "put ./$file" >>ftpdat.$file
+#	echo "dir ./$file" >>ftpdat.$file
+	echo "dir" >>ftpdat.$file
+	echo "quit" >>ftpdat.$file
+	@RUNSCR_DIR@/ftpscr  \
+		ftpdat.$file ftpout.$file $PLATFORM $FTP
+	if [ $? -ne 0 ] ; then
+		echo "`date` $0: $FTP of $file failed." >>ERROR.out
+		exit 8
+	fi
+	#
+	#  Check file size
+	#
+	sizeorig=`ls -l $file | awk '{print $5}'`
+	sizeftp=`grep " $file$"  ftpout.$file | \
+					grep '^-' | awk '{print $5}'`
+	if [ "$sizeorig" -eq "$sizeftp" -a "$sizeorig" -gt 0 ] ; then
+		echo "$FTP of $file successful"
+		chmod u+w $file
+		if [ -n "$FLAG" ] ; then
+			rm $file
+		fi
+	else
+		echo "WARNING!! $FTP of avrg $file FAILED"
+	fi
+	rm ftpdat.$file ftpout.$file 2>/dev/null
+fi
+#
+#yhbs  ... simple copy
+#
+else
+  mkdir -p $FTPDIR
+  if [ -s $file ] ; then
+     cp $file  $FTPDIR/.
+  fi
+fi
+#
+#yhbe
+#
+exit 0

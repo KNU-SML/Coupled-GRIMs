@@ -1,0 +1,57 @@
+source code history
+#
+2006-02-15 dfs
+
+2006-03-15 dfs mpi
+
+2006. 09. 03
+
+- remove SW99update and ALB4 options --> SWRMDC
+- SWRMDC option reads the more opack aerosol data and
+  includes all options for iswsrc (1:5) = 1
+- RA2 options use rinsur2 option ( reads gsfc aerosol data
+  and use the single albedo iswsrc = 1, 0, 0, 1, 1
+
+2007-10-1
+   codes are converted to F90 free form
+2007-11-24
+   The DFS grid arrangement changed
+      - start from North Pole
+      - For MPI, all PEs have N.H and S.H pair grid.
+      - But pair grids are arranged at opposite side.
+2009-12-01
+   GRIMS Renaming (GSM)
+2009-12-10
+   add OMLWRF
+2010-01-07
+   GRIMS Renaming (RSM)
+2010-01-11
+   End of Renaming (RSM)
+2010-01-12
+   replace sigma coord. with pres_cord
+2010-07-14
+   remove common blocks related to model configuration (resolution, mpi etc)
+    => common block -> module allocate, allocatable with parameters in
+       paramodel.F90.
+       all common block variables are initialized as zeros
+       handling common block variables with index is disassembled
+       dimension is defined in the namelist that is read in the paramodel.F90
+       users do not have to compile to change the dimension of model system
+   configure-model cpp and compile, rescon is moved to run
+   configure-scr   resolution related configuration, generate namelist and run
+   debugged and cleaned up (kgwdo, gwdc, viclsm)
+
+2010-12-09
+   bug fixed for seaicetm.F90, sas.F90, kimarakawa.F90
+   cleaned up for physis-main-solver.F90, sas.F90, kagwd.F90
+   CONDENS == > EXPLICIT_CLOUDINESS
+
+2011-06-04
+    physcis testings and version setup
+    ntrac= 2, o3 predction produces widespread rain ( do not turn it on )
+    ncep scv -- widespread precip
+    v3.0.h : same as in the previous but corrections in lsm and pbl for numerical stability
+    v3.1.h : + CMT + modified YSU (NEW_Z1) + OMLM_CLIM
+    v3.2.h : + NCEP CPS + SCV
+    v3.3.h : + sas corrections ( NEW_OMEGA_Factor )
+

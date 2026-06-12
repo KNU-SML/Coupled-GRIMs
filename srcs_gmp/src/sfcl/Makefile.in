@@ -1,0 +1,71 @@
+LIB = sfcl.a
+
+OBJ_SFCL = sfc_check_file.o   sfc_grib_file.o    sfc_read_file_driver.o    sfc_read_file.o   \
+	sfc_cycle_driver.o    sfc_merge_file.o   sfc_interp_setup.o        sfc_interp_grid.o \
+	sfc_quick_print.o     sfc_usgs_rough.o   sfc_usgs_albedo.o         sfc_land_type.o   \
+	sfc_file_subst.o      sfc_tsfc_correc.o  dyn_lon_lat.o                               \
+	sfc_grib_sum.o        sfc_get_latlon.o   sfc_max_unfwat.o
+
+OBJ_SMP = sfc_hintp_smp.o     sfc_gausst62_smp.o 
+
+OBJS=${OBJ_SFCL} ${OBJ_SMP}
+
+SRC_SFCL = ${OBJ_SFCL:.o=.F90}
+SRC_SMP  = ${OBJ_SMP:.o=.F90}
+SRCS     = ${SRC_SFCL} ${SRC_SMP}
+
+SRCS = ${OBJS:.o=.F90}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77@
+FORT_FLAGS = @FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALLDLIB = @INSTALLDLIB@
+EXP_PARENT = ..
+LIBS = ${INSTALLDLIB}/share.a ${INSTALLDLIB}/common.a
+
+${LIB} : @SRC_DFS@ ${SRCS} ${OBJS}
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALLDLIB}
+
+${SRCS} :
+	ln -fs ${EXP_PARENT}/fcst/$@ $@
+  
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	sed 's/module_trans/&_reduce/;s/ *use *[0-z_]*/&_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TEMP.F90
+
+.F90.o :
+	sed 's/module_trans/&_reduce/;s/ *use *[0-z_]*/&_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TEMP.F90
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o *.a core @SRC_DFS@
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -rf rii_files Makefile
+# ----------------------------------------------------

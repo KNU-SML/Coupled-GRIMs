@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+#  copy/ftp/sftp one file to a speficied directory
+#    
+#   $1 .. input  file name with full directory
+#   $2 .. output file name with full directory
+#   $3 .. ftp protocol.  cp for local copoy
+#   $4 .. ip address if ftp or sftp.   blank for $3=cp
+#
+i_fname=$1
+o_fname=$2
+protocol=$3
+ipaddress=$4
+#
+separator=' '
+if [ $protocol = hsi ] ; then
+	separator=' : '
+fi
+#
+i_dir=`echo $i_fname | sed 's?/[^/]*$??g'`
+i_nam=`echo $i_fname | sed 's?.*/??g'`
+o_dir=`echo $o_fname | sed 's?/[^/]*$??g'`
+o_nam=`echo $o_fname | sed 's?.*/??g'`
+#
+if [ $protocol = ftp -o $protocol = sftp ] ; then
+	cat >ftp.dat$$ <<EOF
+	binary
+	passive off
+	lcd $o_dir
+	cd $i_dir
+	get $i_nam$separator$o_nam
+EOF
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpscr ftp.dat$$ ftp.out $ipaddress $protocol  || exit 8
+    mv ftp.dat$$ ftp.dat.last
+elif [ $protocol = hsi ] ; then
+	cat >ftp.dat$$ <<EOF
+	lcd $o_dir
+	cd $i_dir
+	get $o_nam$separator$i_nam
+EOF
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpscr ftp.dat$$ ftp.out $ipaddress $protocol  || exit 8
+        mv ftp.dat$$ ftp.dat.last
+elif [ $protocol = cp ] ; then
+	cp $i_fname $o_fname || exit 8
+elif [ $protocol = ln ] ; then
+	ln -fs $i_fname $o_fname || exit 8
+fi

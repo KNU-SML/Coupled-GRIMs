@@ -1,0 +1,25 @@
+#!/bin/sh
+set -ax
+#
+PROG=roms
+#
+# create input parameter file
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms.parm .
+#
+#  Execute roms
+#
+hx=00
+here_dir=`pwd`
+if [ mpi = mpi -o mpi = hybrid ] ; then
+	. /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/mpisub $PROG.x:$ROMS_NPES:roms.parm
+	cc=$?
+else
+	./$PROG.x 1>${PROG}.out < roms.parm 2>&1
+	cc=$?
+fi
+if [ $cc -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+exit 0

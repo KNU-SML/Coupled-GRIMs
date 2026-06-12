@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+#  post processing of rcases runs.  Interactively run this script
+#  to recover failed postprocessing job.
+#
+#  this script need to be executed in the directory where forecast
+#  files exist or just above it (with years as argumens).  
+#  for example, in $RUNDIR/a_000/1979010100 or 
+#  in $RUNDIR/a_000 with argument 1979010100
+#
+#VARIANCE=${VARIANCE:='yes'}
+#
+CLEAN=no
+#
+cd=yes
+if [ $# -ne 0 ] ; then
+	yymmddhhs=$*
+else
+	ls -d 19???????? >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then
+		yymmddhhs=`ls -d 19????????`
+	else
+		pwd=`pwd`
+		yymmddhhs=`echo $pwd | sed 's?.*/??g'`
+		cd=no
+	fi
+fi 
+if [ -z "$yymmddhhs" ] ; then
+	echo in wrong directory
+	exit 8
+fi
+#
+#
+#
+for yymmddhh in $yymmddhhs
+do
+	if [ $cd = yes ] ; then
+		cd $yymmddhh || exit 8
+	fi
+	#
+	if [ -s rfcst.parm ] ; then
+		INT=`grep 'CON(9)=' rfcst.parm | cut -d '=' -f3 | sed 's/\.,//g'`
+		ENDHOUR=`grep 'CON(17)=' rfcst.parm | cut -d '=' -f2 | sed 's/\.,//g'`
+	else
+		INT=24
+		ENDHOUR=36
+	fi
+	#
+	fh=0
+	while [ $fh -le $ENDHOUR ] ; do
+		if [ -s r_sig.ft$fh -a -s r_flx.ft$fh ] ; then
+			@RUNSCR_DIR@/r_pgb $fh $fh $INT
+		fi
+		if [ -s r_pgb.ft$fh -a -s r_sig.ft$fh ] ; then
+			ls -l r_pgb.ft$fh
+			rm r_sig.ft$fh
+		fi
+		if [ -s r_pgb.ft$fh -a -s r_flx.ft$fh ] ; then
+			rm r_flx.ft$fh
+		fi
+		fh=`expr $fh + $INT`
+	done
+	#
+	if [ $cd = yes ] ; then
+		cd ..
+	fi
+done

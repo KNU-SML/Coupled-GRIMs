@@ -1,0 +1,51 @@
+#
+#  Makefile to create executables for the grims forecast.
+#
+#  'make' to create global model executables.
+#
+#  'make clean_gmp' to clean up global model source codes compilation
+#  'make clean_rmp' to clean up rmp source codes compilation
+#  'make clean_smp' to clean up smp source codes compilation
+#  'make clean_ssi' to clean up ssi source codes compilation
+#  'make clean_gsi' to clean up gsi source codes compilation
+#  'make clean_gom' to clean up gom source codes compilation
+#  'make clean' to clean up all compilation related files and directories
+#
+#  ncep sfm : 9/16/1998 Masao Kanamitsu
+#
+#  grims    : 11/11/2010 Songyou Hong
+#
+SHELL = /bin/sh
+AR = ar
+CP = cp
+RM = rm
+CD = cd
+CC = icc
+MKDIR = mkdir
+CHMOD = chmod
+MAKE = make
+#
+#  DIRECTORY STRUCTURE
+#
+#  ./src/[sfc][chgr][fcst][co2][mtn].../*.fp  Program files 
+#
+###################################################################
+#
+
+all : 
+	${CD} src ; ${MAKE} all    || exit 8
+
+depend : 
+	${CD} src ; ${MAKE} depend || exit 8
+
+clean :
+	- ${RM} -f bin/*
+	${CD} src ; ${MAKE} clean
+
+clean_mpi :
+	${CD} src ; ${MAKE} mpi_clean
+
+dist_clean :
+	- ${RM} -f seddat* options* *.h bin/*
+	${CD} src ; ${MAKE} dist_clean
+	- ${RM} Makefile options* *.h configure.log cvar.env 2> /dev/null

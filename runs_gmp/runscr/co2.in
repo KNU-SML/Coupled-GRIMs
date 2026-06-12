@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+if [ @MACHINE@ = x1e ] ; then
+#PBS -l mppe=1
+#PBS -N co2
+#
+   . /opt/modules/modules/init/sh
+   module load open pbs PrgEnv
+fi
+
+set -x
+
+CON_DIR=@CON_DIR@
+MODEL_DIR=@SRCS_DIR@
+BIN_DIR=@BIN_DIR@
+INSTALL_DIR=$BIN_DIR
+
+co2ppmv=348
+
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@       @FTNID@1
+@FTASS@ co2con                             @FTNID@66
+@FTASS@ co2output                          @FTNID@16
+@FTASS@ $CON_DIR/cns_${co2ppmv}_490850.asc @FTNID@61
+@FTASS@ $CON_DIR/cns_${co2ppmv}_490670.asc @FTNID@62
+@FTASS@ $CON_DIR/cns_${co2ppmv}_670850.asc @FTNID@63
+
+INPUT=co2.parm
+echo $co2ppmv. >co2.parm
+
+if [ @SYSTEM@ = es ] ; then
+dirhere=`pwd`
+cat >~/co2_gb.sh <<EOF
+#!/bin/sh
+cd $dirhere
+@RUNENV@ ./co2.x <co2.parm >co2.out 2>&1
+EOF
+	chmod 755 ~/co2_gb.sh
+	rexec gbnode000 -l @USERNAME@ ./co2_gb.sh
+else
+	@RUNENV@ $BIN_DIR/co2.x <co2.parm >co2.out 2>&1
+fi
+
+if [ $? -ne 0 ] ; then
+	echo `date` - co2 execution failed
+	exit 8
+fi
+rm -f @FTNID@[0-9]*
+echo "co2con created on `date`" >$INSTALL_DIR/.co2

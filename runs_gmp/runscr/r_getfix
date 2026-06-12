@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+#  ftp or copy get sst, sno and ice files
+#
+for field in sst ice sno
+do
+	ufield=`echo $field | tr '[a-z]' '[A-Z]'`
+	ftp=\$${ufield}_FTP
+	ftp=`eval echo $ftp`
+	ftp=`eval echo $ftp`
+	filename=\$${ufield}_FILENAME
+	filename=`eval echo $filename`
+	filename=`eval echo $filename`
+	platform=\$${ufield}_PLATFORM
+	platform=`eval echo $platform`
+	platform=`eval echo $platform`
+	dirfix=\$${ufield}_DIR
+	dirfix=`eval echo $dirfix`
+	dirfix=`eval echo $dirfix`
+	anl=\$${ufield}_ANL
+	anl=`eval echo $anl`
+	if [ $anl = 'climatology' -o $anl = 'guess' ] ; then
+		continue
+	fi
+	if [ -n "$platform" ] ; then
+		if [ ! -s $field.grib -a -n "$filename" ] ; then
+			cat >ftpdat.$field <<EOF
+			binary
+			passive off
+			cd $dirfix
+			get $filename $field.grib
+			quit
+EOF
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpscr ftpdat.$field ftpout.$field \
+			$platform $ftp || exit 8
+		fi
+	else
+		if [ -n "$filename" ] ; then
+			if [ ! -s $dirfix/$filename ] ; then
+				echo "`date` $0:$dirfix/$filename empty" >>ERROR.out
+				exit 8
+			fi
+		fi
+		ln -fs $dirfix/$filename ./$field.grib
+	fi
+	if [ -z "$filename" ] ; then
+		echo "$0:error. filename blank"
+		exit 8
+	fi
+done

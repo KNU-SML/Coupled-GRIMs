@@ -1,0 +1,122 @@
+#!/bin/sh
+#
+if [ @MACHINE@ = x1e ] ; then
+#PBS -l mppe=1
+#PBS -N mtn
+#
+   . /opt/modules/modules/init/sh
+   module load open pbs PrgEnv
+fi
+set -x
+# creates resolution-specific terrain files
+# from 10' navy or USGS 8 min or 4 min data
+# argument list:
+#   1: output sea-and-land mask file
+#   2: output gridded orography file
+#   3: output mountain variance file
+#   4: output spectral orography file
+#   5: output unfiltered gridded orography file
+#   6: number of longitudes in Gaussian grid
+#   7: number of latitudes in Gaussian grid
+#   8: spectral truncation
+#   9: rhomboidal flag (=0 for triangular truncation)
+#
+# Unit 52, orogrd is the spectrally truncated grid orography on 
+#          Gaussian grid to be used by the sfc codes.
+#
+CON_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con
+MODEL_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp
+BIN_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin
+INSTALL_DIR=$BIN_DIR
+#
+jcap=62
+levs=28
+
+mtnres=4
+
+avg=top${mtnres}m_avg.20i4.asc
+var=top${mtnres}m_var.20i4.asc
+max=top${mtnres}m_max.20i4.asc
+slm=top${mtnres}m_slm.80i1.asc
+
+for file in $avg $var $max $slm
+do
+	if [ ! -s $file ] ; then
+		cp $CON_DIR/$file.Z . && gunzip -f $file.Z || exit 8
+	fi
+done
+
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f fort.[0-9]* 2>/dev/null
+fi
+
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp fort.1
+ln -fs $avg                         fort.11
+ln -fs $var                         fort.12
+ln -fs $max                         fort.13
+ln -fs $slm                         fort.14
+ln -fs slmsk                        fort.51
+ln -fs orogrd                       fort.52
+ln -fs mtnvar                       fort.53
+ln -fs orospc                       fort.54
+ln -fs oroggd                       fort.55
+ln -fs orospc.smth                  fort.61
+ln -fs orogrd.smth                  fort.62
+ln -fs oroviw.ieee                  fort.63
+
+if [ linux_intel = dec ] ; then
+	datasize=1048576
+	stacksize=3276800
+elif [ linux_intel = mac ] ; then
+	datasize=unlimited
+	stacksize=6553600
+else
+	datasize=unlimited
+	stacksize=unlimited
+fi
+if [ linux_intel != nec ] ; then
+	ulimit -d $datasize
+	ulimit -s $stacksize
+fi
+
+ $BIN_DIR/mtn.x >mtn.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo `date` - mtn.x execution failed
+	rm -f fort.[0-9]*
+	exit 8
+fi
+rm -f fort.[0-9]*
+echo "mtn files created on `date`" >$INSTALL_DIR/.mtn
+#
+LONF=`cat mtn.out | grep 'im' | awk '{print $2}'`
+LATG=`cat mtn.out | grep 'jm' | awk '{print $2}'`
+dx=`echo "scale=5;360 / $LONF" | bc`
+if [ "sph" = dfs ]; then
+	YREV=""
+	yi=`echo "scale=5;-90.+ ($dx/2);" | bc`
+else
+    YREV=yrev
+	yi=-90.0
+fi
+#
+cat > mtn.ctl << EOL
+dset ^./oroviw.ieee
+undef 9.999E+20
+title mtn
+options sequential big_endian $YREV
+xdef $LONF linear  0 $dx
+ydef $LATG linear  $yi $dx
+tdef 1 linear 00Z14jul2001 6hr
+zdef 10 linear 1 1
+vars 5
+slm 0 0 0 sea-land mask
+hpr 10 0 0 hprime
+oro 0 0 0 original orography
+orf 0 0 0 transformed orography
+ors 0 0 0 smoothed orography
+ENDVARS
+EOL

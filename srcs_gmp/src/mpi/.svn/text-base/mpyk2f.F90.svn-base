@@ -1,0 +1,108 @@
+#include <define.h>
+   subroutine mpyk2f(a,lonf,latgp,levsp,nvar,b,latg,levs)
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram: 	mpyk2f
+!
+! abstract:  transpose (ip,jf,kp) to (if,jf,kf)
+!
+! program history log:
+!    hoon park  2007-9-14
+!
+! usage:	call mpyk2f(a,lonf2,latg2p,levsp,nvar,b,latg2,levs)
+!
+!    input argument lists:
+!	a	- real (lonf2,latg2p,levsp,nvar) partial field for each PE
+!	lonf2  	- integer total grid in longitude time 2
+!	latg2p 	- integer partial grid in latitude divide 2
+!	levsp	   - integer partial number of model layer
+!	nvar	   - integer total set of fields
+!
+!    output argument list:
+!	b	- real (lonf2,latg2,ntotal) full field 
+!	latg2	- integer total grid in latitude divide 2
+! 
+! subprograms called:
+!   mpi_gatherv	- gather message from all pe to master
+!
+!-------------------------------------------------------------------------------
+   use paramodel, only : latg_
+!  use commpi, only : mype, master, npes, latlen, latstr, mpi_comm_world,      &
+   use commpi       ! mype, master, npes, latlen, latstr, mpi_comm_world,      &
+                    ! MPI_REAL, levlen, levstr
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+   integer                       ::  lonf,latgp,latg,nvar,levs,levsp
+   integer                       ::  nv,n,i,j,k,mk,ierr,ks,jj
+!
+! input
+!
+   real                          ::  a(lonf,latgp,levsp,nvar)
+!
+! output
+!
+   real                          ::  b(lonf,latg,levs,nvar)
+!
+   real(_mpi_real_),allocatable  ::  tmpsnd(:),tmprcv(:)
+   integer,allocatable           ::  len(:),loc(:)
+!
+   allocate(tmpsnd(lonf*latgp*levsp*nvar))
+   allocate(tmprcv(lonf *latg *levs*nvar))
+   allocate(len(0:npes-1))
+   allocate(loc(0:npes-1))
+!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       loc(n)=mk
+       len(n)=levlen(n)*nvar*lonf*latlen(n)*2
+       mk=loc(n)+len(n)
+     enddo
+   endif
+!
+   mk=0
+   do nv = 1,nvar
+     do k = 1,levlen(mype)
+       do j = 1,latlen(mype)
+         tmpsnd(mk+1:mk+lonf)=a(1:lonf,j,k,nv)
+         mk=mk+lonf
+         jj=latgp-j+1
+         tmpsnd(mk+1:mk+lonf)=a(1:lonf,jj,k,nv)
+         mk=mk+lonf
+       enddo
+     enddo
+   enddo
+   len(mype)=mk
+!
+   call mpi_gatherv(tmpsnd,len(mype),MPI_REAL,                                 &
+                    tmprcv,len(0),loc(0),MPI_REAL,0,mpi_comm_world,ierr)
+!
+   if( mype.eq.0 ) then
+     mk=0
+     do n = 0,npes-1
+       do nv = 1,nvar
+         do k = 1,levlen(n)
+           ks=levstr(n)+k-1
+           do j = latstr(n),latstr(n)+latlen(n)-1
+             b(1:lonf,j,ks,nv)=tmprcv(mk+1:mk+lonf)
+             mk=mk+lonf
+             jj=latg_-j+1
+             b(1:lonf,jj,ks,nv)=tmprcv(mk+1:mk+lonf)
+             mk=mk+lonf
+           enddo
+         enddo
+       enddo
+     enddo
+   endif
+!
+   deallocate(tmpsnd)
+   deallocate(tmprcv)
+   deallocate(len)
+   deallocate(loc)
+!
+   return
+   end subroutine mpyk2f
+!-------------------------------------------------------------------------------

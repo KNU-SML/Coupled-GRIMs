@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+set -x
+if [ $# -ne 1 ] ; then
+        echo roms_makectl wrong number of argument.
+        exit 8
+fi
+HEREDIR=$1
+for ctlfile in `ls /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/*.ctl.in`
+do
+        ctlout=`echo $ctlfile | sed 's!.*/!!g' | sed 's/\.in//g'`
+        sed "s!%EXP_DIR%!$HEREDIR!g" $ctlfile >$ctlout
+done

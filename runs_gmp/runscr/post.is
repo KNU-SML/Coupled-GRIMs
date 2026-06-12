@@ -1,0 +1,225 @@
+#!/bin/sh
+#
+#XLFRTEOPTS="namelist=old"
+#export XLFRTEOPTS
+#
+#  This pscript template requires following edit variables to be defined
+#      %EXECSUBDIR% %YYYY% %MM% %DD% %HH% %FHE% %FHS% %INTFLX% %INTFLX%
+#      %FTPADDR% %FTPDIR% %INTSFCX% %ENDHOUR% 
+#      %FTP_SIG% %FTP_SFC% %FTP_ZNL% %FTP_FGB% %FTP_DIA% %FTP_KEN% 
+#      %FTP_PGB% %FTP_SGB% %FTP_FCSTOUT%
+#      %LIST_OF_FILES% %FILES_TO_BE_KEPT% %FILES_TO_BE_AVERAGED%
+#      %RMAVRG% %VARIANCE% %EXTVARS%
+#
+#  which should be defined in post.in
+#
+set -x
+cd %EXECSUBDIR%
+if [ $? -ne 0 ] ; then
+  echo "`date` $0: cd to %EXECSUBDIR% failed" >>ERROR.out
+fi
+#
+list_of_files='%LIST_OF_FILES%'
+files_to_be_kept='%FILES_TO_BE_KEPT%'
+files_to_be_averaged='%FILES_TO_BE_AVERAGED%'
+extvars_processing='%EXTVARS_PROCESSING%'
+#
+ftp_sig=%FTP_SIG%
+ftp_sfc=%FTP_SFC%
+ftp_znl=%FTP_ZNL%
+ftp_fgb=%FTP_FGB%
+ftp_dia=%FTP_DIA%
+ftp_ken=%FTP_KEN%
+ftp_pgb=%FTP_PGB%
+ftp_sgb=%FTP_SGB%
+ftp_fcstout=%FTP_FCSTOUT%
+ftp_extvars=%FTP_EXTVARS%
+#
+fhsp=`expr %FHS% + %INTFLX%`
+#
+EXTVARS=%EXTVARS%
+#
+# pgb
+#
+fh=`expr $fhsp + 0`
+if [ $fh -lt 10 ] ; then
+	fhc=0$fh
+else
+	fhc=$fh
+fi
+while [ -s pgb.ft$fhc -a $fh -le %FHE% ] ; do
+	fh=`expr $fh + %INTFLX%`
+	fhc=$fh
+done
+fhstart=$fh
+if [ $fhstart -le %FHE% ] ; then
+	if [ yes = yes ] ; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb $fhstart %FHE% %INTFLX% || exit 8
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb $fhstart %FHE% %INTFLX% || exit 8
+	elif [ no = yes ] ; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/catpgb
+	fi
+fi
+#
+if [ $EXTVARS = yes ] ; then
+	fh=`expr $fhsp + 0`
+	if [ $fh -lt 10 ] ; then
+		fhc=0$fh
+	else
+		fhc=$fh
+	fi
+	while [ -s extvars.ft$fhc -a $fh -le %FHE% ] ; do
+		fh=`expr $fh + %INTFLX%`
+		fhc=$fh
+	done
+	fhstart=$fh
+	if [ $fhstart -le %FHE% ] ; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/extvars $fhstart %FHE% %INTFLX% || exit 8
+	fi
+fi
+#
+#  Daily file archive
+#
+for file in $list_of_files
+do
+	FILE=`echo $file | tr '[A-Z]' '[a-z]'`
+	yn=\$ftp_$FILE
+	yn=`eval echo $yn`
+	if [ $yn = yes ] ; then
+		intvl=%INTFLX%
+		if [ $file = sfc ] ; then
+			intvl=%INTFLX%
+		fi
+		if [ %FHS% -ne 0 ] ; then
+			hp=`expr %FHS% + $intvl`
+		else
+			hp=0
+		fi
+		if [ -n "%FTPADDR%" ] ; then
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftparch $file $hp %FHE% $intvl %FTPDIR% %FTPADDR% %FTP_PROTOCOL%
+		fi
+	fi
+done
+#
+#  Delete used sigma files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = sig ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile sig $fhsp %FHE% %INTFLX%
+fi
+#
+#  Delete used extvars files
+#
+if [ $EXTVARS = yes ] ; then
+	rc=0
+	for filex in $files_to_be_kept
+	do
+		if [ $filex = extvars ] ; then
+			rc=1
+		fi
+	done
+	if [ $rc -eq 0 ] ; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile extvars $fhsp %FHE% %INTFLX%
+	fi
+fi
+#
+# averaging
+#
+#  find when to compute averages
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte %YYYY% %MM% %DD% %HH% %FHE% >incdte.out$$ || exit 8
+read yyyyp mmp ddp hhp <incdte.out$$
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte %YYYY% %MM% %DD% %HH% %FHS% >incdte.out$$ || exit 8
+read yyyy mm dd hh <incdte.out$$
+rm incdte.out$$
+#
+if [ $mmp -gt $mm -o $yyyyp -gt $yyyy ] ; then
+	#
+	#  the following script returns $start_forecast_hour $end_forecast_hour
+	#
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/getavfh $yyyy $mm >out.$$ || exit 8
+#	read start_forecast_hour end_forecast_hour <out.$$
+	read start_forecast_h end_forecast_hour <out.$$
+	rm out.$$
+	#
+	# average and variance
+	#
+	for file in $files_to_be_averaged
+	do
+		intvl=%INTFLX%
+		if [ $file = pgb ] ; then
+			intvl=%INTFLX%
+		fi
+		start_forecast_hour=`expr $start_forecast_h - 24 + $intvl`
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/average \
+			$file \
+			$start_forecast_hour \
+			$end_forecast_hour $intvl \
+			$file.$yyyy$mm.avrg.grib || exit 8
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon \
+			./$file.$yyyy$mm.avrg.grib \
+			$yyyy${mm}0100 || exit 8
+		#
+		if [ $file = pgb -a %VARIANCE% = yes ] ; then
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/variance \
+				$file \
+				$start_forecast_hour \
+				$end_forecast_hour $intvl \
+				$file.$yyyy$mm.variance.grib || exit 8
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon \
+			./$file.$yyyy$mm.variance.grib \
+			$yyyy${mm}0100 || exit 8
+		fi
+		#
+		#  Delete files used for averaging
+		#
+		rc=0
+		for filex in $files_to_be_kept
+		do
+			if [ $filex = $file ] ; then 
+				rc=1
+			fi
+		done
+		if [ $rc -eq 0 ] ; then
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile \
+				$file \
+				$start_forecast_hour \
+				$end_forecast_hour $intvl || exit 8
+		fi
+		#
+		#  ftp
+		#
+		if [ -n "%FTPADDR%" ] ; then
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.avrg.grib \
+						%RMAVRG% %FTPDIR% %FTPADDR% %FTP_PROTOCOL%
+			if [ $file = pgb -a %VARIANCE% = yes ] ; then
+				/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.variance.grib \
+						%RMAVRG% %FTPDIR% %FTPADDR% %FTP_PROTOCOL%
+			fi
+		fi
+	done
+	if [ $mm -eq 12 ] ; then
+		rm pgb.ft* fgb.ft* sig.ft* sigp.ft* sfc.ft*
+	fi
+fi
+#
+#  extvars processing
+#
+if [ $EXTVARS = yes ] ; then
+	mody=`expr %YYYY% \% 4`
+	if [ $mody -eq 0 ] ; then
+		ENDHOUR=`expr 24 \* 366`
+	else
+		ENDHOUR=`expr 24 \* 365`
+	fi
+	if [ %FHE% -eq $ENDHOUR ] ; then
+	  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/extvarsput %INTFLX% $ENDHOUR %INTFLX% extvars_%YYYY%.grib \
+	      %FTPDIR% %FTPADDR% %FTP_PROTOCOL%
+	fi
+fi

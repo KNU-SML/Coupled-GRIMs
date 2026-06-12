@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+#  ftp get sst, ice and snow grib files from archive platform
+#  this script assumes that sst, ice and snow reside on the same machine
+#  and the same directory
+#
+#  $1 .. Directory to store files
+#  $2 .. ip address of sst/ice/snow file archive
+#  $3 .. directory where sst/ice/snow are stored in the archive
+#  $4 .. sst file name in the archive
+#  $5 .. ice file name in the archive
+#  $6 .. snow file name in the archive
+#  $7 .. ftp protocol name (ftp or sftp, ....)
+#
+DIR=$1
+PERMANENT_SST_ICE_ARCHIVE_PLATFORM=$2
+PERMANENT_SST_ICE_ARCHIVE_DIR=$3
+SST_FILENAME=$4
+ICE_FILENAME=$5
+SNO_FILENAME=$6
+FTP=$7
+#
+mkdir $DIR 2>/dev/null
+#
+cat >ftpdat.rsstice <<EOF
+binary
+passive off
+lcd $DIR
+cd $PERMANENT_SST_ICE_ARCHIVE_DIR
+EOF
+yn=n
+if [ ! -s $DIR/sst.grib ] ; then
+	echo "get $SST_FILENAME sst.grib" >>ftpdat.rsstice
+	yn=y
+	sstanl=$DIR/sst.grib
+fi
+if [ ! -s $DIR/ice.grib ] ; then
+	echo "get $ICE_FILENAME ice.grib" >>ftpdat.rsstice
+	yn=y
+fi
+if [ ! -s $DIR/sno.grib ] ; then
+	echo "get $SNO_FILENAME sno.grib" >>ftpdat.rsstice
+	yn=y
+fi
+if [ $yn = y ] ; then
+	echo 'quit' >>ftpdat.rsstice
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpscr \
+			ftpdat.rsstice ftpout.rsstice \
+			$PERMANENT_SST_ICE_ARCHIVE_PLATFORM $FTP || exit 8
+fi

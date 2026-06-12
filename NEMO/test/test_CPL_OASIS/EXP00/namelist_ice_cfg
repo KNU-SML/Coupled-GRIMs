@@ -1,0 +1,122 @@
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! SI3 configuration namelist: Overwrites SHARED/namelist_ice_ref
+!!              1 - Generic parameters                 (nampar)
+!!              2 - Ice thickness discretization       (namitd)
+!!              3 - Ice dynamics                       (namdyn)
+!!              4 - Ice ridging/rafting                (namdyn_rdgrft)
+!!              5 - Ice rheology                       (namdyn_rhg)
+!!              6 - Ice advection                      (namdyn_adv)
+!!              7 - Ice surface boundary conditions    (namsbc)
+!!              8 - Ice thermodynamics                 (namthd)
+!!              9 - Ice heat diffusion                 (namthd_zdf)
+!!             10 - Ice lateral melting                (namthd_da)
+!!             11 - Ice growth in open water           (namthd_do)
+!!             12 - Ice salinity                       (namthd_sal)
+!!             13 - Ice melt ponds                     (namthd_pnd)
+!!             14 - Ice initialization                 (namini)
+!!             15 - Ice/snow albedos                   (namalb)
+!!             16 - Ice diagnostics                    (namdia)
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!
+!------------------------------------------------------------------------------
+&nampar         !   Generic parameters
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namitd         !   Ice discretization
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namdyn         !   Ice dynamics
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namdyn_rdgrft  !   Ice ridging/rafting
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namdyn_rhg     !   Ice rheology
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namdyn_adv     !   Ice advection
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namsbc         !   Ice surface boundary conditions
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namthd         !   Ice thermodynamics
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namthd_zdf     !   Ice heat diffusion
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namthd_da      !   Ice lateral melting
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namthd_do      !   Ice growth in open water
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namthd_sal     !   Ice salinity
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namthd_pnd     !   Melt ponds
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namini         !   Ice initialization
+!------------------------------------------------------------------------------
+   ln_iceini        = .true.          !  activate ice initialization (T) or not (F)
+   nn_iceini_file   =  0              !     0 = Initialise sea ice based on SSTs
+                                      !     1 = Initialise sea ice from single category netcdf file
+                                      !     2 = Initialise sea ice from multi category restart file
+   rn_thres_sst     =   2.0           !  max temp. above Tfreeze with initial ice = (sst - tfreeze)
+   rn_hti_ini_n     =   3.0           !  initial ice thickness       (m), North
+   rn_hti_ini_s     =   1.0           !        "            "             South
+   rn_hts_ini_n     =   0.3           !  initial snow thickness      (m), North
+   rn_hts_ini_s     =   0.3           !        "            "             South
+   rn_ati_ini_n     =   0.9           !  initial ice concentration   (-), North
+   rn_ati_ini_s     =   0.9           !        "            "             South
+   rn_smi_ini_n     =   6.3           !  initial ice salinity     (g/kg), North
+   rn_smi_ini_s     =   6.3           !        "            "             South
+   rn_tmi_ini_n     = 270.            !  initial ice temperature     (K), North
+   rn_tmi_ini_s     = 270.            !        "            "             South
+   rn_tsu_ini_n     = 270.            !  initial surface temperature (K), North
+   rn_tsu_ini_s     = 270.            !        "            "             South
+   rn_tms_ini_n     = 270.            !  initial snw temperature     (K), North
+   rn_tms_ini_s     = 270.            !        "            "             South
+   rn_apd_ini_n     =   0.2           !  initial pond fraction       (-), North
+   rn_apd_ini_s     =   0.2           !        "            "             South
+   rn_hpd_ini_n     =   0.05          !  initial pond depth          (m), North
+   rn_hpd_ini_s     =   0.05          !        "            "             South
+   rn_hld_ini_n     =   0.0           !  initial pond lid depth      (m), North
+   rn_hld_ini_s     =   0.0           !        "            "             South
+   ! -- for nn_iceini_file = 1
+   sn_hti = 'interp_ice'    , 24 ,'sithick_oras'   ,  .false.  , .false., 'daily'  , '' , '', ''
+   sn_hts = 'interp_ERA5_sd', 24 ,'sd'         ,  .false.  , .false., 'daily'  , '' , '', ''
+   sn_ati = 'interp_ice'    , 24 ,'siconc_oras'    ,  .false.  , .false., 'daily'  , '' , '', ''
+   sn_smi = 'NOT USED'    , -12. ,'smi'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_tmi = 'NOT USED'    , -12. ,'tmi'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_tsu = 'NOT USED'    , -12. ,'tsu'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_tms = 'NOT USED'              , -12. ,'tms'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   !      melt ponds (be careful, sn_apd is the pond concentration (not fraction), so it differs from rn_apd)
+   sn_apd = 'NOT USED'              , -12. ,'apd'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_hpd = 'NOT USED'              , -12. ,'hpd'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_hld = 'NOT USED'              , -12. ,'hld'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   cn_dir='/rhome/soo/NEMO/input/make_input/make_ocean_init/out/ice/'
+/
+!------------------------------------------------------------------------------
+&namalb         !   albedo parameters
+!------------------------------------------------------------------------------
+/
+!------------------------------------------------------------------------------
+&namdia         !   Diagnostics
+!------------------------------------------------------------------------------
+/

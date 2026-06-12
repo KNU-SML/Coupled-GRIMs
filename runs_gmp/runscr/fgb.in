@@ -1,0 +1,61 @@
+#!/bin/sh
+#------------------------------------------------------------------end_of_header
+#
+# fgb
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending forecast hour
+#  $3 ... forecast hour increment
+#
+#  This script assumes that the input flx file is the form flx.ftxx
+#  The output flux and surface file is the form fgb.ftxx
+#
+fhs=${fhs:=$1}
+fhe=${fhe:=$2}
+fhinc=${fhinc:=$3}
+EXECDIR=${EXECDIR:=$4}
+if [ "$fhinc" = "" ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+if [ "$EXECDIR" != "" ]; then
+	cd $EXECDIR
+fi
+#
+# FGB_POST
+#
+PROG=fgb
+cat >$PROG.parm <<EOF
+ &NAMFGB
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+ &END
+EOF
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+fi
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+fi
+#
+rm -f $PROG.x
+#
+if [ @SYSTEM@ = dec ];then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+#
+@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@ fort.1
+@RUNENV@ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+#
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm -f filenv.$$ >/dev/null 
+#
+echo "`date` $0: fgb is completely ended"
+exit 0

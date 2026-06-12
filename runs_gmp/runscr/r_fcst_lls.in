@@ -1,0 +1,125 @@
+#!/bin/sh
+#@ job_type = parallel
+#@ class = class.2-32
+#@ resources = ConsumableCpus(@NTHREADS@) ConsumableMemory(2000mb)
+#@ wall_clock_limit = 24:00:00
+#@ output = $(jobid).out
+#@ error = $(output)
+#@ notification = never
+#@ notify_user = ecchang@yonsei.ac.kr
+#@ network.MPI = sn_all,shared,US
+#@ rset = RSET_MCM_AFFINITY
+#@ mcm_affinity_options = mcm_mem_req mcm_distribute mcm_sni_none
+#@ total_tasks = @NPES_PER_NODE@
+#@ environment = $EXECDIR; $h; $hx; $inchour; $prthour; $FCSTENV; $FCST_NPES
+#@ queue
+export LANG=en_US
+export MP_SHARED_MEMORY=yes
+export MP_SINGLE_THREAD=yes
+export MEMORY_AFFINITY=MCM
+#
+set -x
+#
+#  execute forecast.
+#
+#  $1 ... FCSTENV required for mpi runs on origin (this should be the
+#         last argument since it can be blank.
+#         Note that script referrs $1 as $* since it is a string of
+#         characters separated by blanks so that it takes all the arguments
+#         as one.
+#
+if [ "$EXECDIR" != "" ]; then
+    cd $EXECDIR
+fi
+#
+#  execute forecast.
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending   forecast hour
+#  $3 ... base field interval (hour)
+#  $4 ... regional field output interval (hour)
+#
+PROG=rfcst
+#
+#  Execute forecast
+#
+h=${h:=$1}
+hx=${hx:=$2}
+inchour=${inchour:=$3}
+prthour=${prthour:=$4}
+if [ "$prthour" = "" ] ; then
+    echo "`date` $0: argument error" >>ERROR.out
+    exit 8
+fi
+#
+fh=`@ETC_DIR@/fhour r_sigit`
+#
+# SWRMDC
+#
+swrmdc=`fgrep SWRMDC @SRCS_DIR@/define.h | fgrep -v undef | fgrep define | wc -l`
+if [ $swrmdc -eq 1 ]; then
+    mon=01
+    while [ $mon -le 12 ]; do
+        @FTASS@ @CON_DIR@/global_aeropac3a.m${mon}.txt .
+        mon=`expr $mon + 1`
+        if [ $mon -lt 10 ]; then
+            mon=0$mon
+        fi
+    done
+fi
+#
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+
+@FTASS@ @BIN_DIR@/co2con                           @FTNID@15
+@FTASS@ r_mtnvar                                   @FTNID@24
+@FTASS@ @CON_DIR@/o3prod.clim.asc                  @FTNID@28
+@FTASS@ @CON_DIR@/o3loss.clim.asc                  @FTNID@29
+@FTASS@ r_sigit                                    @FTNID@30
+@FTASS@ r_sigitdt                                  @FTNID@31
+@FTASS@ r_sfci                                     @FTNID@32
+@FTASS@ @CON_DIR@/tune.t42l18.amip.ewmrg           @FTNID@43
+@FTASS@ @CON_DIR@/gcmo3.asc                        @FTNID@48
+@FTASS@ @BIN_DIR@/albaer.snl                       @FTNID@49
+#
+rm -f $PROG.x
+if [ @MARCH@ = mpi -o @MARCH@ = hybrid ] ; then
+	@FTASS@ @BIN_DIR@/${PROG}_t@JCAP@k@LEVS@@IGRD@@JGRD@_n${FCST_NPES}.x $PROG.x
+else
+	@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+fi
+#
+here_dir=`pwd`
+if [ @HOST_NAME@ = compas_linux -a @MARCH@ != single -a @MARCH@ != thread ] ; then
+    sed -n "1,${FCST_NPES}p" $HOME/node_list >$here_dir/hostfile
+	@FTASS@ $PROG.parm @FTNID@95
+    /opt/mpich/myrinet/pgi/bin/mpirun -nolocal -np ${FCST_NPES} -machinefile $here_dir/hostfile $here_dir/$PROG.x 1>$here_dir/r_fcstout.ft$hx 2>&1
+elif [  @MARCH@ = mpi -a  @SYSTEM@ = mac  ] ; then
+	@FTASS@ $PROG.parm @FTNID@95
+	$FCSTENV -wd $here_dir ./$PROG.x 1>r_fcstout.ft$hx 2>&1
+else
+	@FTASS@ $PROG.parm @FTNID@95
+	$FCSTENV ./$PROG.x 1>r_fcstout.ft$hx 2>&1
+fi
+if [ $? -ne 0 ] ; then
+	echo "r_fcst failed" >>ERROR.out
+	exit 8
+fi
+grep 'NaN' r_fcstout.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep ' nan ' r_fcstout.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep '<WARNING>:' r_fcstout.ft$hx >>ERROR.out
+#
+exit 0

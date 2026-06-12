@@ -1,0 +1,108 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=1
+#PBS -V
+##PBS -j eo
+#------------------------------------------------------------------end_of_header
+set -a
+#
+if [ $# -lt 5 ]; then
+	echo "post_gmp $pshour $pehour $INTSIG $fcstid $log_name $BATCHQUE $BATCHstatus"
+	exit 1
+fi
+#
+pshour=${pshour:=$1}
+pehour=${pehour:=$2}
+INTSIG=${INTSIG:=$3}
+fcstid=${fcstid:=$4}
+log_name=${log_name:=$5}
+BATCHQUE=${BATCHQUE:=$6}
+BATCHstatus=${BATCHstatus:=$7}
+#
+fthour=`expr $pshour + $INTSIG`
+if [ $fthour -lt 10 ]; then
+	fthour=0$fthour
+fi
+#
+# post-process (check previous step)
+#
+while [ $fthour -le $pehour ]; do
+    #
+	if [ -s sig.ft$fthour -a -s sfc.ft$fthour -a -s flx.ft$fthour ]; then
+		phs=`expr $fthour - $INTSIG` ; phe=$phs ; phinc=$INTSIG
+		fhs=$phs                     ; fhe=$phe ; fhinc=$phinc
+		if [ $phs -lt 10 ]; then phs=0$phs; fi
+		pgbid=`$BATCHQUE -N grims_rt_pgb /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb | cut -d"." -f1 || exit 8`
+		fgbid=`$BATCHQUE -N grims_rt_fgb /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb | cut -d"." -f1 || exit 8`
+		sleep 1
+        echo "   for ft${phs},"
+        echo "      queue   = `qstat | grep ${pgbid} | awk '{print $6}'`"
+		echo "      pgb id  = ${pgbid}"
+		echo "      fgb id  = ${fgbid}"
+		#
+		fthour=`expr $fthour + $INTSIG`
+		if [ $fthour -lt 10 ]; then fthour=0$fthour; fi
+	else
+		sleep 3
+	fi
+done
+#
+# waiting for fcst log
+#
+cnt=1
+while [ ! -s $log_name ]; do
+	echo "   ...waiting for ${log_name}, cnt=$cnt"
+	if [ $cnt -le 60 ]; then
+		sleep 10
+		cnt=`expr $cnt + 1`
+	else
+		echo "   ### over 10 minute, stop to wait ###" ; exit 8
+	fi
+done
+#
+# post-process at the last
+#
+echo "   ...wait_que_job for grims_rt_fcst"
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/wait_que_job $fcstid $log_name $BATCHstatus || exit 8
+phs=$pehour ; phe=$pehour ; phinc=$INTSIG
+fhs=$phs    ; fhe=$phe    ; fhine=$phinc
+pgbid=`$BATCHQUE -N grims_rt_pgb /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb | cut -d"." -f1 ||  exit 8`
+fgbid=`$BATCHQUE -N grims_rt_fgb /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb | cut -d"." -f1 ||  exit 8`
+sleep 1
+echo "   for ft${phs},"
+echo "      queue   = `qstat | grep ${pgbid} | awk '{print $6}'`"
+echo "      pgb id  = ${pgbid}"
+echo "      fgb id  = ${fgbid}"
+#
+# waiting for last que
+#
+pnum=1
+fnum=1
+while [ $pnum -eq 1 -o $fnum -eq 1 ]; do
+	echo "   ...waiting for pgb.ft$phs or fgb.ft$fhs"
+	sleep 3
+    pnum=`qstat | grep ${pgbid} | wc -l`
+    fnum=`qstat | grep ${fgbid} | wc -l`
+done
+#
+# double-check the post files (pgb,fgb)
+#
+sft=0
+eft=`expr $pehour - $INTSIG`
+ft=$sft
+while [ $ft -le $eft ]; do
+	phs=$ft  ; phe=$phs  ; phinc=$INTSIG
+	fhs=$phs ; fhe=$phe  ; fhinc=$phinc
+    #
+	if [ $ft -lt 10 ]; then ft=0$ft; fi
+	if [ ! -s pgb.ft$ft ]; then
+		echo "   for pgb.ft$ft (missing),"
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb $phs $phe $phinc
+	fi
+	if [ ! -s fgb.ft$ft ]; then
+		echo "   fgb fgb.ft$ft (missing),"
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb $fhs $fhe $fhinc
+	fi
+	ft=`expr $ft + $INTSIG`
+done
+#
+exit 0

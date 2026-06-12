@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+#  rename the ocean_his as G-RSM
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/oceanhr.x oceanhr.x
+for file in ocean_his_*.nc
+do
+cat - > ncfile.txt << EOF
+$file
+EOF
+hour=`./oceanhr.x | awk '{print $1}'`
+mv $file ocean_his.ft$hour.nc
+done
+#
+#  rename the ocean_avg as G-RSM
+#
+for file in ocean_avg_*.nc
+do
+cat - > ncfile.txt << EOF
+$file
+EOF
+hour=`./oceanhr.x | awk '{print $1}'`
+hour=`expr $hour + $ROMS_NAVG_DAY \* 24 \/ 2`
+if [ $hour != 0 ] ; then
+mv $file ocean_avg.ft$hour.nc
+fi
+done

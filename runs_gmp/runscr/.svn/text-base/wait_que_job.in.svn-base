@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+if [ $# -lt 3 ]; then
+	echo "Usage: wait_que_job JOBID LOGFILE BATCHstatus"
+	exit 1
+fi
+jobid=$1
+logname=$2
+BATCHstatus=$3
+#
+njob=1
+while [ $njob -ne 0 ]; do
+	sleep 2
+	njob=`$BATCHstatus | grep $jobid | wc -l`
+	if [ @INSTITUTION@ = nml   -o @INSTITUTION@ = kaf  -o \
+		@INSTITUTION@ = kesti -o @INSTITUTION@ = ncar -o \
+		@INSTITUTION@ = apcc  -o @INSTITUTION@ = snu -o \
+        @INSTITUTION@ = kiaps -o @INSTITUTION@ = kiapsrt ]; then
+		status=`$BATCHstatus | grep $jobid | awk '{printf $5}'`
+		if [ "$status" = E -o "$status" = C  ]; then
+			njob=0
+		fi
+	fi
+done
+sleep 3
+#
+# check "exit 0" at the last of logname
+#
+while [ ! -s $logname ]; do
+	sleep 10
+done
+last=`tail -1 $logname`
+#
+if [ @INSTITUTION@ = haenam ]; then
+	print 'no checking "exit 0".'
+else
+	if [ `echo $last | grep exit | wc -l` -ne 1 ]; then
+		exit 8
+	fi
+	if [ `echo $last | awk -F'exit' '{printf "%d",$2}'` -ne 0 ]; then
+		exit 8
+	fi
+	sleep 5
+fi
+exit 0

@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+#  Input variables:
+#    YYYYS,MMS,DDS,HHS .... starting year, month, day, hour
+#    YYYYE,MME,DDE,HHE .... ending   year, month, day, hour
+#
+#  This script returns following variables
+#    ENDHOUR ... forecast hour from starting date to ending date.
+#    YEAREND ... forecast hour from starting date to the end of the year
+#    MFHOUR_n .. forecast hour to the end of coming months (n=1,MCOUNT)
+#    MCOUNT  ... number of coming months 
+#
+#  In order to use thes variables in calling scripts, you need to execute it
+#  as a same process, i.e., in the form '. @RUNSCR_DIR@/endfhour' (period
+#  and space before the endhour script name).
+#
+HHH=$HHS
+#
+# length of forecast
+#
+#yhb ENDHOUR=`@ETC_DIR@/inchour $YYYYS $MMS $DDS $HHH \
+#yhb					$YYYYE $MME $DDE $HHE | sed 's/ *//g'`
+ENDHOUR=`@ETC_DIR@/maketim $YYYYE$MME$DDE$HHE -d $YYYYS$MMS$DDS$HHH | sed 's/ *//g'`
+#yhb
+#
+echo ENDHOUR=$ENDHOUR
+#
+#  forecast hour to the end of the first year
+#
+y=`expr $YYYYS + 1`
+#yhb YEAREND=`@ETC_DIR@/inchour $YYYYS $MMS $DDS $HHH $y 01 01 00 | sed 's/ *//g'`
+YEAREND=`@ETC_DIR@/maketim ${y}010100 -d $YYYYS$MMS$DDS$HHH | sed 's/ *//g'`
+#yhb
+echo YEAREND=$YEAREND
+#
+#  forecaset hour to the end of each month
+#
+MME=`expr $MME + 0`
+if [ $MME -lt 10 ] ; then
+	MME=0$MME
+fi
+ee=$YYYYE$MME
+yy=$YYYYS
+mm=`expr $MMS + 1`
+if [ $mm -lt 10 ] ; then
+  mm=0$mm
+fi
+if [ $mm -gt 12 ] ; then
+	mm=01
+	yy=`expr $yy + 1`
+fi
+ss=$yy$mm
+MCOUNT=1
+while [ $ss -le $ee ] ; do
+#yhb  mfh=`@ETC_DIR@/inchour $YYYYS $MMS $DDS $HHH $yy $mm 01 00 | sed 's/ *//g'`
+  mfh=`@ETC_DIR@/maketim ${yy}${mm}0100 -d $YYYYS$MMS$DDS$HHH | sed 's/ *//g'`
+#yhb
+  eval MFHOUR_$MCOUNT=$mfh
+  MCOUNT=`expr $MCOUNT + 1`
+  mm=`expr $mm + 1`
+  if [ $mm -gt 12 ] ; then
+    mm=1
+    yy=`expr $yy + 1`
+  fi
+  if [ $mm -lt 10 ] ; then
+    mm=0$mm
+  fi
+  ss=$yy$mm
+done
+MCOUNT=`expr $MCOUNT - 1`
+echo MCOUNT=$MCOUNT
+m=1
+while [ $m -le $MCOUNT ] ; do
+  mfhour=\$MFHOUR_$m
+  mfhour=`eval echo $mfhour`
+  echo MFHOUR_$m=$mfhour
+  m=`expr $m + 1`
+done

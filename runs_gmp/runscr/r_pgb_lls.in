@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+#  This script assumes that the input sigma file is the form r_sig.ftxx
+#  The output pressure file is the form pgb.ftxx
+#
+#  execute post proccessing.
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending   forecast hour
+#  $3 ... forecast output ncrement
+#
+fhs=${fhs:=$1}
+fhe=${fhe:=$2}
+fhinc=${fhinc:=$3}
+#
+PROG=rpgb
+cat >$PROG.parm <<EOF
+ &NAMRPGB
+ ICEN2=1,
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+/
+EOF
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+fi
+rm -f $PROG.x
+#if [ @MARCH@ = mpi -o @MARCH@ = hybrid ] ; then
+#	@FTASS@ @BIN_DIR@/${PROG}_par.x $PROG.x
+#else
+	@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+#fi
+here_dir=`pwd`
+if [ @HOST_NAME@ = compas_linux ] ; then
+    sed -n "1,${FCST_NPES}p" $HOME/node_list >$here_dir/hostfile
+    sed 's/^/ssh /g' $here_dir/hostfile | sed 's/$/ "date"/g' >force_mount.sh
+    chmod a+x force_mount.sh
+    ./force_mount.sh
+    /opt/mpich/myrinet/pgi/bin/mpirun -nolocal -np ${FCST_NPES} -machinefile $here_dir/hostfile $here_dir/$PROG.x < $here_dir/$PROG.parm 1>$here_dir/r_pgbout.ft$fhs-$fhe 2>&1
+elif [ @MARCH@ = mpi -a  @SYSTEM@ = mac ] ; then
+	$FCSTENV -wd $here_dir ./$PROG.x <$PROG.parm 1>rpgbout.ft$fhs-$fhe 2>&1
+else
+	./$PROG.x <$PROG.parm 1>rpgbout.ft$fhs-$fhe 2>&1
+fi
+if [ $? -ne 0 ] ; then
+	echo "r_pgb failed" >>ERROR.out
+	exit 8
+fi
+#if [ @MARCH@ = mpi -o @MARCH@ = hybrid ] ; then
+#	ft=`expr $fhs + 0`
+#	fhe=`expr $fhe + 0`
+#	while [ $ft -le $fhe ] ; do
+#		fh=$ft
+#		if [ $ft -lt 10 ] ; then
+#			fh=0$ft
+#		fi
+#		cat r_pgb.ft${fh}_pe* >>r_pgb.ft$fh || exit 8
+#		rm r_pgb.ft${fh}_pe*
+#		ft=`expr $ft + $fhinc`
+#	done
+#fi
+exit 0

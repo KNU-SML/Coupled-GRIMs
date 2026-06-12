@@ -1,0 +1,83 @@
+#!/bin/sh
+#------------------------------------------------------------------end_of_header
+set -ax
+#
+YYYY=${YYYY:=$1}
+MM=${MM:=$2}
+DD=${DD:=$3}
+HH=${HH:=$4}
+h=${h:=$5}
+hx=${hx:=$6}
+YYYYS=${YYYYS:=$7}
+MMS=${MMS:=$8}
+FHLEN=${FHLEN:=$9}
+ENDHOUR=${ENDHOUR:=${10}}
+INTPOST=${INTPOST:=${11}}
+INCHOUR=${INCHOUR:=${12}}
+NESTING_HOUR=${NESTING_HOUR:=${13}}
+DELETE_BASE=${DELETE_BASE:=${14}}
+EXECDIR=${EXECDIR:=${15}}
+cd $EXECDIR
+#
+# post
+#
+cp r_sigit.ft$hx r_sigit || exit 8
+cp r_sigitdt.ft$hx r_sigitdt || exit 8
+cp r_sfc.ft$hx r_sfci || exit 8
+#
+@RUNSCR_DIR@/r_post non_batch $EXECDIR \
+	$YYYY:$MM:$DD:$HH:$h:$hx:$YYYYS:$MMS:$FHLEN:$ENDHOUR:$INTPOST  ||	exit 8
+#
+#  post processing
+#
+if [ @CATPGB@ = yes ] ; then
+    @ETC_DIR@/catpgb
+fi
+#
+#  Delete old short archive files
+#
+for file in $LIST_OF_FILES
+do
+	ftpfile=FTP_`echo $file | tr '[a-z]' '[A-Z]'`
+	x=\$$ftpfile
+	x=`eval echo $x`
+	if [ "$x" = yes ] ; then
+		continue
+	fi
+	rc=0
+	for filex in $FILES_TO_BE_KEPT
+	do
+		if [ $filex = $file ] ; then
+			rc=1
+		fi
+	done
+	if [ $rc -eq 1 ] ; then
+		continue
+	fi
+	rc=0
+	for filex in $FILES_TO_BE_AVERAGED
+	do
+		if [ $filex = $file ] ; then
+			rc=1
+		fi
+	done
+	if [ $rc -eq 1 ] ; then
+		continue
+	fi
+	@RUNSCR_DIR@/delfile $file $h $hx $INTPOST || exit 8
+done
+#
+# delete base or coarse grid boundary condition for $h
+#
+if [ "$DELETE_BASE" = yes ] ; then
+	fh=0
+	while [ $fh -lt $INCHOUR ] ; do
+		fhx=`expr $fh + $h`
+		@ETC_DIR@/incdte $YYYY $MM $DD $HH $fhx  >dteout$$ || exit 8
+		read YYYYF  MMF  DDF  HHF  <dteout$$ ; rm dteout$$
+		rm base.$YYYYF$MMF$DDF$HHF
+		fh=`expr $fh + $NESTING_HOUR`
+	done
+fi
+#
+exit 0

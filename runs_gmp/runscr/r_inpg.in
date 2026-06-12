@@ -1,0 +1,48 @@
+#!/bin/sh
+set -x
+#
+if [ $# -ne 3 ] ; then
+	echo $0: wrong number of arguments
+fi
+SFCFTYP=$1
+INGSIG=`echo $2 | cut -d':' -f1`
+INGSFC=`echo $2 | cut -d':' -f2`
+OUTRSIG=`echo $3 | cut -d':' -f1`
+OUTRSFC=`echo $3 | cut -d':' -f2`
+#
+PROG=rinpg
+echo " &NAMRIN                                         "  >$PROG.parm
+echo "    SFCFTYP='$SFCFTYP',                          " >>$PROG.parm
+echo "/                                                " >>$PROG.parm
+cat rsm.parm >>$PROG.parm
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 ] ; then
+	assign -R
+fi
+@FTASS@ $INGSIG                           @FTNID@11
+@FTASS@ $INGSFC                           @FTNID@12
+@FTASS@ r_smooth_oroggd                   @FTNID@14
+@FTASS@ $OUTRSIG                          @FTNID@51
+@FTASS@ $OUTRSFC                          @FTNID@52
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@      @FTNID@1
+#
+if [ @SYSTEM@ = dec ]; then
+  ulimit -s 1024000
+else
+  ulimit -s unlimited
+fi
+#
+rm $PROG.x 2>/dev/null
+@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo `date` - $PROG execution failed >>ERROR.out
+	exit 8
+fi

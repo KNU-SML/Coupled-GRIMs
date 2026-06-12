@@ -1,0 +1,131 @@
+#include <define.h>
+   subroutine mpgp2f(a,lonf2p,latg2p,b,lonf2,latg2,ntotal)
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram:    mpgp2f
+!            
+! abstract:  transpose (ip,jp,kf) to (if,jf,kf)
+!
+! program history log:
+!    99-06-27  henry juang    finish entire test for gsm
+!
+! usage:   call mpgp2f(a,lonf2p,latg2p,b,lonf2,latg2,ntotal)
+!
+!    input argument lists:
+!   b   - real (lonf2p,latg2p,ntotal) partial field for each pe 
+!   lonf2p   - integer partial grid in longitude time 2
+!   latg2p   - integer partial grid in latitude divide 2
+!   ntotal   - integer total set of fields
+!
+!    output argument list:
+!   a   - real (lonf2,latg2,ntotal) full field 
+!   lonf2   - integer total grid in longitude time 2
+!   latg2   - integer total grid in latitude divide 2
+! 
+! subprograms called:
+!   mpi_gatherv   - gather message from all pe to master
+!
+!-------------------------------------------------------------------------------
+   use commpi       ! npes, mype, latlen, latstr, master, lonlen, lonstr,      &
+                    ! MPI_REAL, mpi_comm_world, latdef
+#ifdef REDUCE_GRID
+   use comreduce    ! lonfd, lonfds, lonfdp
+#else
+   use paramodel, only : lonf_
+#endif
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+   integer            ::  lonf2p,latg2p,lonf2,latg2,ntotal,                    &
+                          ii,jj,n,i,j,k,mk,ierr,lonlend,lonstrd,lonff
+   real               ::  a(lonf2p,latg2p,ntotal),b(lonf2,latg2,ntotal)
+   real(_mpi_real_),allocatable::tmpsnd(:),tmprcv(:)
+   integer,allocatable::  len(:),loc(:)
+!
+   allocate(tmpsnd(lonf2p*latg2p*ntotal))
+   allocate(tmprcv(lonf2 *latg2 *ntotal))
+   allocate(len(0:npes-1))
+   allocate(loc(0:npes-1))
+!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       loc(n)=mk
+#ifdef REDUCE_GRID
+       jj=0
+       do j = 1,latlen(n)
+         jj=jj+lonfdp(j,n)
+       enddo
+       len(n)=ntotal*jj*2
+#else
+       len(n)=ntotal*lonlen(n)*2*latlen(n)
+#endif
+       mk=loc(n)+len(n)
+     enddo
+   endif
+!
+#ifndef REDUCE_GRID
+   lonlend=lonlen(mype)
+#endif
+   mk=0
+   do k = 1,ntotal
+     do j = 1,latlen(mype)
+#ifdef REDUCE_GRID
+       lonlend=lonfdp(j,mype)
+#endif
+       do i = 1,lonlend
+         mk=mk+1
+         tmpsnd(mk)=a(i,j,k)
+         mk=mk+1
+         tmpsnd(mk)=a(i+lonlend,j,k)
+       enddo
+     enddo
+   enddo
+   len(mype)=mk
+!
+!soojin_couple
+!   call mpi_gatherv(tmpsnd,len(mype),MPI_REAL,                                 &
+!        tmprcv,len(0),loc(0),MPI_REAL,0,mpi_comm_world,ierr)
+   call mpi_gatherv(tmpsnd,len(mype),MPI_REAL,                                 &
+        tmprcv,len(0),loc(0),MPI_REAL,0,mpi_comm_private,ierr)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+   if( mype.eq.0 ) then
+     mk=0
+     do n = 0,npes-1
+#ifndef REDUCE_GRID
+       lonlend=lonlen(n)
+       lonstrd=lonstr(n)-1
+       lonff=lonf_
+#endif
+       do k = 1,ntotal
+         do j = 1,latlen(n)
+           jj=j+latstr(n)-1
+           jj=latdef(jj)
+#ifdef REDUCE_GRID
+           lonlend=lonfdp(j,n)
+           lonstrd=lonfds(j,n)-1
+           lonff=lonfd(jj)
+#endif
+           do i = 1,lonlend
+             ii=i+lonstrd
+             mk=mk+1
+             b(ii,jj,k)=tmprcv(mk)
+             ii=ii+lonff
+             mk=mk+1
+             b(ii,jj,k)=tmprcv(mk)
+           enddo
+         enddo
+       enddo
+     enddo
+   endif
+!
+   deallocate(tmpsnd)
+   deallocate(tmprcv)
+   deallocate(len)
+   deallocate(loc)
+!
+   return
+   end subroutine mpgp2f

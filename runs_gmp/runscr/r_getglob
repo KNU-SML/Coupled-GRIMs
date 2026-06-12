@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+#  get R-2 sigma file for boundary condition
+#
+YYYY=`echo $1 | cut -d':' -f1`
+MM=`echo $1 | cut -d':' -f2`
+DD=`echo $1 | cut -d':' -f3`
+HH=`echo $1 | cut -d':' -f4`
+ARCHIVE_DIR=$2
+PLATFORM=$3
+#
+ARCHIVE_DIR=`eval echo $ARCHIVE_DIR`
+#
+#
+if [ -s sig.anl.$YYYY$MM$DD$HH.ieee ] ; then
+  echo sig.anl.$YYYY$MM$DD$HH.ieee file already exist
+  exit
+fi
+#
+#  ftp get sigma and sfc
+#
+cat >ftpdat.getsgsc <<EOF
+binary
+passive off
+cd $ARCHIVE_DIR
+get sig.anl.$YYYY$MM$DD$HH.ieee
+quit
+EOF
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpscr ftpdat.getsgsc \
+					ftpout.getsgsc $PLATFORM || exit 8

@@ -1,0 +1,2203 @@
+Index: common/comfcst.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/common/comfcst.F90,v
+retrieving revision 1.4
+diff -r1.4 comfcst.F90
+155c155
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+386c386
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/diag_point_arrange.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/diag_point_arrange.F90,v
+retrieving revision 1.4
+diff -r1.4 diag_point_arrange.F90
+12c12,15
+<                      u,v,t,q,ntotal,hsw,hlw,vvel,qcicnv,qrscnv,                &
+---
+>                      u,v,t,q,ntotal,hsw,hlw,vvel,                              &
+> #ifdef EXPLICIT_CLOUDINESS
+>                      qcicnv,qrscnv,                                            &
+> #endif
+Index: fcst/dynamics_dfs_driver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/dynamics_dfs_driver.F90,v
+retrieving revision 1.5
+diff -r1.5 dynamics_dfs_driver.F90
+53c53
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+322c322
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/dynamics_sph_driver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/dynamics_sph_driver.F90,v
+retrieving revision 1.6
+diff -r1.6 dynamics_sph_driver.F90
+78c78
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+475c475
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+1110c1110
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/file_write_cld_grib.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/file_write_cld_grib.F90,v
+retrieving revision 1.4
+diff -r1.4 file_write_cld_grib.F90
+44c44
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/gloopr.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/gloopr.F90,v
+retrieving revision 1.12
+diff -r1.12 gloopr.F90
+132c132
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+417c417
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/gmp_integrate.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/gmp_integrate.F90,v
+retrieving revision 1.8
+diff -r1.8 gmp_integrate.F90
+94c94
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+858c858
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/noah_vic_seaicetm.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/noah_vic_seaicetm.F90,v
+retrieving revision 1.8
+diff -r1.8 noah_vic_seaicetm.F90
+121,151d120
+< !  the 13 vegetation types are:
+< !
+< !  1  ...  broadleave-evergreen trees (tropical forest)
+< !  2  ...  broadleave-deciduous trees
+< !  3  ...  broadleave and needle leave trees (mixed forest)
+< !  4  ...  needleleave-evergreen trees
+< !  5  ...  needleleave-deciduous trees (larch)
+< !  6  ...  broadleave trees with groundcover (savanna)
+< !  7  ...  groundcover only (perenial)
+< !  8  ...  broadleave shrubs with perenial groundcover
+< !  9  ...  broadleave shrubs with bare soil
+< ! 10  ...  dwarf trees and shrubs with ground cover (trunda)
+< ! 11  ...  bare soil
+< ! 12  ...  cultivations (use parameters from type 7)
+< ! 13  ...  glacial
+< !
+< !  the 12 vegetation type of USGS data are:
+< !
+< !  1  ... mixed farming tall grassland  (assumed to be type 12 of old veg)
+< !  2  ... tall/medium grassland, shrubland            (type  8 of old veg)
+< !  3  ... short grassland meadow and shrubland        (type  7 of old veg)
+< !  4  ... tundra                                      (type 10 of old veg)
+< !  5  ... sandy dessert                               (type 11 of old veg)
+< !  6  ... rocky dessert                               (type 11 of old veg)
+< !  7  ... tropical evergreen broadleaved forest       (type  1 of old veg)
+< !  8  ... evergreen forest, needleleaved forest       (type  4 of old veg)
+< !  9  ... medium grassland, woodland                  (type  9 of old veg)
+< ! 10  ... deciduous forest                            (type  2 of old veg)
+< ! 11  ... mixed deciduous and evergreen forest        (type  3 of old veg)
+< ! 12  ... ice                                         (type 13 of old veg)
+< !
+213a183
+>    xrcl = sqrt(rcl)
+227c197
+<    xrcl = sqrt(rcl)
+---
+>    flag(:) = .false.
+228a199,204
+>      if(slimsk(i) .eq. 2.) then
+>        flag(i) = .true.
+>      endif
+>    enddo
+>    do i = 1, im
+>      if(flag(i)) then
+230c206
+<       tem(i)=face*delx*g/(2.0*(1.0-prsl1(i)/prsi1(i))
+---
+>          tem(i)=face*delx*g/(2.0*(1.0-prsl1(i)/prsi1(i))
+232d207
+<       if(slimsk(i) .eq. 2.) then
+248c223
+<          theta1(i) = t1(i) / prslk1(i) * prsik1(1)
+---
+>          theta1(i) = t1(i) / prslk1(i) * prsik1(i)
+289c264
+<       endif
+---
+>      endif
+295,298c270,272
+<       if(slimsk(i) .eq. 2.) then
+<          z1(i) = zl1(i)
+< !       drain(i) = 0.
+<       endif
+---
+>      if(flag(i)) then
+>        z1(i) = zl1(i)
+>      endif
+301,312c275,285
+<       do i = 1, im
+<          if(slimsk(i) .eq. 2.) then
+<             et(i,k) = 0.
+<             rhsmc(i,k) = 0.
+<             aim(i,k) = 0.
+<             bim(i,k) = 1.
+<             cim(i,k) = 0.
+<             stsoil(i,k) = stc(i,k)
+< !
+<             stcx(i,k) = stc(i,k)
+<          endif
+<       enddo
+---
+>      do i = 1, im
+>        if(flag(i)) then
+>           et(i,k) = 0.
+>           rhsmc(i,k) = 0.
+>           aim(i,k) = 0.
+>           bim(i,k) = 1.
+>           cim(i,k) = 0.
+>           stsoil(i,k) = stc(i,k)
+>           stcx(i,k) = stc(i,k)
+>        endif
+>      enddo
+313a287
+> !
+315,327c289,299
+<       if(slimsk(i) .eq. 2.) then
+<          edir(i) = 0.
+<          ec(i) = 0.
+< !        evap(i) = 0.
+< !        ep(i) = 0.
+< !        snowmt(i) = 0.
+< !        snowev(i) = 0.
+< !        gflux(i) = 0.
+<          rhscnpy(i) = 0.
+<          fx(i) = 0.
+<          etpfac(i) = 0.
+<          canfac(i) = 0.
+<       endif
+---
+>      if(flag(i)) then
+>        edir(i) = 0.
+>        ec(i) = 0.
+>        rhscnpy(i) = 0.
+>        fx(i) = 0.
+>        etpfac(i) = 0.
+>        canfac(i) = 0.
+>        gflux(i) = 0.
+>        dft0(i) = 2.2
+>        dew(i) = 0.
+>      endif
+333,335c305,307
+<       if(slimsk(i) .eq. 2.) then
+<          rch(i) = rho(i) * cp * ch(i) * wind(i)
+<       endif
+---
+>      if(flag(i)) then
+>        rch(i) = rho(i) * cp * ch(i) * wind(i)
+>      endif
+340,344d311
+< !
+<    do i = 1, im
+<       if(slimsk(i).eq.2.) then
+<          gflux(i) = 0.
+< !
+347,356d313
+< !
+<          dft0(i) = 2.2
+<       endif
+<    enddo
+< !
+<    do i = 1, im
+<       if(slimsk(i).eq.2.) then
+< !         if(snowd(i).gt..001) then
+<          if(flagsnw(i)) then
+< !
+359,360c316,320
+<             tflx = min(t1(i), tsurf(i))
+<             gflux(i) = -dfsnow * (tflx - stsoil(i,1))                          &
+---
+>    do i = 1, im
+>      if(flag(i)) then
+>        if(flagsnw(i)) then
+>           tflx = min(t1(i), tsurf(i))
+>           gflux(i) = -dfsnow * (tflx - stsoil(i,1))                          &
+362,368c322,328
+<          else
+<             gflux(i) = dft0(i) * (stsoil(i,1) - tsurf(i))                      &
+<                     / (-.5 * zsoil(i,1))
+<          endif
+<          gflux(i) = max(gflux(i),-200.)
+<          gflux(i) = min(gflux(i),+200.)
+<       endif
+---
+>        else
+>           gflux(i) = dft0(i) * (stsoil(i,1) - tsurf(i))                      &
+>                   / (-.5 * zsoil(i,1))
+>        endif
+>        gflux(i) = max(gflux(i),-200.)
+>        gflux(i) = min(gflux(i),+200.)
+>      endif
+369a330
+> !
+371,375c332,336
+< !       flag(i) = slimsk(i).ne.0.
+<       flag(i) = slimsk(i).eq.2.
+<       partlnd(i) = 1.
+<       if(snowd(i).gt.0..and.snowd(i).le..001) then
+<        partlnd(i) = 1. - snowd(i) / .001
+---
+>      if(flag(i)) then
+>        partlnd(i) = 1.
+>        if(snowd(i).gt.0..and.snowd(i).le..001) then
+>           partlnd(i) = 1. - snowd(i) / .001
+>        endif
+377a339
+> !
+379,382c341,344
+<       if(slimsk(i) .eq. 2.) then
+<          snowev(i) = 0.
+<          if(snowd(i).gt..001) partlnd(i) = 0.
+<       endif
+---
+>      if(flag(i)) then
+>        snowev(i) = 0.
+>        if(snowd(i).gt..001) partlnd(i) = 0.
+>      endif
+388c350
+<       if(flag(i)) then
+---
+>      if(flag(i)) then
+413c375
+<       endif
+---
+>      endif
+419,422c381,383
+< !       if(slimsk(i).eq.2.and.snowd(i).le..001) then
+<       if(slimsk(i).eq.2.) then
+<          evap(i) = partlnd(i) * ep(i)
+<       endif
+---
+>      if(flag(i)) then
+>         evap(i) = partlnd(i) * ep(i)
+>      endif
+430,442c391,396
+< !       flag(i) = slimsk(i).ne.0..and.ep(i).le.0.
+<       flag(i) = slimsk(i).eq.2..and.ep(i).le.0.
+<       dew(i) = 0.
+<    enddo
+<    do i = 1, im
+<      if(flag(i)) then
+< !
+< !         dew(i) = -ep(i) * delt2 / (hvap * rhoh2o)
+<          dew(i) = -ep(i) * delt / (hvap * rhoh2o)
+<          evap(i) = ep(i)
+<          dew(i) = dew(i) * partlnd(i)
+<          evap(i) = evap(i) * partlnd(i)
+<          dm(i) = 1.
+---
+>      if(flag(i).and.ep(i).le.0.) then
+>         dew(i) = -ep(i) * delt / (hvap * rhoh2o)
+>         evap(i) = ep(i)
+>         dew(i) = dew(i) * partlnd(i)
+>         evap(i) = evap(i) * partlnd(i)
+>         dm(i) = 1.
+447,452d400
+< !
+<    do i = 1, im
+< !       flag(i) = slimsk(i).ne.0..and.snowd(i).gt.0.
+<       flag(i) = slimsk(i).eq.2..and.snowd(i).gt.0.
+<    enddo
+< !
+454d401
+< !
+458,460c405
+<       if(flag(i)) then
+< !
+< !         bfact = snowd(i) / (delt2 * ep(i) / ((hvap+hfus) * rhoh2o))
+---
+>      if(flag(i).and.snowd(i).gt.0.) then
+468d412
+< !           evap(i) = (snowd(i)/.001)*bfact*ep(i) + evap(i)
+472d415
+< !           evap(i) = bfact * ep(i)
+476,485d418
+< !
+< !         tsurf(i) = t1(i) +
+< !    &          (rcap(i) - gflux(i) - dfsnow * (t1(i) - stsoil(i,1))
+< !    &           /(factsnw(i) * max(snowd(i),.001))
+< !    &           + theta1(i) - t1(i)
+< !    &           - bfact * ep(i)) / (rsmall(i) * rch(i)
+< !    &           - snowev(i)) / (rsmall(i) * rch(i)
+< !    &           + dfsnow / (factsnw(i)* max(snowd(i),.001)))
+< !        snowd(i) = snowd(i) - bfact * ep(i) * delt / (rhoh2o * hvap)
+< !         snowd(i) = snowd(i) - snowev(i) * delt2 / (rhoh2o * hvap)
+490c423
+<       endif
+---
+>      endif
+496,500c429
+< !       flag(i) = slimsk(i).ne.0.
+<       flag(i) = slimsk(i).eq.2..and.snowd(i).gt..0
+<    enddo
+<    do i = 1, im
+<       if(flag(i).and.tsurf(i).gt.t0c) then
+---
+>      if(flag(i).and.snowd(i).gt..0.and.tsurf(i).gt.t0c) then
+519c448
+<       endif
+---
+>      endif
+523,528d451
+< !
+<    do i = 1, im
+< !       flag(i) = slimsk(i).ne.0.
+<       flag(i) = slimsk(i).eq.2.
+<    enddo
+< !
+529a453
+> !  heat flux from snow is explicit in time
+532,541c456,462
+< !       if(flag(i).and.snowd(i).le..001) then
+<      if(flag(i).and..not.flagsnw(i)) then
+<        yy(i) = t1(i) +                                                         &
+< !    &          (rcap(i)-gflux(i) + theta1(i) - t1(i)
+<               (rcap(i)-gflux(i) - evap(i)) / (rsmall(i) * rch(i))
+<        zz(i) = 1. + dft0(i) / (-.5 * zsoil(i,1) * rch(i) * rsmall(i))
+<        xx(i) = dft0(i) * (stsoil(i,1) - yy(i)) /(.5 * zsoil(i,1) * zz(i))
+<      endif
+< !       if(flag(i).and.snowd(i).gt..001) then
+<      if(flag(i).and.flagsnw(i)) then
+---
+>      if(flag(i)) then
+>        if((.not.flagsnw(i))) then
+>          yy(i) = t1(i) +                                                      &
+>                 (rcap(i)-gflux(i) - evap(i)) / (rsmall(i) * rch(i))
+>          zz(i) = 1. + dft0(i) / (-.5 * zsoil(i,1) * rch(i) * rsmall(i))
+>          xx(i) = dft0(i) * (stsoil(i,1) - yy(i)) /(.5 * zsoil(i,1) * zz(i))
+>        else
+543,545d463
+< !
+< !  heat flux from snow is explicit in time
+< !
+549c467,468
+<       endif
+---
+>        endif
+>      endif
+553d471
+< !
+560,566c478,479
+<          if(slimsk(i).eq.1.) then
+<             dft1(i) = osu_funct_ktsoil(smcz(i),soiltyp(i))
+<             hcpct(i) = smc(i,1) * ch2o + (1. - smc(i,1)) * csoil
+<          else
+<             dft1(i) = dft0(i)
+<             hcpct(i) = cice
+<          endif
+---
+>          dft1(i) = dft0(i)
+>          hcpct(i) = cice
+578,580d490
+< !         ss = dft0(i) * (stsoil(i,1) - yy(i))
+< !    &         / (.5 * zsoil(i,1) * zz(i))
+< !         rhstc(i,1) = (dft1(i) * dtdz1(i) - ss)
+583a494
+> !
+586,591c497,499
+< !           if(slimsk(i).eq.1.) then
+< !             hcpct(i) = smc(i,k) * ch2o + (1. - smc(i,k)) * csoil
+< !         elseif(slimsk(i).eq.2.) then
+<          if(slimsk(i).eq.2.) then
+<             hcpct(i) = cice
+<          endif
+---
+>         if(flag(i)) then
+>            hcpct(i) = cice
+>         endif
+599,601d506
+<                if(slimsk(i).eq.1.) then
+<                   dft2(i) = osu_funct_ktsoil(smcz(i),soiltyp(i))
+<                endif
+610a516
+> !
+612,618c518
+< !            if(slimsk(i).eq.1.) then
+< !              dtdz2(i) = (stsoil(i,k) - tg3(i))
+< !     &                   / (.5 * (zsoil(i,k-1) + zsoil(i,k)) - zbot)
+< !              dft2(i) = osu_funct_ktsoil(smc(i,k),soiltyp(i))
+< !              ci(i,k) = 0.
+< !            endif
+<             if(slimsk(i).eq.2.) then
+---
+>             if(flag(i)) then
+625a526
+> !
+645,649d545
+< !
+< !           rhstc(i,k) = rhstc(i,k) * delt2
+< !           ai(i,k) = ai(i,k) * delt2
+< !           bi(i,k) = 1. + bi(i,k) * delt2
+< !           ci(i,k) = ci(i,k) * delt2
+665a562
+> !
+682a580
+> !
+704,708c602
+< !       if(slimsk(i).ne.0..and.snowd(i).le..001) then
+< !       if(slimsk(i).ne.0..and..not.flagsnw(i)) then
+<       if(slimsk(i).eq.2..and..not.flagsnw(i)) then
+< !
+< !         tsurf(i) = (yy(i) + (zz(i) - 1.) * stsoil(i,1)) / zz(i)
+---
+>       if((flag(i)).and..not.flagsnw(i)) then
+711,713d604
+<       endif
+< !       if(slimsk(i).eq.2..and.snowd(i).le..001) then
+<       if(slimsk(i).eq.2..and..not.flagsnw(i)) then
+716a608
+> !
+719c611
+<          if(slimsk(i).eq.2) then
+---
+>          if(flag(i)) then
+729,730c621
+<       write(6,*)'in noah_vic_seaicetm'
+<       call print_maxmin_six(tsurf,im,1,1,1,'tsurf')
+---
+>       call print_maxmin_seven(tsurf,im,im,1,1,1,'tsurf in seaicetm')
+735,740c626,629
+< !       if(slimsk(i).ne.0.) then
+<          if(slimsk(i).eq.2.) then
+< !
+<             tskin(i) = ctfil1 * tsurf(i) + ctfil2 * tskin(i)
+<             tskin(i) = tsurf(i)
+<          endif
+---
+>         if(flag(i)) then
+> !!!!          tskin(i) = ctfil1 * tsurf(i) + ctfil2 * tskin(i)
+>            tskin(i) = tsurf(i)
+>         endif
+743,751d631
+< #ifdef DBG
+<    if(iope) then
+<       call print_maxmin_six(tskin,im,1,1,1,'tskin')
+<    endif
+< #endif
+<    do k = 1, km
+<       do i = 1, im
+< !         if(slimsk(i).ne.0.) then
+<          if(slimsk(i).eq.2.) then
+753,756c633,638
+< !           stc(i,k) = ctfil1 * stsoil(i,k) + ctfil2 * stc(i,k)
+<             stc(i,k) = stsoil(i,k)
+<          endif
+<       enddo
+---
+>    do k = 1, km
+>      do i = 1, im
+>        if(flag(i)) then
+>           stc(i,k) = stsoil(i,k)
+>        endif
+>      enddo
+762,770c644,645
+< !       flag(i) = slimsk(i).ne.0.
+<       flag(i) = slimsk(i).eq.2.                                                &
+< !    &            .and.snowd(i).gt..001
+<                .and.flagsnw(i)
+<    enddo
+<    do i = 1, im
+<       if(flag(i)) then
+< !
+< !         gflux(i) = -dfsnow * (tskin(i) - stc(i,1))
+---
+>      if(flag(i)) then
+>        if(flagsnw(i)) then
+773,780c648
+<       endif
+<    enddo
+<    do i = 1, im
+< !       if(slimsk(i).ne.0..and.snowd(i).le..001) then
+< !       if(slimsk(i).ne.0..and..not.flagsnw(i)) then
+<       if(slimsk(i).eq.2..and..not.flagsnw(i)) then
+< !
+< !         gflux(i) = dft0(i) * (stc(i,1) - tskin(i))
+---
+>        else
+781a650
+>        endif
+788c657
+<       if(slimsk(i) .eq. 2.) then
+---
+>      if(flag(i)) then
+790c659
+<       endif
+---
+>      endif
+796c665
+<       if(slimsk(i) .eq. 2.) then
+---
+>      if(flag(i)) then
+803c672
+<       endif
+---
+>      endif
+807,809c676,678
+<       call print_maxmin_six(qsurf,im,1,1,1,'qsurf')
+<       call print_maxmin_six(evap,im,1,1,1,'evap')
+<       call print_maxmin_six(rch,im,1,1,1,'rch')
+---
+>       call print_maxmin_seven(qsurf,im,im,1,1,1,'qsurf in seaicetm')
+>       call print_maxmin_seven(evap,im,im,1,1,1,'evap in seaicetm')
+>       call print_maxmin_seven(rch,im,im,1,1,1,'rch in seaicetm')
+Index: fcst/phys_cps_ccm3.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/phys_cps_ccm3.F90,v
+retrieving revision 1.7
+diff -r1.7 phys_cps_ccm3.F90
+5c5
+<                  hpbl,gamt,gamq,qci,qrs,delx)
+---
+>                  hpbl,gamt,gamq,delx)
+60a61
+> #ifdef EXPLICIT_CLOUDINESS
+61a63
+> #endif
+Index: fcst/phys_cps_sas.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/phys_cps_sas.F90,v
+retrieving revision 1.15
+diff -r1.15 phys_cps_sas.F90
+2c2
+<    subroutine phys_cps_sas(jcap,delt,del,prsl,prsi,prslk,prsik,zl,ncloud,      &
+---
+>    subroutine phys_cps_sas(delt,delx,del,prsl,prsi,prslk,prsik,zl,zi,          &
+6,7c6,7
+<             q1,t1,cldwrk,rn,kbot,ktop,kuo,spd,lat,slimsk,dot,                  &
+<             u1,v1,rcs,                                                         &
+---
+>             q1,t1,u1,v1,rcs,slimsk,dot,                                        &
+>             cldwrk,rain,                                                       &
+22c22,26
+<             hpbl,gamt,gamq,qci,qrs,delx,                                       &
+---
+>             hpbl,gamt,gamq,                                                    &
+> #ifdef EXPLICIT_CLOUDINESS
+>             qci,qrs,                                                           &
+> #endif
+>             jcap,ncloud,lat,kbot,ktop,kuo,                                     &
+29c33,34
+< ! subprogram:    phys_cps_sas      computes convective heating and moisng
+---
+> ! subprogram:    phys_cps_sas      computes convective heating and moistening
+> !                                                      and momentum transport
+33c38,39
+< !   by georg grell. the scheme includes updraft and downdraft effects.
+---
+> !   by georg grell. the scheme has been revised at ncep since initial 
+> !   implementation in 1993. it includes updraft and downdraft effects.
+36,37c42,48
+< !   accomplished by the compensating environment. the name comes from
+< !   "simplified arakawa-schubert convection parameterization".
+---
+> !   accomplished by the compensating environment. convective momentum transport
+> !   is taken into account. the name comes from "simplified arakawa-schubert
+> !   convection parameterization".
+> !
+> ! developed by hua-lu pan, wan-shu wu, songyou hong, and jongil han
+> !   implemented into wrf by kyosun sunny lim and songyou hong
+> !   module with cpp-based options is available in grims 
+40,46c51,58
+< !   92-03-01  hua-lu pan     initial operational development
+< !   98-03-01  song-you hong  revised trigger, and cloud work function
+< !   99-03-01  hua-lu pan     multiple clouds
+< !   06-03-01  young-hwa byun closure based on moisture convergence 
+< !   09-10-01  jung-eun kim        f90 format with standard physics modules
+< !   10-09-01  jong-il han    significantly revised version 
+< !   
+---
+> !   92-03-01  hua-lu pan       operational development
+> !   96-03-01  song-you hong    revised closure, and trigger 
+> !   99-03-01  hua-lu pan       multiple clouds
+> !   06-03-01  young-hwa byun   closure based on moisture convergence (optional)
+> !   09-10-01  jung-eun kim     f90 format with standard physics modules
+> !   10-07-01  jong-il han      revised cloud model, trigger as in gfs july 2010
+> !   10-12-01  kyosun sunny lim wrf compatible version
+> !
+48,49c60,62
+< ! usage:    call phys_cps_sas(jcap,delt,del,prsl,prslk,zl,ps,qn,tn,            &
+< !                       q1,t1,rn,kbot,ktop,kuo,lat,slimsk,                     &
+---
+> ! usage:    call phys_cps_sas(jcap,delt,del,prsl,prslk,prsik,zl,ncloud,        &
+> !                       q1,t1,cldwrk,rain,kbot,ktop,kuo,lat,slimsk,dot,        &
+> !                       u1,v1,rcs,                                             &
+72c85
+< !     rn       - real (ims:ime) convective rain in meters
+---
+> !     rain       - real (ims:ime) convective rain in meters
+83,85d95
+< ! attributes:
+< !   language: fortran 77.
+< !   machine:  cray.
+90a101
+> !   han and pan   (2011, wea. forecasting)
+97c108
+<    integer         ::  jcap,lat,                                               &
+---
+>    integer         ::  jcap,lat,ncloud,                                        &
+102c113
+<    real            ::  delt
+---
+>    real            ::  delt,rcs
+105,110c116,121
+<                        prsi(ims:ime,kms:kme),prsik(ims:ime,kms:kme),           &
+<                        zi(ims:ime,kms:kme),                                    & 
+<                        zl(ims:ime,kms:kme),q1(ims:ime,kms:kme),                &
+<                        t1(ims:ime,kms:kme),rn(ims:ime)
+< #ifdef NCEP2010
+<    real            ::  rntot(ims:ime),delqev(ims:ime),delq2(ims:ime) 
+---
+>                        prsi(ims:ime,kms:kme+1),prsik(ims:ime,kms:kme+1),       &
+>                        zl(ims:ime,kms:kme),zi(ims:ime,kms:kme+1),              & 
+>                        q1(ims:ime,kms:kme),t1(ims:ime,kms:kme),                &
+>                        u1(ims:ime,kms:kme),v1(ims:ime,kms:kme),                &
+> #ifdef EXPLICIT_CLOUDINESS
+>                        qci(ims:ime,kms:kme),qrs(ims:ime,kms:kme),              &
+112,114c123
+<    integer         ::  ncloud
+<    real            ::  q2(ims:ime,kms:kme,ncloud)
+<    integer         ::  kk
+---
+>                        dot(ims:ime,kms:kme)
+116c125
+<    real            ::  ql(ims:ime,kms:kme,2)
+---
+>    real            ::  q2(ims:ime,kms:kme,ncloud)
+118,121c127,128
+<    real            ::  u1(ims:ime,kms:kme),v1(ims:ime,kms:kme)
+<    integer         ::  kbot(ims:ime),ktop(ims:ime),kuo(ims:ime)
+<    real            ::  spd(ims:ime,kms:kme),slimsk(ims:ime)
+<    real            ::  dot(ims:ime,kms:kme),cldwrk(ims:ime)
+---
+> !
+>    real            ::  cldwrk(ims:ime),rain(ims:ime)
+123c130,132
+<    real            ::  qci(ims:ime,kms:kme),qrs(ims:ime,kms:kme)
+---
+>    integer         ::  kbot(ims:ime),ktop(ims:ime),kuo(ims:ime)
+>    real            ::  slimsk(ims:ime)
+> !
+147,148c156,163
+<    integer         ::  i,k,kmax,kbmax,kbm,                                    &
+<                        jmn,indx,indp
+---
+>    integer         ::  kk
+> #ifdef DET_HYDRO
+>    real            ::  ql(its:ite,kts:kte,ncloud)
+> #endif
+> #ifdef NCEP2010
+>    real            ::  rntot(its:ite),delqev(its:ite),delq2(its:ite) 
+> #endif
+>    integer         ::  i,k,kmax,kbmax,kbm,jmn,indx,indp,kts1,kte1,kmax1
+240c255
+<    real            :: tem,tem1,cincr
+---
+>    real            ::  tem,tem1,cincr
+242c257
+<    real,parameter  :: dthk=25.
+---
+>    real,parameter  ::  dthk=25.
+245c260
+<    real,parameter  :: cincrmax=180.,cincrmin=120.
+---
+>    real,parameter  ::  cincrmax=180.,cincrmin=120.
+250c265
+<                        edtmaxs,edtmaxl,evfact,evef,                            &
+---
+>                        edtmaxs,edtmaxl,evfacts,evef,                           &
+258c273
+<                         evfactl,                                               & 
+---
+>                        evfactl,                                                & 
+272c287
+<                        dv1,dv2,dv3,dv1q,dv2q,dv3q,dvq1,rcs,                    &
+---
+>                        dv1,dv2,dv3,dv1q,dv2q,dv3q,dvq1,                        &
+284a300,301
+> !  climatological critical cloud work functions for closure
+> !
+290,292d306
+< !  gdas derived acrit
+< !     data acritt/.203,.515,.521,.566,.625,.665,.659,.688,
+< !    &            .743,.813,.886,.947,1.138,1.377,1.896/
+294a309,317
+> ! define miscellaneous values
+> !
+>    el2orc = hvap_*hvap_/(rv_*cp_)
+>    eps    = rd_/rv_
+>    fact1  = (cvap_-cliq_)/rv_
+>    fact2  = hvap_/rv_-fact1*t0c_
+>    kts1 = kts + 1
+>    kte1 = kte - 1
+> !
+297,300c320,323
+<    alphal = .5
+<    alphas = .5
+<    betal  = .05
+<    betas  = .05
+---
+>    alphal = 0.5
+>    alphas = 0.5
+>    betal  = 0.05
+>    betas  = 0.05
+305,308c328,331
+<    pdpdwn = 0.
+<    pdetrn = 200.
+<    c0     = .002
+<    c1     = .002
+---
+>    pdpdwn = 0.0
+>    pdetrn = 200.0
+>    c0     = 0.002
+>    c1     = 0.002
+310c333
+<    clam   = .1
+---
+>    clam   = 0.1
+316c339
+<    aafac  = .1
+---
+>    aafac  = 0.1
+319c342
+<    pgcon=0.55
+---
+>    pgcon = 0.55
+322,328d344
+< ! define miscellaneous values
+< !
+<    el2orc = hvap_*hvap_/(rv_*cp_)
+<    eps    = rd_/rv_
+<    fact1  = (cvap_-cliq_)/rv_
+<    fact2  = hvap_/rv_-fact1*t0c_
+< !
+356c372
+<      rn(i)     = 0.
+---
+>      rain(i)     = 0.0
+362,365c378,381
+<      cldwrk(i) = 0.
+<      pdot(i)   = 0.
+<      edto(i)   = 0.
+<      edtx(i)   = 0.
+---
+>      cldwrk(i) = 0.0
+>      pdot(i)   = 0.0
+>      edto(i)   = 0.0
+>      edtx(i)   = 0.0
+367c383
+<      xmbmax(i) = .3
+---
+>      xmbmax(i) = 0.3
+379c395
+<      pbcdif(i)= 0.
+---
+>      pbcdif(i)= 0.0
+382c398
+<      edt(i) = 0.
+---
+>      edt(i) = 0.0
+389,390c405,406
+<    edtmaxl = .3
+<    edtmaxs = .3
+---
+>    edtmaxl = 0.3
+>    edtmaxs = 0.3
+393c409
+<    evfact = 0.3
+---
+>    evfacts = 0.3
+396a413
+> !
+399a417
+> !
+407c425,426
+<    do k = kts,15
+---
+> !
+>    do k = 1,15
+419,420c438,439
+<        if(prsl(i,k).gt.prsi(i,1)*.45) kbmax = k + 1
+<        if(prsl(i,k).gt.prsi(i,1)*.7)  kbm   = k + 1
+---
+>        if(prsl(i,k).gt.prsi(i,1)*0.45) kbmax = k + 1
+>        if(prsl(i,k).gt.prsi(i,1)*0.70) kbm   = k + 1
+422c441
+<        if(prsl(i,k).gt.prsi(i,1)*.04) kmax  = k + 1
+---
+>        if(prsl(i,k).gt.prsi(i,1)*0.04) kmax  = k + 1
+424c443
+<        if(prsl(i,k).gt.prsi(i,1)*.05) kmax  = k + 1
+---
+>        if(prsl(i,k).gt.prsi(i,1)*0.05) kmax  = k + 1
+428a448
+>    kmax1 = kmax - 1
+436a457
+> #ifdef EXPLICIT_CLOUDINESS
+439,440c460,462
+<        pwo(i,k)  = 0.
+<        pwdo(i,k) = 0.
+---
+> #endif
+>        pwo(i,k)  = 0.0
+>        pwdo(i,k) = 0.0
+442c464
+<        dellal(i,k) = 0.
+---
+>        dellal(i,k) = 0.0
+445,448c467,470
+<        hcko(i,k) = 0.
+<        qcko(i,k) = 0.
+<        hcdo(i,k) = 0.
+<        qcdo(i,k) = 0.
+---
+>        hcko(i,k) = 0.0
+>        qcko(i,k) = 0.0
+>        hcdo(i,k) = 0.0
+>        qcdo(i,k) = 0.0
+452a475
+> !
+464a488
+> !
+468,469c492,493
+<        pwo(i,k) = 0.
+<        pwdo(i,k) = 0.
+---
+>        pwo(i,k) = 0.0
+>        pwdo(i,k) = 0.0
+472c496
+<        dbyo(i,k) = 0.
+---
+>        dbyo(i,k) = 0.0
+474,476c498,500
+<        fent1(i,k) = 1.
+<        fent2(i,k) = 1.
+<        frh(i,k) = 0.
+---
+>        fent1(i,k) = 1.0
+>        fent2(i,k) = 1.0
+>        frh(i,k) = 0.0
+479,482c503,506
+<        ucko(i,k) = 0.
+<        vcko(i,k) = 0.
+<        ucdo(i,k) = 0.
+<        vcdo(i,k) = 0.
+---
+>        ucko(i,k) = 0.0
+>        vcko(i,k) = 0.0
+>        ucdo(i,k) = 0.0
+>        vcdo(i,k) = 0.0
+510a535
+> !
+513,515c538,540
+<        dct(i,k) = 0.
+<        fcu(i,k) = 0.
+<        fcd(i,k) = 0.
+---
+>        dct(i,k) = 0.0
+>        fcu(i,k) = 0.0
+>        fcd(i,k) = 0.0
+561c586,587
+<    do k = kts+1,kbm
+---
+> !
+>    do k = kts1,kbm
+568a595
+> !
+581c608,609
+<    do k = kts+1,kbmax
+---
+> !
+>    do k = kts1,kbmax
+588a617
+> !
+590c619
+<    do k = kts,kmax-1
+---
+>    do k = kts,kmax1
+640a670
+> !
+645,646d674
+< !
+< 
+647a676
+> !
+669d697
+< !
+670a699
+> !
+704d732
+< !        pdot(i) = 10.* dot(i,kbcon(i))
+724a753
+> !
+766a796
+> !
+770a801
+> !
+805,818d835
+< ! found lfc, can define rest of variables
+< !
+<    6001 format(2x,-2p10f12.2)
+<    6002 format(2x,10f12.2)
+<    6003 format(2x,3p10f12.2)
+< !
+< #ifndef NCEP2010
+<    do k = kts,kte-1
+<      do i = its,ite
+<        zi(i,k) = 0.5*(zl(i,k)+zl(i,k+1))
+<      enddo
+<    enddo
+< #endif
+< !
+820c837
+<    do k = kts,kte-1
+---
+>    do k = kts,kte1
+822,823c839
+<        zi(i,k) = 0.5*(zl(i,k)+zl(i,k+1))
+<        xlamb(i,k) = clam / zi(i,k) 
+---
+>        xlamb(i,k) = clam / zi(i,k+1) 
+830c846
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+850c866
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+864c880
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+904,908c920,921
+< #ifdef NCEP2010
+<    do k = kbmax,kts,-1
+< #else
+<    do k = kbmax,kts+1,-1
+< #endif
+---
+> !
+>    do k = kbmax,kts1,-1
+910a924
+>          dz = zi(i,k+2) - zi(i,k+1)
+912d925
+<          dz = zi(i,k+1) - zi(i,k)
+916d928
+<          dz = .5 * (zl(i,k+1) - zl(i,k-1))
+923c935
+<   do k = kts+1,kmax-1
+---
+>   do k = kts1,kmax1
+926c938
+<          dz  = zi(i,k) - zi(i,k-1)
+---
+>          dz  = zi(i,k+1) - zi(i,k)
+932,933c944
+< #endif
+< #ifndef NCEP2010
+---
+> #else
+959c970
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+963c974
+<          dz   = zi(i,k) - zi(i,k-1)
+---
+>          dz   = zi(i,k+1) - zi(i,k)
+1003c1014,1015
+<    do k = kts+1,kmax
+---
+> !
+>    do k = kts1,kmax
+1010a1023
+> !
+1015a1029
+> !
+1024c1038
+< !!
+---
+> !
+1030c1044
+< !!
+---
+> !
+1039a1054
+> !
+1047c1062
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+1054a1070
+> !
+1059a1076
+> !
+1067a1085
+> !
+1080a1099
+> !
+1086a1106
+> #ifdef MUL_CLDTOP
+1094a1115,1124
+> ! make sure that jmin is within the cloud
+> !
+>    do i = its,ite
+>      if(cnvflg(i)) then
+>        jmin(i) = min(lmin(i),ktcon(i)-1)
+>        jmin(i) = max(jmin(i),kbcon(i)+1)
+>        if(jmin(i).ge.ktcon(i)) cnvflg(i) = .false.
+>      endif
+>    enddo
+> !
+1097,1098c1127
+< #ifdef MUL_CLDTOP
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+1139a1169
+> !
+1142d1171
+< !
+1155c1184
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+1164c1193
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+1166,1168d1194
+< #ifdef NCEP2010
+<        if(cnvflg(i).and.k.gt.kbcon(i).and.k.le.ktcon(i)) then
+< #else
+1170d1195
+< #endif
+1178d1202
+< !
+1179a1204
+> !
+1190c1215
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+1192,1194d1216
+< #ifdef NCEP2010
+<        if(cnvflg(i).and.k.gt.kbcon(i).and.k.le.ktcon(i)) then
+< #else
+1196d1217
+< #endif
+1205,1206c1226
+< #endif
+< #ifdef NCEP2010
+---
+> #else
+1212,1214c1232,1234
+<         hmin(i) = heo(i,kbcon1(i))
+<         lmin(i) = kbmax
+<         jmin(i) = kbmax
+---
+>        hmin(i) = heo(i,kbcon1(i))
+>        lmin(i) = kbmax
+>        jmin(i) = kbmax
+1217c1237,1238
+<    do k = kts+1,kbmax 
+---
+> !
+>    do k = kts1,kbmax 
+1220,1221c1241,1242
+<           lmin(i) = k + 1
+<           hmin(i) = heo(i,k)
+---
+>          lmin(i) = k + 1
+>          hmin(i) = heo(i,k)
+1246a1268
+> !
+1248a1271
+> !
+1250,1253d1272
+< #ifdef NCEP2010
+<      if(cnvflg(i).and.jmin(i).le.kbcon(i))   then
+<        cnvflg(i) = .false.
+< #else
+1258d1276
+< #endif
+1265,1266d1282
+< #endif
+< #ifndef NCEP2010
+1279c1295
+<        aa1(i) = 0.
+---
+>      aa1(i) = 0.
+1281c1297,1298
+<    do k = kts+1,kmax
+---
+> !
+>    do k = kts1,kmax
+1285c1302
+<          dz1 = (zi(i,k) - zi(i,k-1))
+---
+>          dz1 = (zi(i,k+1) - zi(i,k))
+1303c1320
+< ! below lfc check if there is excess moisture to release latent heat
+---
+> ! check if there is excess moisture to release latent heat
+1326a1344,1345
+> #ifdef DBG
+> #ifdef EXPLICIT_CLOUDINESS
+1329c1348,1350
+< 1967          format(4e13.5)
+---
+> !1967          format(4e13.5)
+> #endif
+> #endif
+1342a1364,1365
+> #ifdef DBG
+> #ifdef EXPLICIT_CLOUDINESS
+1345c1368,1370
+< 1967          format(4e13.5)
+---
+> !1967          format(4e13.5)
+> #endif
+> #endif
+1355c1380
+<    do k = kts+1,kmax 
+---
+>    do k = kts1,kmax 
+1382a1408
+> !
+1391c1417
+< !!
+---
+> !
+1397d1422
+< !!
+1413c1438
+<         ktcon1(i) = kmax - 1
+---
+>         ktcon1(i) = kmax1
+1415c1440,1441
+<       do k = kts+1, kmax
+---
+> !
+>       do k = kts1, kmax
+1436c1462
+<    do k = kts+1,kmax
+---
+>    do k = kts1,kmax
+1440c1466
+<            dz = (zi(i,k) - zi(i,k-1))
+---
+>            dz = (zi(i,k+1) - zi(i,k))
+1510c1536
+< ! determine downdraft strength in terms of windshear
+---
+> ! determine downdraft strength in terms of wind shear
+1517c1543,1544
+<    do k = kts+1,kmax
+---
+> !
+>    do k = kts1,kmax
+1525a1553
+> !
+1528c1556
+<        vshear(i) = 1.e3 * vshear(i) / (zi(i,ktcon(i))-zi(i,kb(i)))
+---
+>        vshear(i) = 1.e3 * vshear(i) / (zi(i,ktcon(i)+1)-zi(i,kb(i)+1))
+1547c1575,1576
+<    do k = kts,kmax-1
+---
+> !
+>    do k = kts,kmax1
+1550c1579
+<          dz = zi(i,k+1) - zi(i,k)
+---
+>          dz = zi(i,k+2) - zi(i,k+1)
+1555a1585
+> !
+1564c1594
+<        dz =(sumx(i)+zi(i,1))/float(kbcon(i))
+---
+>        dz =(sumx(i)+zi(i,2))/float(kbcon(i))
+1588a1619
+> !
+1590c1621
+<    do k = kmax-1,kts,-1
+---
+>    do k = kmax1,kts,-1
+1594c1625
+<            dz = (zi(i,k+1) - zi(i,k))
+---
+>            dz = (zi(i,k+2) - zi(i,k+1))
+1598c1629
+<            dz = (zi(i,k+1) - zi(i,k))
+---
+>            dz = (zi(i,k+2) - zi(i,k+1))
+1606c1637
+<    do k = kmax,kts+1,-1
+---
+>    do k = kmax,kts1,-1
+1614a1646
+> !
+1631a1664
+> !
+1635,1636c1668,1669
+<        hcdo(i,jmin(i)) = heo(i,jmn)
+<        qcdo(i,jmin(i)) = qo(i,jmn)
+---
+>        hcdo(i,jmn) = heo(i,jmn)
+>        qcdo(i,jmn) = qo(i,jmn)
+1644c1677,1678
+<    do k = kmax-1,kts,-1 
+---
+> !
+>    do k = kmax1,kts,-1 
+1648c1682
+<          dz = zi(i,k+1) - zi(i,k)
+---
+>          dz = zi(i,k+2) - zi(i,k+1)
+1674c1708,1709
+<    do k = kmax-1,kts,-1
+---
+> !
+>    do k = kmax1,kts,-1
+1683c1718
+<          dz = zi(i,k+1) - zi(i,k)
+---
+>          dz = zi(i,k+2) - zi(i,k+1)
+1729c1764
+<    do k = kmax-1,kts,-1
+---
+>    do k = kmax1,kts,-1
+1751a1787
+> !
+1756c1792
+< !!
+---
+> !
+1769,1770d1804
+< !!
+< !
+1786a1821
+> !
+1812c1847
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+1834,1835c1869
+<          dz = zi(i,k) - zi(i,k-1)
+< !
+---
+>          dz = zi(i,k+1) - zi(i,k)
+1839d1872
+< !
+1938a1972
+> !
+1943d1976
+< ! would have on the stability,
+1948c1981
+< ! environmental conditions again, first heights
+---
+> ! environmental conditions again
+1950a1984
+> !
+1964a1999
+> !
+1974c2009
+<    do k = kts,kmax-1
+---
+>    do k = kts,kmax1
+2009a2045
+> !
+2015d2050
+< !         heo(i,k) = min(heo(i,k),heso(i,k))
+2017a2053
+> !
+2034c2070
+<    do k = kts+1,kmax-1
+---
+>    do k = kts1,kmax1
+2038c2074
+<          dz = zi(i,k) - zi(i,k-1)
+---
+>          dz = zi(i,k+1) - zi(i,k)
+2053a2090
+> !
+2058c2095,2096
+<    do k = kts+1,kmax-1
+---
+> !
+>    do k = kts1,kmax1
+2061c2099
+<          dz = zi(i,k) - zi(i,k-1)
+---
+>          dz = zi(i,k+1) - zi(i,k)
+2150,2151c2188,2189
+<        xhcd(i,jmin(i)) = heo(i,jmn)
+<        xqcd(i,jmin(i)) = qo(i,jmn)
+---
+>        xhcd(i,jmn) = heo(i,jmn)
+>        xqcd(i,jmn) = qo(i,jmn)
+2156c2194,2195
+<    do k = kmax-1,kts, -1
+---
+> !
+>    do k = kmax1,kts, -1
+2159c2198
+<          dz = zi(i,k+1) - zi(i,k)
+---
+>          dz = zi(i,k+2) - zi(i,k+1)
+2174c2213,2214
+<    do k = kmax-1,kts, -1
+---
+> !
+>    do k = kmax1,kts, -1
+2191c2231
+<          dz = zi(i,k+1) - zi(i,k)
+---
+>          dz = zi(i,k+2) - zi(i,k+1)
+2233c2273
+<    do k = kmax-1,kts, -1
+---
+>    do k = kmax1,kts, -1
+2275a2316
+> !
+2319d2359
+< !
+2423a2464
+> !
+2475,2476c2516
+< #endif
+< #ifdef NCEP2010
+---
+> !
+2495a2536
+> !
+2508c2549
+<          rn(i) = rn(i)                                                         &
+---
+>          rain(i) = rain(i)                                                     &
+2513c2554
+<          evef = edt(i) * evfact
+---
+>          evef = edt(i) * evfacts
+2522c2563
+<          rn(i) = rn(i)                                                         &
+---
+>          rain(i) = rain(i)                                                     &
+2530a2572
+> #ifdef EXPLICIT_CLOUDINESS
+2534,2537c2576,2579
+<          if(rn(i).gt.0..and.qcond(i).lt.0.) then
+<            qevap(i) = -qcond(i) * (1. - exp(-.32 * sqrt(dt2 * rn(i))))
+<            qevap(i) = min(qevap(i), rn(i)*1000.*g_/dp)
+< !
+---
+> #endif
+>          if(rain(i).gt.0..and.qcond(i).lt.0.) then
+>            qevap(i) = -qcond(i) * (1. - exp(-.32 * sqrt(dt2 * rain(i))))
+>            qevap(i) = min(qevap(i), rain(i)*1000.*g_/dp)
+2546c2588
+<          if(rn(i).gt.0..and.qevap(i).gt.0.) then
+---
+>          if(rain(i).gt.0..and.qevap(i).gt.0.) then
+2549c2591
+<            rn(i) = rn(i) - .001 * qevap(i) * dp / g_
+---
+>            rain(i) = rain(i) - .001 * qevap(i) * dp / g_
+2565a2608
+> !
+2595,2597c2638,2640
+<        if(rn(i).lt.0..and..not.flg(i)) rn(i) = 0.
+<        if(rn(i).le.0.) then
+<          rn(i) = 0.
+---
+>        if(rain(i).lt.0..and..not.flg(i)) rain(i) = 0.
+>        if(rain(i).le.0.) then
+>          rain(i) = 0.
+2614c2657
+<          if (cnvflg(i) .and. rn(i).gt.0.) then
+---
+>          if (cnvflg(i) .and. rain(i).gt.0.) then
+2631a2675
+> !
+2644c2688
+< 
+---
+> !
+2647c2691
+<        if(cnvflg(i).and.rn(i).le.0.) then
+---
+>        if(cnvflg(i).and.rain(i).le.0.) then
+2686c2730
+<        if (cnvflg(i)) then
+---
+>        if (cnvflg(i).and.rain(i).gt.0.) then
+2692a2737
+> !
+2694c2739
+<      if (cnvflg(i)) then
+---
+>      if (cnvflg(i).and.rain(i).gt.0.) then
+2706c2751
+<        if(cnvflg(i).and.k.le.ktcon(i)) then
+---
+>        if(cnvflg(i).and.k.le.ktcon(i).and.rain(i).gt.0.) then
+2723c2768
+<        if (cnvflg(i)) then
+---
+>        if (cnvflg(i).and.rain(i).gt.0.) then
+2731c2776
+<        if(cnvflg(i).and.k.le.ktcon(i)) then
+---
+>        if(cnvflg(i).and.k.le.ktcon(i).and.rain(i).gt.0.) then
+2742d2786
+< !
+Index: fcst/phys_gwd_kimarakawa.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/phys_gwd_kimarakawa.F90,v
+retrieving revision 1.11
+diff -r1.11 phys_gwd_kimarakawa.F90
+19d18
+< #ifdef DBG
+21,23d19
+< #else
+<                   dusfcg,dvsfcg,                                               &
+< #endif
+91d86
+< #ifdef DBG
+95d89
+< #endif
+137d130
+< #ifdef DBG
+139d131
+< #endif
+170,171c162,165
+< #ifdef DBG
+<    subroutine GWDO2D(dudt,dvdt,dtaux2d,dtauy2d,u1,v1,t1,q1,                    &
+---
+>    subroutine GWDO2D(dudt,dvdt,dtaux2d,dtauy2d,                                &
+>                     u1,v1,t1,q1,                                               &
+> #ifdef WRF
+>                     prsi,del,prsl,prslk,zl,rcl,                                &
+173c167
+<    subroutine GWDO2D(dudt,dvdt,u1,v1,t1,q1,                                    &
+---
+>                     prsi,prsl,prslk,zl,rcl,                                    &
+175d168
+<                     prsi,del,prsl,prslk,zl,rcl,                                &
+177d169
+< #ifdef WRF
+179,181d170
+< #else
+<                     g,cp,rd,rv,fv,pi,dxmeter,deltim,kpbl,kdt,lat,latd,lond,    &
+< #endif
+224,225c213
+< !        dudt, dvdt    as augmented by tendency due to phys_gwd_alpert              
+< !                      other input variables unmodified.                              
+---
+> !        dudt, dvdt    wind tendency due to gwdo
+235c223
+<    real                 ::  g,rd,rv,fv,cp,pi,dxmeter,deltim
+---
+>    real                 ::  g,rd,rv,fv,cp,pi,dxmeter,deltim,rcl
+237d224
+< #ifdef DBG
+239d225
+< #endif
+243c229
+<                             del(ims:ime,kms:kme),prslk(ims:ime,kms:kme)
+---
+>                             prslk(ims:ime,kms:kme)
+245c231
+<    real                 ::  prsi(ims:ime,kms:kme)
+---
+>    real                 ::  prsi(ims:ime,kms:kme),del(ims:ime,kms:kme)
+248c234
+<    real                 ::  prsi(ims:ime,kms:kme+1)
+---
+>    real                 ::  prsi(ims:ime,kms:kme+1),del(its:ite,kts:kte)
+264,271c250,257
+<    real,parameter       ::  xl      = 4.0e4                                                  
+<    real,parameter       ::  critac  = 1.0e-5                                                 
+<    real,parameter       ::  gmax    = 1.                                                         
+<    real,parameter       ::  veleps  = 1.0                                                      
+<    real,parameter       ::  factop  = 0.5                                                      
+<    real,parameter       ::  frc     = 1.0                                                        
+<    real,parameter       ::  ce      = 0.8                                                        
+<    real,parameter       ::  cg      = 0.5                                                        
+---
+>    real,parameter       ::  xl      = 4.0e4  
+>    real,parameter       ::  critac  = 1.0e-5
+>    real,parameter       ::  gmax    = 1.    
+>    real,parameter       ::  veleps  = 1.0                                                 
+>    real,parameter       ::  factop  = 0.5                                                  
+>    real,parameter       ::  frc     = 1.0      
+>    real,parameter       ::  ce      = 0.8     
+>    real,parameter       ::  cg      = 0.5    
+278,279c264,265
+<    real                 ::  rcs,rclcs,csg,fdir,cleff,rcl,cs,rcsks,             &
+<                             wdir,ti,rdz,temp,tem2,dw2,shr2,bvf2,rdelks,ulowc,  &
+---
+>    real                 ::  rcs,rclcs,csg,fdir,cleff,cs,rcsks,                 &
+>                             wdir,ti,rdz,temp,tem2,dw2,shr2,bvf2,rdelks,        &
+281c267
+<                             temv,sira,dtaux,dtauy
+---
+>                             temv,dtaux,dtauy
+310c296
+<    kbl=0. ; klowtop=0. ; lowlv=0.
+---
+>    kbl=0  ; klowtop=0  ; lowlv=0 
+348d333
+< #ifdef DBG
+351d335
+< #endif
+366a351,353
+> #ifndef WRF
+>        del(i,k) = prsi(i,k) - prsi(i,k+1)
+> #endif
+416a404
+>    kpblmax = min(kpblmax+1,kte-1)
+458d445
+<    kpblmax = 2
+461d447
+<      kpblmax   = max(kpblmax,kbl(i))
+505a492
+>      ldrag(i)      = .false.
+535,536c522
+<      ulowc  = ulow(i)
+<      rulow(i) = 1./ulowc
+---
+>      rulow(i) = 1./ulow(i)
+721,722c707
+<          sira = prsi(i,klcap) / prsi(i,lcap) 
+<          taup(i,klcap) = sira * taup(i,lcap)      
+---
+>          taup(i,klcap) = prsi(i,klcap) / prsi(i,lcap) * taup(i,lcap)      
+781d765
+< #ifdef DBG
+784d767
+< #endif
+Index: fcst/phys_mps_wsm1.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/phys_mps_wsm1.F90,v
+retrieving revision 1.6
+diff -r1.6 phys_mps_wsm1.F90
+7c7
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+84c84
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+118c118
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+141c141
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+154c154
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+161c161
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/phys_rad_solver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/phys_rad_solver.F90,v
+retrieving revision 1.8
+diff -r1.8 phys_rad_solver.F90
+20c20
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+227c227
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+438c438
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+591c591
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/phys_scv_ccm2.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/phys_scv_ccm2.F90,v
+retrieving revision 1.5
+diff -r1.5 phys_scv_ccm2.F90
+5c5
+<                  hpbl,gamt,gamq,qci,qrs,delx)
+---
+>                  hpbl,gamt,gamq,delx)
+58d57
+<    real     ::  qci(imx2,kmx),qrs(imx2,kmx)
+Index: fcst/physics_main_driver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/physics_main_driver.F90,v
+retrieving revision 1.8
+diff -r1.8 physics_main_driver.F90
+98c98
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+824a825,826
+> #undef NO_PHYSICS
+> #ifndef  NO_PHYSICS
+885c887
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+897a900
+> 
+914a918
+> #endif			/* NO_PHYSICS */
+Index: fcst/physics_main_solver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/physics_main_solver.F90,v
+retrieving revision 1.36
+diff -r1.36 physics_main_solver.F90
+71c71
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+78a79
+> !
+270d270
+< #ifdef DBG
+273d272
+< #endif
+389a389
+> #ifdef EXPLICIT_CLOUDINESS
+391d390
+< #ifdef CONDENS
+506d504
+< #ifdef DBG
+508d505
+< #endif
+667d663
+< !
+697c693
+<    !
+---
+> !
+702c698
+<        call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,             &
+---
+>        call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,                  &
+715c711
+<        call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,             &
+---
+>        call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,                  &
+720d715
+< !
+734c729
+<          call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,           &
+---
+>          call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,                &
+749c744
+<         call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,            &
+---
+>         call print_maxmin_seven(qgrs(1,1),ite,ime,kte,kts,kte,                 &
+862d856
+< !
+892d885
+< !
+1012d1004
+<        !
+1031c1023
+< !  following NCEP code
+---
+> !  get 3-d pressure  (cb) : _pa (pascal)
+1055c1047
+<    !
+---
+> !
+1072c1064
+<      call print_maxmin_seven(prsi,ite,ime,kte+1,kts,kte+1,                     &
+---
+>      call print_maxmin_seven(prsi,ite,ime,kme+1,kts,kte+1,                     &
+1074c1066
+<      call print_maxmin_seven(delprsi,ite,ime,kte,kts,kte,                      &
+---
+>      call print_maxmin_seven(delprsi,ite,ime,kme,kts,kte,                      &
+1076c1068
+<      call print_maxmin_seven(prsl,ite,ime,kte,kts,kte,                         &
+---
+>      call print_maxmin_seven(prsl,ite,ime,kme,kts,kte,                         &
+1078c1070
+<      call print_maxmin_seven(prsik,ite,ime,kte+1,kts,kte+1,                    &
+---
+>      call print_maxmin_seven(prsik,ite,ime,kme+1,kts,kte+1,                    &
+1080c1072
+<      call print_maxmin_seven(prslk,ite,ime,kte,kts,kte,                        &
+---
+>      call print_maxmin_seven(prslk,ite,ime,kme,kts,kte,                        &
+1082c1074
+<      call print_maxmin_six  (slk,kte,1,1,1,                                    &
+---
+>      call print_maxmin_seven(slk,kte,kme,1,1,1,                                &
+1084c1076
+<      call print_maxmin_seven(phii,ite,ime,kte+1,kts,kte+1,                     &
+---
+>      call print_maxmin_seven(phii,ite,ime,kme+1,kts,kte+1,                     &
+1086c1078
+<      call print_maxmin_seven(phil,ite,ime,kte,kts,kte,                         &
+---
+>      call print_maxmin_seven(phil,ite,ime,kme,kts,kte,                         &
+1125d1116
+< !
+1211c1202
+<       call print_maxmin_seven(ugrs(1,1),ite,ime,kte,1,kte,                 &
+---
+>       call print_maxmin_seven(ugrs(1,1),ite,ime,kte,1,kte,                     &
+1213c1204
+<       call print_maxmin_seven(vgrs(1,1),ite,ime,kte,1,kte,                 &
+---
+>       call print_maxmin_seven(vgrs(1,1),ite,ime,kte,1,kte,                     &
+1215c1206
+<       call print_maxmin_seven(tgrs(1,1),ite,ime,kte,1,kte,                 &
+---
+>       call print_maxmin_seven(tgrs(1,1),ite,ime,kte,1,kte,                     &
+1217c1208
+<       call print_maxmin_seven(qgrs(1,1),ite,ime,kte,1,kte,                 &
+---
+>       call print_maxmin_seven(qgrs(1,1),ite,ime,kte,1,kte,                     &
+1219c1210
+<       call print_maxmin_seven(hsw(1,1),ite,ime,kte,1,kte,                  &
+---
+>       call print_maxmin_seven(hsw(1,1),ite,ime,kte,1,kte,                      &
+1221c1212
+<       call print_maxmin_seven(hlw(1,1,lat),ite,ime,kte,1,kte,              &
+---
+>       call print_maxmin_seven(hlw(1,1,lat),ite,ime,kte,1,kte,                  &
+1227c1218
+<       call print_maxmin_seven(smsoil(1,1),ite,ime,1,1,1,                   &
+---
+>       call print_maxmin_seven(smsoil(1,1),ite,ime,1,1,1,                       &
+1229c1220
+<       call print_maxmin_seven(stsoil(1,1),ite,ime,1,1,1,                   &
+---
+>       call print_maxmin_seven(stsoil(1,1),ite,ime,1,1,1,                       &
+1241c1232
+<       call print_maxmin_seven(tg3(1,lat),ite,ime,1,1,1,                    &
+---
+>       call print_maxmin_seven(tg3(1,lat),ite,ime,1,1,1,                        &
+1243c1234
+<       call print_maxmin_seven(slmsk(1,lat),ite,ime,1,1,1,                  &
+---
+>       call print_maxmin_seven(slmsk(1,lat),ite,ime,1,1,1,                      &
+1249d1239
+< !
+1251d1240
+< !
+1259d1247
+< !
+1264d1251
+< !
+1373c1360
+< ! update surafce layer properties
+---
+> !  update surafce layer properties
+1399a1387,1389
+> !
+> !  do ocean mixed layer interaction
+> !
+1414,1421c1404,1411
+< !#ifdef DBG
+< !     if (iope) then
+< !       print*,' ocean_mixed_layer_after ',i,lat,tml(i,lat),t0ml(i,lat),        &
+< !         hml(i,lat),h0ml(i,lat),HUML(i,lat),HVML(i,lat),tsea(i,lat),hflx(i),   & 
+< !         evap(i),radsl(i),dlwsf1(i),ugrs(i,1),vgrs(i,1),ustar(i),              &
+< !         coriolis,temp,temp,g_,deltim,oml_gamma                     
+< !       endif
+< !#endif
+---
+> #ifdef DBG
+>      if (iope) then
+>        print*,' ocean_mixed_layer_after ',i,lat,tml(i,lat),t0ml(i,lat),        &
+>          hml(i,lat),h0ml(i,lat),HUML(i,lat),HVML(i,lat),tsea(i,lat),hflx(i),   & 
+>          evap(i),radsl(i),dlwsf1(i),ugrs(i,1),vgrs(i,1),ustar(i),              &
+>          coriolis,temp,temp,g_,deltim,oml_gamma                     
+>      endif
+> #endif
+1428,1434c1418,1424
+< !#ifdef DBG
+< !     if (iope) then
+< !       print*,' sst_skin_update ',ulwsf1(i),dlwsf1(i),radsl(i),                &
+< !       hflx(i),evap(i),tsea(i,lat),ustar(i),temp,dtw1(i,lat),temp,             &
+< !                deltim,temp                                                    
+< !     endif
+< !#endif
+---
+> #ifdef DBG
+>      if (iope) then
+>        print*,' sst_skin_update ',ulwsf1(i),dlwsf1(i),radsl(i),                &
+>        hflx(i),evap(i),tsea(i,lat),ustar(i),temp,dtw1(i,lat),temp,             &
+>                 deltim,temp                                                    
+>      endif
+> #endif
+1543d1532
+< !
+1560c1549
+<      call print_maxmin_seven(dudt(1,1),ite,ime,kte,1,kte,                  &
+---
+>      call print_maxmin_seven(dudt(1,1),ite,ime,kte,1,kte,                      &
+1562c1551
+<      call print_maxmin_seven(dvdt(1,1),ite,ime,kte,1,kte,                  &
+---
+>      call print_maxmin_seven(dvdt(1,1),ite,ime,kte,1,kte,                      &
+1564c1553
+<      call print_maxmin_seven(dtdt(1,1),ite,ime,kte,1,kte,                  &
+---
+>      call print_maxmin_seven(dtdt(1,1),ite,ime,kte,1,kte,                      &
+1566c1555
+<      call print_maxmin_seven(dqdt(1,1),ite,ime,kte,1,kte,                  &
+---
+>      call print_maxmin_seven(dqdt(1,1),ite,ime,kte,1,kte,                      &
+1587c1576
+< !  do gravity wave drag
+---
+> !  do gravity wave drag induced by orography
+1611c1600
+<    !
+---
+> !
+1613d1601
+< #ifdef DBG
+1615d1602
+< #endif
+1617,1619c1604,1606
+<              prsi,delprsi,prsl,prslk,zl,rcl,                                   &
+<              var,oc,oa4,ol4,dusfcg,dvsfcg,                                     &
+<              g_,cp_,rd_,rv_,fv_,pi_,dxmeter,deltim,kpbl,kdt,lat,latd,lond,     &
+---
+>              prsi_pa(1,1),prsl_pa(1,1),prslk(1,1),zl(1,1),rcl,                 &
+>              var(1),oc(1),oa4(1,1),ol4(1,1),dusfcg,dvsfcg,                     &
+>              g_,cp_,rd_,rv_,fv_,pi_,dxmeter,deltim,kpbl,kdt,lat,               &
+1693c1680
+< !!!!   OMEGA : vvel -> xgrs in SCM 
+---
+> !  OMEGA : vvel -> xgrs in SCM 
+1725a1713
+> !
+1738d1725
+< 
+1753c1740
+<          call print_maxmin_seven(gq0(1,1),ite,ime,kte,1,kte,              &
+---
+>          call print_maxmin_seven(gq0(1,1),ite,ime,kte,1,kte,                   &
+1771c1758
+<          call print_maxmin_seven(gq0(1,1),ite,ime,kte,1,kte,              &
+---
+>          call print_maxmin_seven(gq0(1,1),ite,ime,kte,1,kte,                   &
+1790c1777
+<    !
+---
+> !
+1827c1814
+<      call phys_cps_sas(JCAPS,deltim,delprsi,prsl,prsi,prslk,prsik,zl,ncloud,   &
+---
+>      call phys_cps_sas(deltim,dxmeter,delprsi,prsl,prsi,prslk,prsik,zl,zi,     &
+1831,1833c1818,1819
+<                gq0(1,1),gt0(1,1),cld1d,                                        &
+<                rain1,kbot,ktop,kuo,w2,lat,slmsk(1,lat),VVELS,                  &
+<                gu0(1,1),gv0(1,1),rcs,                                          &
+---
+>                gq0(1,1),gt0(1,1),gu0(1,1),gv0(1,1),rcs,slmsk(1,lat),VVELS,     &
+>                cld1d,rain1,                                                    &
+1848c1834,1838
+<                hpbl(1,lat),gamt,gamq,qcicnv,qrscnv,dxmeter,                    &
+---
+>                hpbl(1,lat),gamt,gamq,                                          &
+> #ifdef EXPLICIT_CLOUDINESS
+>                qcicnv,qrscnv,                                                  &
+> #endif
+>                JCAPS,ncloud,lat,kbot,ktop,kuo,                                 &
+1852d1841
+< #endif
+1865,1892d1853
+< !
+< !  do gwdc
+< !
+< #ifdef GWDC
+<      call phys_gwd_chunbaik(ite,ime,kte,                                       &
+<                   gu0(1,1),gv0(1,1),gt0(1,1),                                  &
+<                   prsi,prsl,                                                   &
+< #ifdef SAS
+<                   dct, fcu, fcd,                                               &
+< #else
+< #ifdef CCMCNV
+<                   hrate, netflux,                                              &
+< #endif
+< #endif
+<                   rcl,deltim,ktop,kbot,                                        &
+<                   tauctx,taucty,                                               &
+< #ifdef DG3
+<                   dudt,dvdt,                                                   &
+< #endif
+< #ifdef RMP
+<                   rdelx,rdely,                                                 &
+< #endif
+<                   lat)
+< !
+<      do i = its,ite
+<        dugwdc(i,lat) = dugwdc(i,lat)+tauctx(i)*dtf
+<        dvgwdc(i,lat) = dvgwdc(i,lat)+taucty(i)*dtf
+<      enddo
+1953c1914
+<                hpbl(1,lat),gamt,gamq,qcicnv,qrscnv,dxmeter)
+---
+>                hpbl(1,lat),gamt,gamq,dxmeter)
+1965,1970c1926,1960
+< !#ifdef KUO
+< !#ifndef PRES_CORD
+< !    call phys_cps_kuo(ite,ime,kte,jcap,dt,del,sl,slk,ps,qn,                   &
+< !                         q,t,rn,kbot,ktop,kuo)
+< !#endif
+< !#endif
+---
+> #ifdef KUO
+> #ifndef PRES_CORD
+>      call phys_cps_kuo(ite,ime,kte,jcap,dt,del,sl,slk,ps,qn,                   &
+>                           q,t,rn,kbot,ktop,kuo)
+> #endif
+> #endif
+> !
+> !  do gwdc - gravity wave drag induced by convection
+> !
+> #ifdef GWDC
+>      call phys_gwd_chunbaik(ite,ime,kte,                                       &
+>                   gu0(1,1),gv0(1,1),gt0(1,1),                                  &
+>                   prsi,prsl,                                                   &
+> #ifdef SAS
+>                   dct, fcu, fcd,                                               &
+> #else
+> #ifdef CCMCNV
+>                   hrate, netflux,                                              &
+> #endif
+> #endif
+>                   rcl,deltim,ktop,kbot,                                        &
+>                   tauctx,taucty,                                               &
+> #ifdef DG3
+>                   dudt,dvdt,                                                   &
+> #endif
+> #ifdef RMP
+>                   rdelx,rdely,                                                 &
+> #endif
+>                   lat)
+> !
+>      do i = its,ite
+>        dugwdc(i,lat) = dugwdc(i,lat)+tauctx(i)*dtf
+>        dvgwdc(i,lat) = dvgwdc(i,lat)+taucty(i)*dtf
+>      enddo
+> #endif
+1975d1964
+< !
+1984d1972
+< !
+2004c1992
+<                hpbl(1,lat),gamt,gamq,qcicnv,qrscnv,dxmeter)
+---
+>                hpbl(1,lat),gamt,gamq,dxmeter)
+2012c2000
+< #ifdef MRFSCV
+---
+> !  do shallow convection
+2013a2002
+> #ifdef MRFSCV
+2029d2017
+< !
+2056d2043
+< !
+2077d2063
+< !
+2109c2095
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+2171,2178c2157,2165
+< ! #ifdef CONDENS
+< !      do k = 1, kte
+< !        do i = 1, ite
+< !          qcilrg(i,k) = gq0(i,kcloud+k-1)
+< !          qrslrg(i,k) = gq0(i,kcloud+kte+k-1)
+< !        enddo
+< !      enddo
+< ! #endif
+---
+> !
+> #ifdef EXPLICIT_CLOUDINESS
+>      do k = kts,kte
+>        do i = its,ite
+>          qcilrg(i,k) = gq0(i,kcloud+k-1)
+>          qrslrg(i,k) = gq0(i,kcloud+kte+k-1)
+>        enddo
+>      enddo
+> #endif
+2201d2187
+<      !
+2211c2197
+<                                 'gt0 aft phys_mps_wsm2')
+---
+>                                 'gt0 aft phys_mps')
+2213c2199
+<                                 'gq0 aft phys_mps_wsm2')
+---
+>                                 'gq0 aft phys_mps')
+2215c2201
+<                                 'gu0 aft phys_mps_wsm2')
+---
+>                                 'gu0 aft phys_mps')
+2217c2203
+<                                 'gv0 aft phys_mps_wsm2')
+---
+>                                 'gv0 aft phys_mps')
+2234a2221,2230
+> #ifdef DBG
+>          call print_maxmin_seven(rainl,ite,ime,1,1,1,                          &
+>                                 'rainl aft phys_mps')
+>          call print_maxmin_seven(rainc,ite,ime,1,1,1,                          &
+>                                 'rainc aft phys_mps')
+>          call print_maxmin_seven(raincps(1,lat),ite,ime,1,1,1,                 &
+>                                 'raincps aft phys_mps')
+>          call print_maxmin_seven(raintot(1,lat),ite,ime,1,1,1,                 &
+>                                 'raintot aft phys_mps')
+> #endif
+2243,2244c2239,2240
+<      do k = its,kte - 1
+<        do i = 1, ite
+---
+>      do k = kts,kte - 1
+>        do i = its,ite
+2292c2288
+<      do i = 1, ite                          
+---
+>      do i = its,ite                          
+2304a2301
+>      enddo                                          
+2309,2310c2306,2307
+<         trunof(i,lat)=runof(i)+drain(i)
+< #endif
+---
+>      do i = its,ite                          
+>        trunof(i,lat)=runof(i)+drain(i)
+2311a2309
+> #endif
+2316c2314
+<        do i = 1, ite
+---
+>        do i = its,ite
+2332c2330
+<        do i = 1, ite
+---
+>        do i = its, ite
+2336c2334
+<      do i = 1, ite
+---
+>      do i = its, ite
+2383c2381,2384
+<             hsw,hlw(1,1,lat),vvel,qcicnv,qrscnv,                               &
+---
+>             hsw,hlw(1,1,lat),vvel,                                             &
+> #ifdef EXPLICIT_CLOUDINESS
+>             qcicnv,qrscnv,                                                     &
+> #endif
+2488c2489
+<    do k = 1,levh_
+---
+>    do k = kts,levh_
+Index: fcst/rad_cloud_prepare.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/rad_cloud_prepare.F90,v
+retrieving revision 1.8
+diff -r1.8 rad_cloud_prepare.F90
+32c32
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+216c216
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/rad_flux_driver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/rad_flux_driver.F90,v
+retrieving revision 1.6
+diff -r1.6 rad_flux_driver.F90
+27c27
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+196c196
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+287c287
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+Index: fcst/rad_flux_solver.F90
+===================================================================
+RCS file: /home/cvs/cpscvs/src/fcst/rad_flux_solver.F90,v
+retrieving revision 1.7
+diff -r1.7 rad_flux_solver.F90
+18c18
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+157c157
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+347c347
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS
+378c378
+< #ifdef CONDENS
+---
+> #ifdef EXPLICIT_CLOUDINESS

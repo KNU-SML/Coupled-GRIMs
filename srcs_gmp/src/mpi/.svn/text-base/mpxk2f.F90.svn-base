@@ -1,0 +1,100 @@
+#include <define.h>
+   subroutine mpxk2f(a,lonfp,latg,levsp,nvar,b,lonf,levs)
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram: 	mpxk2f
+!
+! abstract:  transpose (ip,jf,kp) to (if,jf,kf)
+!
+! program history log:
+!    hoon park  2007-9-14
+!
+! usage:	call mpxk2fa,lonf2p,latg2,levsp,nvar,b,lonf2,levs)
+!
+!    input argument lists:
+!	a	- real (lonf2p,latg2,levsp,nvar) partial field for each PE
+!	lonf2p	- integer partial grid in longitude time 2
+!	latg2 	- integer total grid in latitude divide 2
+!	levsp	   - integer partial number of model layer
+!	nvar	   - integer total set of fields
+!
+!    output argument list:
+!	b	- real (lonf2,latg2,ntotal) full field 
+!	lonf2	- integer total grid in longitude time 2
+!	latg2	- integer total grid in latitude divide 2
+! 
+! subprograms called:
+!   mpi_gatherv	- gather message from all pe to master
+!
+!-------------------------------------------------------------------------------
+   use commpi       ! npes, mype, master, lonlen, lonstr, mpi_comm_world,      &
+                    ! MPI_REAL, lerlen, lerstr
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+   integer                       ::  lonfp,lonf,latg,nvar,levs,levsp
+   integer                       ::  nv,n,i,j,k,mk,ierr,lonlend
+   integer                       ::  is,ie,ks
+   real                          ::  a(lonfp,latg,levsp,nvar)
+   real                          ::  b(lonf,latg,levs,nvar)
+!
+   real(_mpi_real_),allocatable  ::  tmpsnd(:),tmprcv(:)
+   integer,allocatable           ::  len(:),loc(:)
+!
+   allocate(tmpsnd(lonfp*latg*levsp*nvar))
+   allocate(tmprcv(lonf *latg *levs*nvar))
+   allocate(len(0:npes-1))
+   allocate(loc(0:npes-1))
+!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       loc(n)=mk
+       len(n)=lerlen(n)*nvar*lonlen(n)*latg
+       mk=loc(n)+len(n)
+     enddo
+   endif
+!
+   lonlend=lonlen(mype)
+   mk=0
+   do nv = 1,nvar
+     do k = 1,lerlen(mype)
+       do j = 1,latg
+         tmpsnd(mk+1:mk+lonlend)=a(1:lonlend,j,k,nv)
+         mk=mk+lonlend
+       enddo
+     enddo
+   enddo
+   len(mype)=mk
+!
+   call mpi_gatherv(tmpsnd,len(mype),MPI_REAL,                                 &
+                    tmprcv,len(0),loc(0),MPI_REAL,0,mpi_comm_world,ierr)
+!
+   if( mype.eq.0 ) then
+     mk=0
+     do n = 0,npes-1
+       lonlend=lonlen(n)
+       is=lonstr(n)
+       ie=is+lonlend-1
+       do nv = 1,nvar
+         do k = 1,lerlen(n)
+           ks=lerstr(n)+k-1
+           do j = 1,latg
+             b(is:ie,j,ks,nv)=tmprcv(mk+1:mk+lonlend)
+             mk=mk+lonlend
+           enddo
+         enddo
+       enddo
+     enddo
+   endif
+!
+   deallocate(tmpsnd)
+   deallocate(tmprcv)
+   deallocate(len)
+   deallocate(loc)
+!
+   return
+   end subroutine mpxk2f
+!-------------------------------------------------------------------------------

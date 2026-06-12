@@ -1,0 +1,123 @@
+#!/bin/sh
+set -x
+#
+#  archive forecast history files using ftp  
+#
+#  $1 is file name (any file of the form *.ftxx, where xx is forecast hour of 
+#                   two or more digit)
+#  $2 is starting forecast hour
+#  $3 is ending forecast hour
+#  $4 is forecast hour increment
+#  $5 is ftp dir (full directory path.  no need to create the directory since
+#                 it is automatically created by this script) 
+#  $6 is ftp address (e.g. ftp.ncep.noaa.gov)
+#  $7 is ftp protocol (e.g. ftp, sftp, ...)
+#
+#  Since ftp without password is assumed, you need to have a proper .netrc
+#  file.  In case of sftp, ssh-agent and ssh-add need to be issued.
+#
+if [ $# -ne 7 ] ; then
+	echo "$0: argument error"
+	exit 8
+fi
+#
+file=$1
+hxs=$2
+hxe=$3
+inchour=$4
+ftpdir=$5
+platform=$6
+ftp=$7
+sdate=$8
+edate=$9
+#
+if [ $ftp != cp ]  ;then
+ftpd=ftpd.$file
+echo 'binary' >$ftpd.ft$hxs
+echo 'passive off' >>$ftpd.ft$hxs
+echo 'umask 022' >>$ftpd.ft$hxs
+echo $ftpdir | grep '^/' >/dev/null
+if [ $? -eq 0 ] ; then
+	head=/
+else
+	head=
+fi
+for dir in $head`echo $ftpdir | sed 's?/? ?g' | sed 's/^ //g'`
+do
+	echo "mkdir $dir" >>$ftpd.ft$hxs
+	echo "cd $dir" >>$ftpd.ft$hxs
+done
+rm fsz.$file.ft$hxs 2>/dev/null
+hh=$hxs
+date=$sdate
+count=0
+while [ $hh -le $hxe ] ; do
+
+	if [ $hh -lt 10 ] ; then
+		hh=0$hh
+	fi
+	if [ -s $file.ft$hh ] ; then
+		count=`expr $count + 1`
+		ls -l $file.ft$hh >>fsz.$file.ft$hxs
+		echo "put $file.ft$hh" >>$ftpd.ft$hxs
+	fi
+	if [ -s $file.$date ] ; then
+		count=`expr $count + 1`
+		ls -l $file.$date >>fsz.$file.ft$hxs
+		echo "put $file.$date" >>$ftpd.ft$hxs
+	fi
+	hh=`expr $hh + $inchour`
+	date=`@LIB_DIR@/validate.s $date $inchour`
+done
+echo "ls" >>$ftpd.ft$hxs
+echo 'quit' >>$ftpd.ft$hxs
+#
+if [ $count -le 0 ] ; then
+	exit 0
+fi
+#
+@RUNSCR_DIR@/ftpscr $ftpd.ft$hxs ftpo.$file.ft$hxs $platform $ftp
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: ftpscr for $platform $ftpd.ft$hxs ftpo.$file.ft$hxs failed." >>ERROR.out
+fi
+#
+#  ftp error check based on file size
+#
+hh=$hxs
+while [ $hh -le $hxe ] ; do
+	sizeorig=`grep $file.ft$hh fsz.$file.ft$hxs | awk '{print $5}'`
+	sizeftp=`grep " $file.ft$hh$" ftpo.$file.ft$hxs | grep '^-' | awk '{print $5}'`
+	if [ "$sizeorig" -eq "$sizeftp" -a "$sizeorig" -gt 0 ] ; then
+		echo "ftp of $file.ft$hh successful"
+		chmod u+w $file.ft$hh
+	else
+		echo "WARNING!! ftp of $file FAILED"
+	fi
+	hh=`expr $hh + $inchour`
+done
+rm $ftpd.ft$hxs ftpo.$file.ft$hxs fsz.$file.ft$hxs
+exit 0
+#
+# simple copy
+#
+else
+	mkdir -p $ftpdir
+	hh=$hxs
+	count=0
+	date=$sdate
+	while [ $hh -le $hxe ] ; do
+		if [ $hh -lt 10 ] ; then
+			hh=0$hh
+		fi
+		if [ -s $file.ft$hh ] ; then
+			count=`expr $count + 1`
+			cp $file.ft$hh  $ftpdir/.
+		fi
+		if [ -s $file.$date ] ; then
+			count=`expr $count + 1`
+			cp $file.$date  $ftpdir/.
+		fi
+		hh=`expr $hh + $inchour`
+		date=`@LIB_DIR@/validate.s $date $inchour`
+	done
+fi

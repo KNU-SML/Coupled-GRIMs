@@ -1,0 +1,71 @@
+LIB = mpi.a
+LIB2 = ../share/share.a
+
+OBJS = commpi.o dimset.o mpbcasti.o mpgetspd.o mpnk2nn.o mpnx2x.o mpsynrow.o \
+equdiv.o mpbcastr.o mpbcastl.o mpgf2p.o mpnk2nx.o mpny2nl.o mpx2nx.o \
+equlw12.o equdis.o mpdimset.o mpgp2f.o mpnl2ny.o mpsf2p.o spcshfli.o \
+mpfine.o mpinit.o mpnn2n.o mpsp2f.o spcshflo.o preduceg.o \
+mpabort.o mpgetken.o mplatall.o mpnn2nk.o mpsynall.o \
+mpbcastc.o mpgetlat.o mpn2nn.o mpnx2nk.o mpsyncol.o \
+mpgfpk2fk.o mpgf2xk.o mpxk2f.o mpgf2yk.o mpyk2f.o farg.o \
+mpgp2f_box.o mpgf2p_box.o
+
+SRCS = ${OBJS:.o=.F90}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77_FCST@
+FORT_FLAGS = @FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALLDLIB = @INSTALLDLIB@
+
+EXP_PARENT = ..
+
+ALL = ${LIB}
+
+all : ${ALL}
+
+${SRCS} :
+	ln -fs ${EXP_PARENT}/fcst/$@ $@
+
+${LIB} : ${SRCS} ${OBJS}
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALLDLIB}
+
+yftest.x : yftest.o ${LIB} ${LIB2}
+	${F77} ${LOAD_FLAGS} -o $@ yftest.o ${LIB} ${LIB2}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+
+.F90.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o core ${ALL}
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -rf rii_files Makefile

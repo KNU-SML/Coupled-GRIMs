@@ -1,0 +1,139 @@
+#!/bin/sh
+set -x
+#
+#  forecast namelist data
+#
+#  $1 ... INCHOUR forecast length of the segment
+#  $2 ... ENDHOUR forecast hour to the end
+#  $3 ... INTSFCX:INTOMLX surface cycling: ocean mixed layer initializing interval
+#  $4 ... INSIG:INTSFC:INTFLX output intervals of sig, sfc and flx files
+#
+#  The following variables can be overwritten by defining it in
+#  the calling program and by exporting it
+#
+#      SWHR_GBL ... short wave radiation interval in hour unit (default 6)
+#      LWHR_GBL ... long wave radiation interval in hour unit (default 6)
+#      INTPFIX  ... interval of pressure correction in hour unit (default 24)
+#
+INCHOUR=$1
+ENDHOUR=$2
+INTSFCX=`echo $3 | cut -d':' -f1`
+INTOMLX=`echo $3 | cut -d':' -f2`
+INTSIG=`echo $4 | cut -d':' -f1`
+INTSFC=`echo $4 | cut -d':' -f2`
+INTFLX=`echo $4 | cut -d':' -f3`
+INTRESTART=`echo $4 | cut -d':' -f4`
+#
+SWHR_GBL=${SWHR_GBL:=6}
+LWHR_GBL=${LWHR_GBL:=6}
+INTPFIX=${INTPFIX:=24}
+#
+namfile=fcst.parm
+if [ "@MODEL@" = dfs ]; then
+	if [ @MARCH@ = mpi -o @MARCH@ = hybrid ]; then
+cat > $namfile <<EOF
+ &NAMMPI
+ ncoli=@NCOL@
+/
+EOF
+   fi
+else
+	echo > $namfile
+fi
+cat >> $namfile <<EOF
+ &NAMSMF
+ ndigit=4,
+ NUM(5)=0,
+ CON(1)=@DELTAT@.,CON(3)=0.,
+ CON(4)=$SWHR_GBL.,CON(5)=$LWHR_GBL.,
+ CON(7)=$INCHOUR.,
+ CON(9)=$INCHOUR.,CON(17)=$ENDHOUR.,
+ INTPFIX=$INTPFIX,
+ INTSFCX=$INTSFCX,
+ INTOMLX=$INTOMLX,
+ INTSIG=$INTSIG,
+ INTSFC=$INTSFC,
+ INTFLX=$INTFLX,
+ INTRESTART=$INTRESTART,
+/
+ &SOIL_VEG
+ DEFINED_VEG=13,
+ DEFINED_SOIL=9,
+/
+ &NAMSFC
+ FNOROG='orogrd.smth'
+ FNMASK='slmsk'
+ FNMSKG='@CON_DIR@/clim.maskh.grib'
+ CONDIR='@CON_DIR@'
+ BINDIR='@BIN_DIR@'
+ FNGRB(1)='clim.glacier.grib    '
+ FNGRB(2)='clim.maxice.grib     '
+! FNGRB(4)='${ICE_GRB:=@CON_DIR@/clim.ice.grib}'
+ FNGRB(5)='$SCV_GRB'
+! FNGRB(6)='${SNO_GRB:=@CON_DIR@/clim.snow.grib}'
+! FNGRB(7)='${SST_GRB:=@CON_DIR@/clim.sst.grib}'
+ FNGRB(8)='clim.yhalbedo.grib   '
+ FNGRB(9)='clim.sibalbedo.grib  '
+ FNGRB(10)='clim.yhalbedo.grib   '
+ FNGRB(11)='$SM2_GRB  '
+ FNGRB(13)='clim.sibrough.grib   '
+ FNGRB(14)='clim.sibresis.grib   '
+ FNGRB(18)='clim.vegfrac@VEG_RES@.grib '
+EOF
+#
+if [ `echo ${iicegrb:=0}` -eq 1 ]; then
+    echo " lfgrb(1,4)=f" >> $namfile
+    echo " lfgrb(2,4)=f" >> $namfile
+    echo " lfgrb(3,4)=t" >> $namfile
+    echo " lfgrb(4,4)=f" >> $namfile
+    echo " lfgrb(5,4)=f" >> $namfile
+else
+    echo " lfgrb(1,4)=F" >> $namfile
+    echo " lfgrb(2,4)=F" >> $namfile
+    echo " lfgrb(3,4)=F" >> $namfile
+    echo " lfgrb(4,4)=F" >> $namfile
+    echo " lfgrb(5,4)=F" >> $namfile
+fi
+if [ `echo ${isnogrb:=0}` -eq 1 ]; then
+    echo " lfgrb(1,6)=T" >> $namfile
+    echo " lfgrb(2,6)=T" >> $namfile
+    echo " lfgrb(3,6)=T" >> $namfile
+    echo " lfgrb(4,6)=T" >> $namfile
+    echo " lfgrb(5,6)=T" >> $namfile
+else
+    echo " lfgrb(1,6)=F" >> $namfile
+    echo " lfgrb(2,6)=F" >> $namfile
+    echo " lfgrb(3,6)=F" >> $namfile
+    echo " lfgrb(4,6)=F" >> $namfile
+    echo " lfgrb(5,6)=F" >> $namfile
+fi
+if [ `echo ${isstgrb:=0}` -eq 1 ]; then
+    echo " lfgrb(1,7)=T" >> $namfile
+    echo " lfgrb(2,7)=F" >> $namfile
+    echo " lfgrb(3,7)=F" >> $namfile
+    echo " lfgrb(4,7)=F" >> $namfile
+    echo " lfgrb(5,7)=F" >> $namfile
+else
+    echo " lfgrb(1,7)=F" >> $namfile
+    echo " lfgrb(2,7)=F" >> $namfile
+    echo " lfgrb(3,7)=F" >> $namfile
+    echo " lfgrb(4,7)=F" >> $namfile
+    echo " lfgrb(5,7)=F" >> $namfile
+fi
+if [ `echo ${ism2grb:=0}` -eq 1 ]; then
+    echo " lfgrb(1,11)=F" >> $namfile
+    echo " lfgrb(2,11)=T" >> $namfile
+    echo " lfgrb(3,11)=F" >> $namfile
+    echo " lfgrb(4,11)=T" >> $namfile
+    echo " lfgrb(5,11)=F" >> $namfile
+else
+    echo " lfgrb(1,11)=F" >> $namfile
+    echo " lfgrb(2,11)=F" >> $namfile
+    echo " lfgrb(3,11)=F" >> $namfile
+    echo " lfgrb(4,11)=F" >> $namfile
+    echo " lfgrb(5,11)=F" >> $namfile
+fi
+echo '/' >> $namfile
+#
+# for specificantion of FNGRB, see src/include/vargrb.h
+#

@@ -1,0 +1,155 @@
+#include <define.h>
+   subroutine gmp_init_array(strwtime)
+!-------------------------------------------------------------------------------
+!
+! subprogram: gmp_init_array
+!
+! abstract : initializing the global model program 
+!
+! program history log:
+!   1981-01-01  sela                   initial mrf
+!   2000-01-01  hann-ming henry juang  mpi 
+!   2000-01-01  song-you hong          physcis options 
+!   2001-01-01  masao kanamitsu        seasonal forecast system
+!   2005-01-01  young-hwa byun         single column model
+!   2006-04-01  hoon park              double-fourier spectral (dfs)
+!   2009-10-01  jung-eun kim           f90 format with standard physics modules
+!   2010-07-01  myung-seo koo          dimension allocatble with namelist input
+!
+! usage: call gmp_init_array
+!
+! subprograms called:
+!     mpi_init       - to initial mpi call
+!-------------------------------------------------------------------------------
+#ifndef NIM
+   use paramodel, only   : para_init
+   use comfspec_vr, only : comfspec_vr_init
+   use comfgrid,  only   : comfgrid_init
+   use comfphys,  only   : comfphys_init
+   use comfver,   only   : comfver_init
+   use comgpln,   only   : comgpln_init
+   use comio,     only   : comio_init
+   use radiag,    only   : radiag_init
+   use comfcst,   only   : comfcst_init
+   use co2dta,    only   : co2dta_init
+   use comgda,    only   : comgda_init
+   use comznl,    only   : comznl_init
+#ifdef MP
+#ifndef DFS
+   use commpi,    only   : commpi_init
+#endif
+   use commpi,    only   : mype
+   use compspec,  only   : compspec_init
+#endif /* MP end */
+#ifndef RMP
+   use comgrad,   only   : comgrad_init
+#endif
+#ifdef REDUCE_GRID
+   use comreduce, only   : comreduce_init
+#endif
+#ifdef LFM
+   use comlfm,    only   : comlfm_init
+#endif
+#ifndef SWRMDC
+#ifndef ICECLOUD
+   use rdparm,    only   : rdparm_init
+   use comswaer,  only   : comswaer_init
+#else
+   use rdparm8,   only   : rdparm8_init
+   use comswaer8, only   : comswaer8_init
+#endif
+#else
+   use rdparm99,   only  : rdparm99_init
+   use comswaer99, only  : comswaer99_init
+#endif /* not SWRMDC */
+#ifdef PSPLIT
+   use compsplit,  only  : compsplit_init
+#endif
+#ifdef RIVER
+   use comfrivh,   only  : comfrivh_init
+#endif
+#ifdef DGP
+   use comgpd,    only   : comgpd_init
+#endif
+#ifdef DFS
+   use paramodel, only   : jcap_, levs_, ngases_, nwater_, lonf_, latg_
+   use dfsvar, only      : dfsvarini
+#endif
+   use comdyn,    only   : comdyn_init
+!
+#ifdef MP
+   real*8              ::  strwtime
+   integer             ::  info
+!
+   call mpi_init(info)
+!
+   if( info.ne.0 ) then
+     print *,'PE',mype,':error code from mpi_init = ',info
+     call exit(1)
+   endif
+!
+#else
+   real*8              ::  strwtime
+#endif
+   call para_init
+   call comfspec_vr_init
+   call comfgrid_init
+   call comfphys_init
+   call comfver_init
+   call comgpln_init
+   call comio_init
+   call radiag_init
+   call comfcst_init
+   call co2dta_init
+   call comgda_init
+   call comznl_init
+#ifdef DGP
+   call comgpd_init
+#endif
+#ifdef MP
+#ifndef DFS
+   call commpi_init
+#endif
+   call compspec_init
+#endif
+#ifndef RMP
+   call comgrad_init
+#endif
+#ifdef REDUCE_GRID
+   call comreduce_init
+#endif
+#ifdef LFM
+   call comlfm_init
+#endif
+#ifndef SWRMDC
+#ifndef ICECLOUD
+   call rdparm_init
+   call comswaer_init
+#else
+   call rdparm8_init
+   call comswaer8_init
+#endif
+#else
+   call rdparm99_init
+   call comswaer99_init
+#endif /* not SWRMDC */
+#ifdef PSPLIT
+   call compsplit_init
+#endif
+#ifdef RIVER
+   call comfrivh_init
+#endif
+#ifdef MP
+   call mpinit(strwtime)
+#else
+#ifdef T3E
+   strwtime=secondr()
+#endif
+#endif /* MP end */
+#ifdef DFS
+   call dfsvarini(jcap_,levs_,ngases_,nwater_,lonf_,latg_)
+#endif
+   call comdyn_init
+#endif /* only for GRIMs */
+!
+   end subroutine gmp_init_array

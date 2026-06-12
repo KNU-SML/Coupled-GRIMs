@@ -1,0 +1,211 @@
+#!/bin/sh
+#
+#XLFRTEOPTS="namelist=old"
+#export XLFRTEOPTS
+#
+R_EXTVARS=no
+#
+#  This script template requires following edit variables to be defined
+#      %EXECSUBDIR% %YYYY% %MM% %DD% %HH% %FHE% %FHS% %INTSFCX% 
+#      %ENDHOUR% %INTPOST% %INTPOST% %PLATFORM% %FTPDIR%
+#      %YYYYS% %MMS% %DDS% %HHS% %YYYYE% %MME% %DDE% %HHE%
+#      @RUNSCR_DIR@'
+#      %FTP_SIG% %FTP_SFC% %FTP_ZNL% %FTP_FLX% %FTP_DIA% %FTP_KEN% 
+#      %FTP_PGB% %FTP_SGB% %FTP_FCSTOUT%
+#      %LIST_OF_FILES% %FILES_TO_BE_KEPT% %FILES_TO_BE_AVERAGED%
+#      %RMAVRG% %VARIANCE%
+#
+#    which should be defined in cpost.in
+#
+YYYYS=%YYYYS%
+MMS=%MMS%
+DDS=%DDS%
+HHS=%HHS%
+YYYYE=%YYYYE%
+MME=%MME%
+DDE=%DDE%
+HHE=%HHE%
+ENDHOUR=%ENDHOUR%
+#
+#  obtain forecast hours for various ending dates
+#
+. @RUNSCR_DIR@/endfhrs
+#
+cd %EXECSUBDIR%
+if [ $? -ne 0 ] ; then
+  echo "`date` $0:cd to %EXECSUBDIR% failed" >> ERROR.out
+  exit 8
+fi
+#
+list_of_files='%LIST_OF_FILES%'
+files_to_be_kept='%FILES_TO_BE_KEPT%'
+files_to_be_averaged='%FILES_TO_BE_AVERAGED%'
+#
+ftp_r_sigit=%FTP_R_SIGIT%
+ftp_r_sigitdt=%FTP_R_SIGITDT%
+ftp_r_sfc=%FTP_R_SFC%
+ftp_r_flx=%FTP_R_FLX%
+ftp_r_pgb=%FTP_R_PGB%
+ftp_r_fcstout=%FTP_R_FCSTOUT%
+ftp_r_extvars=%FTP_R_EXTVARS%
+#
+fhsp=`expr %FHS% + %INTPOST%`
+#
+# r_pgb
+#
+fh=`expr $fhsp + 0`
+if [ $fh -lt 10 ] ; then
+  fhc=0$fh
+else
+  fhc=$fh
+fi
+while [ -s r_pgb.ft$fhc -a $fh -le %FHE% ] ; do
+  fh=`expr $fh + %INTPOST%`
+  fhc=$fh
+done
+fhstart=$fh
+if [ $fhstart -le %FHE% ] ; then
+	if [ @DOPOST@ = yes ] ; then
+		@RUNSCR_DIR@/r_pgb $fhstart %FHE% %INTPOST% || exit 8
+	elif [ @CATPGB@ = yes ] ; then
+		@ETC_DIR@/catpgb
+	fi
+fi
+#
+#  Delete used r_flx files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_flx ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_flx $fhsp %FHE% %INTPOST% || exit 8
+fi
+#
+#  r_extvars file
+#
+if [ $R_EXTVARS = yes ] ; then
+	fh=`expr $fhsp + 0`
+	if [ $fh -lt 10 ] ; then
+		fhc=0$fh
+	else
+		fhc=$fh
+	fi
+	while [ -s r_extvars.ft$fhc -a $fh -le %FHE% ] ; do
+		fh=`expr $fh + %INTPOST%`
+		fhc=$fh
+	done
+	fhstart=$fh
+	if [ $fhstart -le %FHE% ] ; then
+		@RUNSCR_DIR@/r_extvars $fhstart %FHE% %INTPOST% || exit 8
+	fi
+fi
+#
+#  Daily file archive
+#
+for file in $list_of_files
+do
+	ftp=\$ftp_$file
+	ftp=`eval echo $ftp`
+	if [ $ftp = yes ] ; then
+		intvl=%INTPOST%
+		if [ $file = r_sfc ] ; then
+			intvl=%INTPOST%
+		fi
+		h=`expr %FHS% + 0`
+		if [ $h -ne 0 ] ; then
+			hp=`expr %FHS% + $intvl`
+		else
+			hp=0
+		fi
+		if [ -n "%PLATFORM%" ] ; then
+			@RUNSCR_DIR@/ftparch $file $hp %FHE% $intvl %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+		fi
+	fi
+done
+#
+#  Delete used r_sig files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_sigit ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_sigit $fhsp %FHE% %INTSFCX% || exit 8
+fi
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_sigitdt ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_sigitdt $fhsp %FHE% %INTSFCX% || exit 8
+fi
+#
+#  Delete used r_flx files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_flx ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_flx $fhsp %FHE% %INTSFCX% || exit 8
+fi
+#
+#  Delete used r_sfc files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_sfc ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_sfc $fhsp %FHE% %INTSFCX% || exit 8
+fi
+#
+#  Delete used r_pgb files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_pgb ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_pgb $fhsp %FHE% %INTSFCX% || exit 8
+fi
+#
+#  Delete used extvars files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_extvars ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile r_extvars $fhsp %FHE% %INTSFCX% || exit 8
+fi
+#
+#  extvars processing
+#
+if [ %FHE% -eq $ENDHOUR ] ; then
+	hhs=`expr %HHS% + 0`
+	inchour=`expr 24 - $hhs`
+			%FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+fi

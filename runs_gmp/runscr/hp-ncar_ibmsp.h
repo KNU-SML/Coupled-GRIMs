@@ -1,0 +1,16 @@
+#!/bin/sh
+#@ output = pout.$(jobid)
+#@ error = pout.$(jobid)
+#@ job_type = parallel
+#@ total_tasks = 12
+#@ node = 1
+#@ notify_user =
+#@ network.MPI=csss,not_shared,us
+#@ node_usage = not_shared
+#@ notification = always
+#@ wall_clock_limit = 0:10:00
+#@ class = csl_rg8
+#@ queue
+MP_INTRDELAY=100
+export MP_INTRDELAY
+set -ax

@@ -1,0 +1,159 @@
+#!/bin/sh
+#
+#  This script generates grid specification, initial and boundary files for roms
+#
+YEAR=$1
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/@BATH_FILE@ @BATH_FILE@
+#
+# link executables and mask file
+#
+ln -fs @MODEL_DIR@/bin/r_slmsk ./roms_msk_latlon
+ln -fs @MODEL_DIR@/bin/grid.x .
+ln -fs @MODEL_DIR@/bin/bathtub.x .
+ln -fs @MODEL_DIR@/bin/bathsoap.x .
+ln -fs @MODEL_DIR@/bin/sphere.x .
+ln -fs @MODEL_DIR@/bin/boundary.x .
+ln -fs @MODEL_DIR@/bin/initial.x .
+ln -fs @MODEL_DIR@/bin/forcing.x .
+#
+#  link necessary input files
+#
+if [  = SODA ] ; then
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/SODA-$YEAR\01.nc init.in.nc
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/SODA-$YEAR\01.nc init.grd.in.nc
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/global-frc-r2.nc forc.in.nc
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/global-frc-r2.nc forc.grd.in.nc
+        # begin of boundary
+	month=1
+	month_e=12
+        while [ $month -le $month_e ] ; do
+                mon=$month
+                if [ $month -lt 10 ] ; then
+                        mon=0$month
+                fi
+                echo "/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/SODA-$YEAR$mon.nc" >>tmp1.$$
+                month=`expr $month + 1`
+        done
+	#  fetch monthly SODA files from data server
+	#  count only the one available and put it into List file
+	rm List_of_monthly_SODA_files 2>/dev/null
+	nfiles=0
+	for file in `cat tmp1.$$`
+	do
+        	filex=`echo $file | sed 's%.*/%%g'`
+        	ln -fs $file ./$filex
+        	if [ -s $filex ] ; then
+                	echo "$filex" >> List_of_monthly_SODA_files
+                	nfiles=`expr $nfiles + 1`
+        	fi
+	done
+	if [ $nfiles -le 0 ] ; then
+        	echo "valid monthly SODA files for boundary condition not found"
+        	exit 8
+	fi
+	#
+	# edit roms_boundary_parm file
+	#
+	#  Insert multiple lines from insert_file_name after the lines begin 
+	#  with #INSERT-insert_file_name.
+	#  This is used to insert header lines, domain specifications, etc.
+	#
+	if [ -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_boundary.parm.is ] ; then
+        	for insert in `grep '^#INSERT-'  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_boundary.parm.is`
+        	do
+                	insert_file=`echo $insert | cut -d'-' -f2 | sed 's/ *//g'`
+                	sed "/^#INSERT-$insert_file/r $insert_file"  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_boundary.parm.is | \
+                        sed "/^#INSERT-$insert_file/d" > tmp.$$
+        	done
+	fi
+	sed "s/%NUMBER_OF_MONTHLY_SODA_FILES%/$nfiles/g" tmp.$$ >./roms_boundary.parm
+	#
+	# end of boundary
+fi
+#
+#  link parm files
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_initial.parm initial.parm
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_forcing.parm forcing.parm
+#
+if [ ! -s grid.nc ] ; then
+	./grid.x  1>grid.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "grid.x failed"
+		exit 8
+	else
+		echo "1/7: grid.x complete"
+	fi
+	cat <<EOF >bathtub.parm
+30.
+4500.
+F
+EOF
+	./bathtub.x <bathtub.parm 1>bathtub.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "bathtub.x failed"
+		exit 8
+	else
+		echo "2/7: bathtub.x complete"
+	fi
+	./bathsoap.x 1>bathsorp.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "bathsorp.x failed"
+		exit 8
+	else
+		echo "3/7: bathsoap.x complete"
+	fi
+	./sphere.x 1>sphere.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "sphere.x failed"
+		exit 8
+	else
+		echo "4/7: shpere.x complete"
+	fi
+fi
+#
+#  boundary.x creates bdry.nc file
+#
+if [ ! -s bdry.nc ] ; then
+	./boundary.x  < roms_boundary.parm 1>boundary.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "boundary.x failed"
+		exit 8
+	else
+		echo "5/7 :boundary.x complete"
+	fi
+fi
+#
+#  initial.x creates init.nc file
+#
+if [ ! -s init.nc ] ; then
+	./initial.x < initial.parm 1>initial.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "initial.x failed"
+		exit 8
+	else
+		echo "6/7: initial.x complete"
+	fi
+fi
+#
+#  atmospheric forcing forc.nc file
+#
+if [ ! -s forc.nc ] ; then
+	./forcing.x < forcing.parm  1>forcing.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "focring.x failed"
+		exit 8
+	else
+		echo "7/7: forcing.x complete"
+	fi
+fi
+#
+# keep original init.nc for restart purpose
+#
+cp init.nc init0.nc
+#
+#  now you have grid.nc bdry.nc, init.nc and forc.nc 
+#  to make roms run
+#
+cat grid.out bathtub.out bathsorp.out sphere.out  boundary.out initial.out forcing.out >roms_preproc.out

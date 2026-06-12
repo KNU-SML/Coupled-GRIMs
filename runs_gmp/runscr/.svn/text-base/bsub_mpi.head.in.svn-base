@@ -1,0 +1,10 @@
+#!/bin/sh
+#BSUB -P SDAS0002                       # Project 99999999
+#BSUB -a poe                            # select poe
+#BSUB -n @NPES@                         # number of total (MPI) tasks
+#BSUB -R "span[ptile=@NPES_PER_NODE@]"  # run a max of 16 tasks per node
+#BSUB -J fcst                           # job name
+#BSUB -o fcst.o%J                       # output filename
+#BSUB -e fcst.e%J                       # error filename
+#BSUB -W 12:00                          # wallclock time
+#BSUB -q regular                        # queue

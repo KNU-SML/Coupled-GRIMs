@@ -1,0 +1,302 @@
+#!/bin/sh
+set -ax
+rm -rf test_v4
+#
+# this script makes 72 hour integration starting from an example initial
+# condition. ideal for first testing the system on new computer system
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=       # Experimental name
+if [ "$RUNNAME" = "" ]; then
+  RUNNAME=test_v4
+fi
+#
+# Intervals of sfc execution, sigma output, sfc output and flx output
+# Various options for running the model
+#
+SDATE=2020052000        # Starting forecast date
+ENDHOUR=`expr 24 \* 3`  # Length of model integration in hour
+INCHOUR=$ENDHOUR        # Forecast hour per one execution
+INTSFCX=24              # Time interval to run surface merging
+INTOMLX=24              # Time interval to run ocean mixed layer model
+INTSIG=3                # Time interval to create sigma output file
+INTSFC=3                # Time interval to create surface output file
+INTFLX=3                # Time interval to create surface flux output file
+INTRESTART=$ENDHOUR     # Time interval to restart the model
+SWHR_GBL=1              # Time interval of shortwave radiation flux (default=6)
+LWHR_GBL=3              # Time interval of longwave  radiation flux
+#
+FCST_RESTART=yes        # Option indicating whether current forecast is first
+DEL_FLUX=yes            # Option deleting flux file after forecst (yes;no)
+SIG_GRIB=no             # Option gribing at sigma layer after forecst (yes;no)
+#
+# ------------- below for expert user only -------------------------------------
+#
+# If you wish, you may modify EXECDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+SYEAR=`echo $SDATE|cut -c1-4`
+SYYYYMMDD=`echo $SDATE|cut -c1-8`
+if [ -z $RUNNAME ]; then
+	EXECDIR=/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/$SYYYYMMDD
+else 
+	EXECDIR=/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/$RUNNAME
+fi
+export EXECDIR
+#
+# -------------  do not change below  ------------------------------------------
+#
+mkdir -p $EXECDIR 2>/dev/null
+#
+INITIAL_SIGMA=/rhome/soo/GRIMs/gmp/runs_p2sig/ECMWF_sig_20200520/sig.anl.$SDATE.ieee
+INITIAL_SFC=/rhome/soo/GRIMs/gmp/runs_p2sig/ECMWF_sig_20200520/sfc.anl.$SDATE.ieee
+INITIAL_SFC_FILE_TYPE=osu1
+#
+# blank means use guess (in the sfc file).
+#
+SST_ANL_T0=/data0/sst/oisst/daily/oisst.$SYEAR.daily
+ICE_ANL_T0=/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
+SNO_ANL_T0=/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
+SCV_ANL_T0=
+#
+iicegrb0=0              # 0 : use guess, 1 : use grib file
+isnogrb0=0
+isstgrb0=0
+ism2grb0=0
+#
+SST_ANL=
+ICE_ANL=
+SNO_ANL=
+SCV_ANL=
+#
+iicegrb=$iicegrb0
+isnogrb=$isnogrb0
+isstgrb=$isstgrb0
+ism2grb=$ism2grb0
+#
+INPUT_RESOLUTION=t126k28
+#
+FCST_NPES=24
+FCST_NCPUS=1
+#
+CPSCLD=`grep 'EXPLICIT_CLOUDINESS' /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/../srcs_gmp/define.h | awk '{print $1}' | sed 's/\#//g'`
+#
+# set environmental variables
+#
+. /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/envset
+#
+# cd to run directory
+#
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXECDIR/0LOG.$scrnam
+cp /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/../srcs_gmp/define.h $EXECDIR/0LOG.define.h
+ls -l /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/../srcs_gmp/bin >$EXECDIR/0LOG.bindates
+cd $EXECDIR || exit 8
+#
+# renew log file
+#
+cat /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/$0 > ERROR.out
+echo '==============' >>ERROR.out
+#
+# Automatic restart
+#
+if [ 0 != 1 ]; then
+	if [ -s sigit -a -s sigitdt -a -s sfci -a "$FCST_RESTART" = yes ]; then
+		#
+		# Restart
+		#
+		h=`/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/etc/fhour sigit`
+		echo fhour in the sigit file = $h
+	else
+		#
+		# co2
+		#
+		if [ ! -s co2con ] ; then
+			/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/co2 || exit 8
+		fi
+		#
+		# mountain
+		#
+		if [ ! -s slmsk  -o ! -s oroggd -o ! -s mtnvar ] ; then
+			/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/mtn || exit 8
+		fi
+		#
+		# Initial start.
+		#
+		h=00
+		#
+		# Conversion from ascii to native format
+		#
+		fmt=`echo $INITIAL_SIGMA | sed 's/.*\.//g'`
+		/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+			126:384:192:28 \
+			-1:-1:-1:-1:-1 \
+			$fmt:bin $INITIAL_SIGMA:$INITIAL_SFC \
+			cnvrt_initial_sig:cnvrt_initial_sfc || exit 8
+		#
+		# Find initial date and hour
+		#
+		/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/etc/date cnvrt_initial_sig >date.$$ || exit 8
+		read HH MM DD yyyy FH <date.$$ ; rm date.$$
+		echo $yyyy $MM $DD $HH $FH
+		#
+		# Change input resolution to model resolution
+		#
+		/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/chgr cnvrt_initial_sig cnvrt_initial_sfc \
+						sigit sfci $INITIAL_SFC_FILE_TYPE || exit 8
+		#
+		# Convert initial sfc file type to model sfc file type
+		#
+		SST_GRB_T0=`eval echo $SST_ANL_T0`
+		SNO_GRB_T0=`eval echo $SNO_ANL_T0`
+		SCV_GRB_T0=`eval echo $SCV_ANL_T0`
+		ICE_GRB_T0=`eval echo $ICE_ANL_T0`
+		export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+		export iicegrb0 isstgrb0 isnogrb0 ism2grb
+		/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/sfc0 gsm sfci sfco $INITIAL_SFC_FILE_TYPE || exit 8
+		#
+		cp sfco  sfci     || exit 8
+		cp sigit sigitdt  || exit 8
+		cp sigit sig.ft$h || exit 8
+		cp sfci  sfc.ft$h || exit 8
+		#
+		/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/etc/date sigit >date.$$ || exit 8
+		read HH MM DD yyyy FH <date.$$ ; rm date.$$
+		echo $yyyy $MM $DD $HH $FH
+		#
+		#  pgb of the initial
+		#
+		if [ yes = yes ] ; then
+			/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/pgb $h $h $INTSIG || exit 8
+		elif [ no = yes ] ; then
+			/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/etc/catpgb
+		fi
+	fi
+else
+	h=0
+fi
+#
+#  forecast hour loop
+#
+xc=0
+while [ $h -lt $ENDHOUR ] ; do
+	#
+	hx=`expr $h + $INCHOUR`
+	if [ $hx -gt $ENDHOUR ] ; then
+		hx=$ENDHOUR
+	fi
+	if [ $hx -lt 10 ];then hx=0$hx;fi
+	#
+	SST_GRB=`eval echo $SST_ANL`
+	SNO_GRB=`eval echo $SNO_ANL`
+	SCV_GRB=`eval echo $SCV_ANL`
+	ICE_GRB=`eval echo $ICE_ANL`
+	export SST_GRB SNO_GRB SCV_GRB ICE_GRB iicegrb isstgrb isnogrb ism2grb
+	export SWHR_GBL LWHR_GBL
+	/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fcstparm $INCHOUR $ENDHOUR $INTSFCX:$INTOMLX \
+						$INTSIG:$INTSFC:$INTFLX:$INTRESTART || exit 8
+	#
+	# Execute forecast
+	#
+	if [ "$BATCHQUE" = qsub ]; then
+		fcstid=`$BATCHQUE /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fcst `
+		log_name="fcst.e`echo $fcstid | cut -d'.' -f1`"
+	elif [ "$BATCHQUE" = llsubmit ]; then
+		fcstid=`$BATCHQUE /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fcst `
+		log_name="fcst.e`echo $fcstid | cut -d'.' -f2`"
+	elif [ "$BATCHQUE" = bsub ]; then
+		fcstid0=`$BATCHQUE < /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fcst `
+		fcstid="`echo $fcstid0  | cut -d'<' -f2 | cut -d'>' -f1`"
+		log_name="fcst.e`echo $fcstid`"
+	else
+		fcstid=`$BATCHQUE /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fcst `
+	fi
+	#
+	# Postprocess (pgb, fgb)
+	#
+	if [ 0 != 1 ]; then
+		if [ yes = yes ] ; then
+			phs=0
+			phe=$hx
+			phinc=$INTSIG
+			fhs=0
+			fhe=$hx
+			fhinc=$INTFLX
+			export phs phe phinc fhs fhe fhinc
+			if [ "$BATCHQUE" != "" ]; then
+				if [ "$BATCHQUE" = llsubmit ]; then
+					/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/wait_que_job $fcstid $log_name $BATCHstatus || exit 8
+					fcstid=""
+				fi
+				if [ "$BATCHQUE" = bsub ]; then
+					pgbid=`${BATCHQUE} ${BATCHdepend} "done(${fcstid})" \
+                           < /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/pgb `
+					fgbid=`${BATCHQUE} ${BATCHdepend} "done(${fcstid})" \
+                           < /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fgb `
+					if [ "$SIG_GRIB" = yes ]; then
+						sgbid=`${BATCHQUE} ${BATCHdepend} "done(${fcstid})" \
+                               < /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/sgb `
+					fi
+					pgbid="`echo $pgbid  | cut -d'<' -f2 | cut -d'>' -f1`"
+					fgbid="`echo $fgbid  | cut -d'<' -f2 | cut -d'>' -f1`"
+					sgbid="`echo $sgbid  | cut -d'<' -f2 | cut -d'>' -f1`"
+				else
+	                pgbid=`${BATCHQUE} ${BATCHdepend}${fcstid} /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/pgb `
+					fgbid=`${BATCHQUE} ${BATCHdepend}${fcstid} /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fgb `
+					if [ "$SIG_GRIB" = yes ]; then
+						sgbid=`${BATCHQUE} ${BATCHdepend} "done(${fcstid})" \
+                              < /rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/sgb `
+					fi
+				fi
+			else
+				/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/pgb $phs $phe $phinc  || exit 8
+				/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/fgb $fhs $fhe $fhinc  || exit 8
+				if [ "$SIG_GRIB" = yes ]; then
+				/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/sgb $fhs $fhe $fhinc  || exit 8
+				fi
+			fi
+			#
+			# Wait queue job for fgb and delete flux file
+			#
+			if [ "$DEL_FLUX" = yes ]; then
+				if [ "$BATCHQUE" != "" ]; then
+					/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/wait_que_job $fgbid $log_name $BATCHstatus || exit 8
+				fi
+				if [ -s fgb.ft$fhe ]; then
+					/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/delfile flx 0 $hx $INTFLX || exit 8
+				fi
+			fi
+			#
+			# Wait queue job for pgb
+			#
+			if [ "$BATCHQUE" != "" ]; then
+				/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/runs_gmp/runscr/wait_que_job $pgbid $log_name $BATCHstatus || exit 8
+			fi
+			#
+			# find archive files
+			#
+			#cp sig.ft$hx sigit || exit 8
+			#mv sigp.ft$hx sigitdt  || exit 8
+			cp sfc.ft$hx sfci || exit 8
+			if [ "$CPSCLD" = "define" ]; then
+				cp cpscld.ft$hx cpscldi || exit 8
+			fi
+		elif [ no = yes ] ; then
+			/rhome/soo/NEMO/couple/GRIMs/coupled_GRIMs/gmp_v3.2/libs_gmp/etc/catpgb
+		fi
+	fi
+	#
+	h=$hx
+done
+#
+wait
+echo "`date` $0: Completely ended"
+#
+if [ linux_intel = mac -a mpi = mpi ] ; then
+	lamclean
+	lamhalt
+fi

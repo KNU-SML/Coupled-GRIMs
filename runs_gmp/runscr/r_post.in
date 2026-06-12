@@ -1,0 +1,139 @@
+#!/bin/sh
+set -x
+#
+#  creates r_pgb, averaging and ftp archive script (r_post.sh) and
+#  execute/submit. with this method, r_post.sh can run independently
+#  from any other job, allowing parallel processing with forecast.
+#  this script is written for amip run
+#
+#  $1 ... if 'batch' then r_post.sh runs as a separate process, else
+#         regular serial execution
+#  $2 ... directory where execution is taking place.  Since this job
+#         execute as a separate process, it needs to know where to
+#         get files.
+#  $3 ... year, month, day, hour, starting forecast hour, ending forecast
+#         hour, initial year, initial month, total focast length,
+#         endhour, sigma file output interval separated by ':'
+#
+#  note that the following variables must be passed as environmental variables 
+#  otherwise it uses defaults defined in this script
+#
+#  LIST_OF_FILES
+#  FILES_TO_BE_KEPT
+#  FILES_TO_BE_AVERAGED
+#  FTP_R_SIGIT
+#  FTP_R_SIGITDT
+#  FTP_R_SFC
+#  FTP_R_FLX
+#  FTP_R_PGB
+#  FTP_R_SFCANL
+#  FTP_R_SFCOUT
+#  FTP_R_FCSTOUT
+#  FTP_R_EXTVARS
+#  FTP_R_DIA
+#  RMAVRG
+#  VARIANCE
+#
+if [ $# -ne 3 ] ; then
+	echo $1
+	echo $2
+	echo $3
+	echo r_post argument error
+	exit 8
+fi
+#	
+BATCH=$1
+EXECSUBDIR=$2
+YYYY=`echo $3 | cut -d':' -f1`
+MM=`echo $3 | cut -d':' -f2`
+DD=`echo $3 | cut -d':' -f3`
+HH=`echo $3 | cut -d':' -f4`
+H=`echo $3 | cut -d':' -f5`
+HX=`echo $3 | cut -d':' -f6`
+YYYYS=`echo $3 | cut -d':' -f7`
+MMS=`echo $3 | cut -d':' -f8`
+FHLEN=`echo $3 | cut -d':' -f9`
+ENDHOUR=`echo $3 | cut -d':' -f10`
+INTPOST=`echo $3 | cut -d':' -f11`
+#
+LIST_OF_FILES=${LIST_OF_FILES:='r_sig r_sfc r_flx r_pgb r_fcstout r_extvars'}
+FTP_R_SIGIT=${FTP_R_SIGIT:='no'}
+FTP_R_SIGITDT=${FTP_R_SIGITDT:='no'}
+FTP_R_SFC=${FTP_R_SFC:='no'}
+FTP_R_FLX=${FTP_R_FLX:='no'}
+FTP_R_PGB=${FTP_R_PGB:='no'}
+FTP_R_FCSTOUT=${FTP_R__FCSTOUT:='no'}
+FTP_R_EXTVARS=${FTP_REXTVARS:='no'}
+FTP_R_DIA=${FTP_R_DIA:='no'}
+RMAVRG=${RMAVRG:='yes'}
+VARIANCE=${VARIANCE:='no'}
+#
+cat <<EOF >seddat_rpost
+s?%EXECSUBDIR%?$EXECSUBDIR?g
+s?%YYYY%?$YYYY?g
+s?%MM%?$MM?g
+s?%DD%?$DD?g
+s?%HH%?$HH?g
+s?%H%?$H?g
+s?%HX%?$HX?g
+s?%YYYYS%?$YYYYS?g
+s?%MMS%?$MMS?g
+s?%FHLEN%?$FHLEN?g
+s?%INTPOST%?$INTPOST?g
+s?%ENDHOUR%?$ENDHOUR?g
+s?%FTPADDR%?$FTP_PLATFORM?g
+s?%FTPDIR%?$FTP_DIR?g
+s?%FTP_PROTOCOL%?$FTP_PROTOCOL?g
+s?%LIST_OF_FILES%?$LIST_OF_FILES?g
+s?%FILES_TO_BE_KEPT%?$FILES_TO_BE_KEPT?g
+s?%FILES_TO_BE_AVERAGED%?$FILES_TO_BE_AVERAGED?g
+s?%FTP_R_SIGIT%?$FTP_R_SIGIT?g
+s?%FTP_R_SIGITDT%?$FTP_R_SIGITDT?g
+s?%FTP_R_SFC%?$FTP_R_SFC?g
+s?%FTP_R_FLX%?$FTP_R_FLX?g
+s?%FTP_R_PGB%?$FTP_R_PGB?g
+s?%FTP_R_FCSTOUT%?$FTP_R_FCSTOUT?g
+s?%FTP_R_EXTVARS%?$FTP_R_EXTVARS?g
+s?%FTP_R_DIA%?$FTP_R_DIA?g
+s?%RMAVRG%?$RMAVRG?g
+s?%VARIANCE%?$VARIANCE?g
+EOF
+#
+#  finalize r_post.sh.  add header if necessary.
+#
+rm r_post.f$H-$HX.sh 2>/dev/null
+if [ -s @RUNSCR_DIR@/hs-@HOST_NAME@.h ] ; then
+	sed -f seddat_rpost @RUNSCR_DIR@/hs-@HOST_NAME@.h >r_post.f$H-$HX.sh
+fi
+sed -f seddat_rpost @RUNSCR_DIR@/r_post.is >>r_post.f$H-$HX.sh
+chmod a+x r_post.f$H-$HX.sh
+#
+if [ $BATCH = batch ] ; then
+	if [ -z "@MPISUBMIT@" ] ; then
+		nohup r_post.f$H-$HX.sh 1>r_post.f$H-$HX.out 2>&1 &
+	else
+		@MPISUBMIT@ r_post.f$H-$HX.sh 1>r_post.f$H-$HX.out 2>&1
+	fi
+else
+	./r_post.f$H-$HX.sh 1>r_post.f$H-$HX.out 2>&1 || exit 8
+fi
+#
+# clean up r_post script and output
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = r_post ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	inc=`expr $HX - $H`
+	if [ $inc -lt 0 ] ; then
+		inc=0
+	fi
+	HM=`expr $H - $inc`
+	rm  r_post.f$HM-$H.sh r_post.f$HM-$H.out
+fi
+rm seddat_rpost
+exit 0

@@ -1,0 +1,225 @@
+
+6-13-2000
+
+subroutines moved from fcst, pgb to share
+
+*fpvs.F, *fpvsq.F, *fpvsx.F, fpkap.F, 
+ftdp.F, ftdpq.F, ftdpx.F, ftdpxg.F, fthe.F,  ftheq.F,
+fthex.F,ftlcl.F, ftma.F,  ftmaq.F,  ftmax.F, ftmaxg.F
+*gpvs.F, gtdp.F, gthe.F,  gtma.F
+* with changes
+
+fpvs0.F in pgb (slightly different in RH in pgb file)
+  --> RH differs in pgb output
+idsdef  in pgb (slightly different in fcst), 
+        larger decimal points in share
+        one in pgb can be removed,but keep this for a while
+
+Added routines
+
+fpvs  : vaper pressure w.r.t. ice (old fpvs --> fpvs0 w.r.t. water
+tridin: (1,n) matrix solver
+seto3p: ozne prod/diss rate data set  reading
+o3phys: update o3
+gscond: condensation computation
+precpd: precip computation
+
+Significantly modified files in fcst
+
+cldjms.F, cldjmsn.F,cloud.F,  dampux.F, deldif.F, dfini.F
+filtr1.F, filtr2.F, gbphys.F, gfidiu.F
+gloopa.F, gloopb.F, gloopr.F, gradini.F,gradpre.F,gridiff.F
+grphys.F, grrad1.F, kenput.F, kuocnv.F, lfmfilt.F,lfmfini.F
+lrgscl.F, moninp.F, progtm.F, progtm99.F, rmsgt.F, sascnv.F
+step1.F,  tread.F,  twrite.F, znlavb
+
+Most other routines are modified by the changes in the common
+
+Modified in include
+
+comfphys.h, comlfm.h, paramodel.h, compspec.h, 
+omfspec.vr.h, constant.h
+
+Most src in pgb are modified to include o3 and cloud and snow
+outputs
+
+
+runscr/fcst.in : 
+ln -fs @CPSLIBS_DIR@/con/o3prod.clim.asc        @FTNID@28
+ln -fs @CPSLIBS_DIR@/con/o3loss.clim.asc        @FTNID@29
+
+libs/con/o3prod, o3disp files are created
+
+others 
+gloop.F DNAMIC_ALLOC -> DYNAMIC_ALLOC
+
+Bug fixed
+
+1. o3sbuv.F : O3 distribution : N-S flipped 
+2. gridiff.F: horizontal diffusion of mass
+3. precpd.F : precipitation computation
+
+They do not affect operational due to prognostic o3 since June 1998(1)
+no consideration of (2), and single column call of each physics(3)
+
+
+Differences from EMC
+                                 EMC                 CPC
+1. vertical advection of qci     no                  yes
+1. Negative qci treatment        make up from qv     set minimum 0 
+1. Cloud fraction                Randall with mod    Randall
+
+
+Efficient tuning parameters in cloud2 (ncldg=1)
+u00b and u00t : condensation threadhold RH at bottom and top layers
+currently .85 for both
+
+selection of prognostic o3 and clouds in define.h
+ntrac = 1, 2 (qv, o3....)
+ncldg = 1, 2, 4 (qci; qci, and qrs; qc, qi, qr, and qs)
+
+*** t62 mpi ntrac = 2, ncldg => 1 : unlimit
+
+
+6-13 : src.old.0613 : without ncldg.ntrac
+
+6-25 : src/mtn is changed to get ol and reduced grid
+
+6-30-2000
+
+incorporates Moorthi's radiation part, cld fraction in
+/nfsuser/g01/wx23sm/gsm/f2000/source_clw
+/scratch/wd20sh/gsmsrc/sm
+
+~wd01yh/rad/scol_sm
+/scratch/wd20sh/gsmsrc/yh
+
+-------------------------------------------
+
+/scratch/wd20sh/gsmsrc/readme.cloud
+
+-------------------------------------------
+
+define.h
+
+_ntrac_ : 1 (qv), 2(qv+o3)
+     for new variable : 1) ntrac = 3
+                        2) initialize  : o3suv.F, seto3p.F
+                        3) physics     : o3phys.F
+
+_ncldg_ : 0 (no-prognostic cld), 1 (qc:cloud water only),
+          2 ( qci, qrs), 4 (qc,qi,qr,qs)
+
+          *** automatically tell cloud inptu at initial input
+
+ICE : saturation vapor pressure w.r.t. ice
+INTERACTIVE_STRATUS : define cloudiness w.r.t. qci, qrs....
+
+    currently : cf = function (RH, qci), Randall's formula
+    ==> produces less clouds
+
+    -- major tuning place for cloudiness computation
+    -- cf can be a function of (RH, qci, z, lat ...) Moorthi
+        
+ICECLOUD :
+    optical properties depending upon qci
+    8-bands uv+vis 
+    same as in Moorthi & Yu-tai, but was modified 
+        Moorthis code came from Yu-tai, but single column and some 
+        changes
+    code is different but method is same except for old aerosol, and 
+          swflux is the old one. old aerosol with ibnd=2 is fine.
+        Moorthi and Yu-tai merged with cvs GSM radiation, but with
+        option  for old radiation
+
+minor : all radiation tuning parameters are in gradini
+           (ibnd, icfc, icwp..iswsrc)
+
+another tuning in cloud2 is RHcrit in gscond.F
+    u00b, u00t : 85 % for condensation
+
+2005-01-01 (ECPC)
+
+changes to cvs noah version
+
+1.  Generalized cnvrt and chgdates.  These programs are now combined into
+    one program in libs/etc/utils/scnvrt.F.  The program is independent
+    of model resolution, and of gsm or rsm (specified by data card).  The
+    scripts, chgdates, rchgdates, cnvrt, rcnvrt, ... are now consolidated
+    into scnvrt.
+
+2.  Complete clean-up of surface program.
+
+        2.1  sfcl library now does surface file merging.  the program became a
+         subroutine (sfc) and is called by forecast program as well as by
+         sfc0 program.
+    2.2  sfc0 program is introduced.  This program reads any type of sfc
+         file, converts to the sfc file type of the program you are
+         about to run.  Some fields are calculated from available
+         fields, while others are filled by grib files.
+    2.3  The specification of sfc file structure is now done at two
+         places.  One in the libs/lib/modelib/sfcfld.F, and the other in
+         the srcs/src/include files, varsfc.h, comsfc.h and comsfcmrg.h
+    2.4  The specification of surface grib files to be read in by subroutine
+         sfc and program sfc0 is specified in srcs/src/inlucde/vargrb.h
+    2.5  fixio routine is rewritten.  It does not require any changes even
+         surface file structure is changed.  It also became common to gsm
+         and rsm.  The common is rearranged to make this possible.  This
+         introduced comsfc.h and comsfcmrg.h
+    2.6  sfc file structure is now same for gsm and rsm. mountain variance
+         in rsm sfc file is removed.  It is now read in separately.
+
+3.  Unification of key gsm and rsm prgrams.  In order to make the change in
+    physics transparent between gsm and rsm, the following programs are now
+    merged into one.
+
+        gbphys and rbphys   ......  physics driver routines
+    grphys and rrphys   ......  basic radiation driver routine
+    grrad1 and rgrrad1  ......  second level radiation driver routine 1
+    grrad2 and rgrrad2  ......  second level radiation driver routine 2
+    gradpre and rradpre ......  radiation initialization routine 1
+    gradini and rradini ......  radiation initialization routine 2
+        fixio and rfixio    ......  sfc file i/o (as noted in 2. above)
+
+        As a result of these unifications, osu and noah land surface packages
+        are running both on gsm and rsm.
+
+4.  Continuous integration
+
+        Because of the change of sfc program into subroutine, the forecast
+    programs (gsm and rsm) can be integrated without interraption.  The
+    i/o of rsm is modified (gsm was already modified) to generate
+    history files in speficied intervals during continuous integrations
+    (without specifying the file name in the script).  The base field i/o
+    for rsm is also modified to read files during the integration.
+
+5.  Various clean-ups.
+
+        5.1  Many of the unused routines are removed.
+        5.2  Only used physics packages are compiled.
+        5.3  Binary albedo related file reads are removed and replaced
+         with grib file reads.  This eliminated cnvalb, cnvaer and
+         albaer programs (and directories).
+    5.4  rbln and rloc programs are removed (they are not used).
+        5.5  mtn program is removed from rsm runs.
+        5.6  use of more consistent variable names in configure and run
+         scripts.
+
+The results of the integration will change due to various reasons.
+        1.  Quality control in sfc subroutine is much looser.
+        2.  Spatial interpolation is improved.
+        3.  Use of grib albedo/aerosol vs. binary files cause differences.
+        4.  A couple of very minor errors are found and fixed.
+          4.1 verifying dates in fixrd was one day off
+          4.2 undefined variables in rradini
+
+grims physcis versions, 2011-04-10
+
+v1.0 : ra2 physics 
+v2.0 : ncep seasonal forecast physcis
+v3.0 : nml physcis
+	v.3.1 : v.3.0 + UV_CMT in SAS + HYBRID vertical coordinate
+	v.3.2 : v.3.1 + Han and Pan GFS shallow and deep convections
+	v.3.3 : v.3.2 + w1-w4 reformulations in sas, and thermal excess in ysu
+v4.0 : ncep gfs physics as of jan 2011
+v5.0 : ncar-wrf unified physics

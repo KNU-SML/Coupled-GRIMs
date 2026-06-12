@@ -1,0 +1,38 @@
+!
+   subroutine mpabort
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram:    mpabort
+!            
+! abstract: abort the mpi by any pe.
+!
+! program history log:
+!    99-06-27  henry juang    finish entire test for gsm
+!
+! usage:   call mpfine
+!
+!    input argument lists:
+!
+!    output argument list:
+! 
+! subprograms called:
+!   mpi_abort   - to abort mpi
+!
+!-------------------------------------------------------------------------------
+   use commpi
+!-------------------------------------------------------------------------------
+!soojin_couple
+!   call mpi_abort(mpi_comm_world,1,info)
+   call mpi_abort(mpi_comm_private,1,info)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   if( info.ne.0 ) then
+     print *,'PE',mype,': ********* Error stop in mpabort ****** '
+     print *,'PE',mype,': error code from mpi_abort =',info
+     call abort 
+   endif
+!
+   return
+   end subroutine mpabort
+!-------------------------------------------------------------------------------

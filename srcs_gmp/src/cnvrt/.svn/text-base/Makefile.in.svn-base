@@ -1,0 +1,54 @@
+EXECUTABLE = cnvalb.x
+OBJS = cnvalb.o cnv_gaussian_lat.o
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77@
+FORT_FLAGS = @FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALL_DIR = @INSTALL_DIR@
+EXTRA_LIBS = @EXTRA_LIBS@
+
+LIBS = 
+
+${EXECUTABLE} : ${OBJS} ${LIBS}
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS}
+	${CP} $@ ${INSTALL_DIR}
+
+${SRCS} :
+	ln -s ${EXP_PARENT}/cnvaer/$@ $@
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d' $*.i >$*.f90 ; rm $*.i
+
+.F90.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o *.x core fort.*
+	- ${RM} -f aer_out.asc alb_out.asc.* *.out *.parm
+
+dist_clean :
+	- ${RM} -f *.f90 *.o *.x core fort.* Makefile
+	- ${RM} -f aer_out.asc alb_out.asc.* *.out *.parm
+	- ${RM} -rf rii_files

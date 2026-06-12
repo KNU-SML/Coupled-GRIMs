@@ -1,0 +1,93 @@
+#!/bin/sh
+#
+#  This script generates grid specification and initial condition files for roms
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/topo_R2.nc topo_R2.nc
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/global-frc-r2.nc forc.in.nc
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/global-frc-r2.nc forc.grd.in.nc
+#
+# link executables and mask file
+#
+ln -fs ./r_slmsk ./roms_msk_latlon
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/grid.x .
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/bathtub.x .
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/bathsoap.x .
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/sphere.x .
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/initial.x .
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/forcing.x .
+#
+#  link parm files
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_initial.parm initial.parm
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_forcing.parm forcing.parm
+#
+ln -fs init.in.nc init.grd.in.nc
+#
+if [ ! -s grid.nc ] ; then
+	./grid.x  1>grid.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "grid.x failed"
+		exit 8
+	else
+		echo "1/6: grid.x complete"
+	fi
+	cat <<EOF >bathtub.parm
+30.
+4500.
+F
+EOF
+	./bathtub.x <bathtub.parm 1>bathtub.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "bathtub.x failed"
+		exit 8
+	else
+		echo "2/6: bathtub.x complete"
+	fi
+	./bathsoap.x 1>bathsorp.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "bathsorp.x failed"
+		exit 8
+	else
+		echo "3/6: bathsoap.x complete"
+	fi
+	./sphere.x 1>sphere.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "sphere.x failed"
+		exit 8
+	else
+		echo "4/6: shpere.x complete"
+	fi
+fi
+#
+#  initial.x creates init.nc file
+#
+if [ ! -s init.nc ] ; then
+	./initial.x < initial.parm 1>initial.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "initial.x failed"
+		exit 8
+	else
+		echo "5/6: initial.x complete"
+	fi
+fi
+#
+#  atmospheric forcing forc.nc file
+#
+if [ ! -s forc.nc ] ; then
+        ./forcing.x < forcing.parm  1>forcing.out 2>&1
+        if [ $? -ne 0 ] ; then
+                echo "focring.x failed"
+                exit 8
+        else 
+                echo "6/6: forcing.x complete"
+        fi
+fi
+#
+# keep original init.nc for restart purpose
+#
+cp init.nc init0.nc
+#
+#  now you have grid specification, batymetry and initial condition
+#
+cat grid.out bathtub.out bathsorp.out sphere.out initial.out >roms_preproc.out

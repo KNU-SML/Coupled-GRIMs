@@ -1,0 +1,189 @@
+:This is the help file to show you an example how to setup and run models
+
+Note that this procedure is an old one.  It still works and is useful when
+more simple 'install' script does not work.
+
+Three examples are given here.
+
+Example 1:  run the global model with T42L28 resolution with mpi (16CPU)
+            on ibmsp.
+Example 2:  run the global model with T62L28 resolution with single cpu
+            on dec
+Example 3:  run the regional model with 128x85 grid points with T62L28
+            global field, using ibmsp 2 thread.
+
+--------------------------------
+More user friendly but less flexible interactive setup is also 
+available for gsm and rsm scripts.
+
+Type 'cvs co setup-gsm'  or 'cvs co setup-rsm'
+
+and type setup-gsm or setup-rsm respectively.
+
+==========================================================================
+
+Example 1:  run the global model with T42L28 resolution with mpi (16CPU)
+            on ibmsp.
+------------------------------------------------------------------------
+
+MAKE LIBRARY:
+
+mkdir -p $DISK/libs   (note that DISK is whatever working directory you can use)
+cd $DISK/libs
+cvs co libs_gsm
+vi configure-libs and make sure that the variables are defined properly as:
+
+  MACHINE=ibm
+
+./configure-libs
+make
+./configure clean (optional)
+
+COMPILE MODEL SOURCES:
+
+cd $DISK
+mkdir gsm
+cd gsm
+cvs co src_gsm
+vi configure-model and make sure that the variables are defined properly as:
+
+	LIBS_DIR=$DISK/libs
+	MODEL=gsm
+	MODEL_DEFINE=`pwd`/def/gsm4228
+  INSTITUTIONS=ecpc
+
+	MARCH=mpi
+	NTHREADS=1
+	NPES=16
+ 
+./configure-model
+make
+
+RUN SCRIPT:
+
+cd $DISK
+mkdir run
+cd run
+cvs co scr_gsm
+vi configure-scr and make sure that the variables are defined properly as:
+
+	MODEL_DIR=$DISK/gsm
+  INSTITUTIONS=ecpc
+
+./configure-scr gsm
+gsm
+
+===========================================================================
+Example 2:  run the global model with T62L28 resolution with single cpu
+            on dec
+------------------------------------------------------------------------
+
+MAKE LIBRARY:
+
+mkdir -p $DISK/libs   (note that DISK is whatever working directory you can use)
+cd $DISK/libs
+cvs co libs_gsm
+vi configure-libs and make sure that the variables are defined properly as:
+
+	MACHINE=dec
+
+./configure-libs
+make
+./configure clean (optional)
+
+COMPILE MODEL SOURCES:
+
+cd $DISK
+mkdir gsm
+cd gsm
+cvs co src_gsm
+vi configure-model and make sure that the variables are defined properly as:
+
+	LIBS_DIR=$DISK/libs
+	MODEL=gsm
+	MODEL_DEFINE=`pwd`/def/gsm6228
+  INSTITUTIONS=ecpc
+
+	MARCH=single
+	NTHREADS=1
+	NPES=1
+ 
+./configure-model
+make
+
+RUN SCRIPT:
+
+cd $DISK
+mkdir run
+cd run
+cvs co scr_gsm
+vi configure-scr and make sure that the variables are defined properly as:
+
+	MODEL_DIR=$DISK/gsm
+  INSTITUTIONS=ecpc
+
+./configure-scr gsm
+gsm
+
+
+===========================================================================
+Example 3:  run the regional model with 128x85 grid points with T62L28
+            global field, using ibmsp 2 thread.
+------------------------------------------------------------------------
+
+MAKE LIBRARY:
+
+mkdir -p $DISK/libs   (note that DISK is whatever working directory you can use)
+cd $DISK/libs
+cvs co libs_rsm
+vi configure-libs and make sure that the variables are defined properly as:
+
+	MACHINE=ibmsp
+
+./configure-libs
+make
+./configure clean (optional)
+
+COMPILE MODEL SOURCES:
+
+cd $DISK
+mkdir rsm
+cd rsm
+cvs co src_rsm
+vi configure-model and make sure that the variables are defined properly as:
+
+	CPSLIBS_DIR=$DISK/libs
+	MODEL=rsm
+	MODEL_DEFINE=`pwd`/def/${MODEL}6228r12885
+  INSTITUTIONS=ecpc
+
+	MARCH=thread
+	NTHREADS=2
+	NPES=1
+ 
+./configure-model
+make
+
+RUN SCRIPT:
+
+cd $DISK
+mkdir run
+cd run
+cvs co scr_rsm
+vi configure-scr and make sure that the variables are defined properly as:
+
+	MODEL_DIR=$DISK/rsm
+  INSTITUTIONS=ecpc
+
+./configure-scr rsm
+rsm
+
+--------------------------------------------------------------
+For expert:
+
+Before invoking 'make', type 'make depend' then 'make'
+This will add include file dependency in Makefile
+
+--------------------------------------------------------------
+
+

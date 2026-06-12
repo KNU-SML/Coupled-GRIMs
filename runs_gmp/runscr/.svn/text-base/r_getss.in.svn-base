@@ -1,0 +1,173 @@
+#!/bin/sh
+set -x
+#
+#  get R-2 sigma file and sfc files from nersc for initial condition
+#
+#  $1 ... hour for base field
+#  $2 ... Forecast hour of base field corresponding to initial sates 
+#  $3 ... Year, month, day hour separated by ':'
+#  $4 ... sigsfc or sig (sigsfc gets sig and sfc, sig gets only sig)
+#  $5 ... base field directory
+#  $6 ... IP address
+#  $7 ... communication protocol
+#
+xc=`expr $1`
+fhadj=$2
+YYYY=`echo $3 | cut -d':' -f1`
+MM=`echo $3 | cut -d':' -f2`
+DD=`echo $3 | cut -d':' -f3`
+HH=`echo $3 | cut -d':' -f4`
+FILES=$4
+DATA_DIR=$5
+PLATFORM=$6
+FTP=$7
+#
+if [ $xc -lt 10 ];then xc=0$xc;fi
+cdata_dir=$EXECDIR/tmp
+if [ $C2RP = yes -a -n "$PLATFORM" ]; then
+	mkdir -p $cdata_dir 2>/dev/null
+fi
+#
+DATA_DIR=`eval echo $DATA_DIR`
+SFC_FILE_TYPE=${SFC_FILE_TYPE:=old}
+#
+if [ -s sig.base.$YYYY$MM$DD$HH ] ; then
+	if [ $FILES = sig ] ; then
+		echo "sig.base.$YYYY$MM$DD$HH already exists"
+		exit
+	fi
+	if [ -s sfc.base.$YYYY$MM$DD$HH ] ; then
+				echo sig.base.$YYYY$MM$DD$HH and sfc.base.$YYYY$MM$DD$HH file already exist
+		exit
+	fi
+fi
+#
+if [ -n "$PLATFORM" ] ; then
+	#
+	#  ftp get sigma and sfc
+	#
+	########################
+	if [ $C2RP = no ]; then
+	#
+	echo "binary" >ftpdat.getsgsc
+	echo "passive off" >>ftpdat.getsgsc
+	echo "cd $DATA_DIR" >>ftpdat.getsgsc
+	echo "get sig.anl.$YYYY$MM$DD$HH.ieee sig.anl.base.ieee" >>ftpdat.getsgsc
+	if [ $FILES = sigsfc ] ; then
+		echo "get sfc.anl.$YYYY$MM$DD$HH.ieee sfc.anl.base.ieee" >>ftpdat.getsgsc
+	fi
+	echo "quit" >>ftpdat.getsgsc
+	#
+	rm sig.anl.base.ieee sfc.anl.base.ieee 2>/dev/null
+	@RUNSCR_DIR@/ftpscr ftpdat.getsgsc \
+		ftpout.getsgsc $PLATFORM $FTP || exit 8
+	if [ ! -s sig.anl.base.ieee ] ; then
+		echo "sig.anl.base.ieee after ftp get empty"
+		exit 8
+	fi
+	if [ $FILES = sigsfc ] ; then
+		if [ ! -s sfc.anl.base.ieee ] ; then
+	 		echo "sfc.anl.base.ieee after ftp get empty"
+			exit 8
+		fi
+	fi
+	#
+	else
+	#
+	echo "binary" >ftpdat.getsgsc
+	echo "passive off" >>ftpdat.getsgsc
+	echo "cd $DATA_DIR" >>ftpdat.getsgsc
+	echo "get r_sig.ft$xc $cdata_dir/r_sig.ft$xc" >>ftpdat.getsgsc
+	if [ $FILES = sigsfc ] ; then
+		echo "get r_sfc.ft$xc $cdata_dir/r_sfc.ft$xc" >>ftpdat.getsgsc
+	fi
+	echo "quit" >>ftpdat.getsgsc
+	#
+	rm $cdata_dir/r_sig.ft$xc $cdata_dir/r_sfc.ft$xc 2>/dev/null
+	@RUNSCR_DIR@/ftpscr ftpdat.getsgsc \
+		ftpout.getsgsc $PLATFORM $FTP || exit 8
+	#
+	if [ ! -s $cdata_dir/r_sig.ft$xc ] ; then
+		echo "$cdata_dir/r_sig.ft$xc after ftp get empty"
+		exit 8
+	fi
+	if [ $FILES = sigsfc ] ; then
+		if [ ! -s $cdata_dir/r_sfc.ft$xc ] ; then
+	 		echo "$cdata_dir/r_sfc.ft$xc after ftp get empty"
+			exit 8
+		fi
+	fi
+	@RUNSCR_DIR@/r_sigsfc_chgdates $xc $fhadj $cdata_dir || exit 8
+	rm $cdata_dir/r_sig.ft$xc  
+	if [ $FILES = sigsfc ] ; then
+		rm $cdata_dir/r_sfc.ft$xc
+	fi
+	#
+	fi
+	###################
+#
+else
+#
+	if [ $C2RP = no ]; then
+	#
+	if [ -s $DATA_DIR/sig.anl.$YYYY$MM$DD$HH.* ] ; then
+	        FILE_FORMAT=`ls $DATA_DIR/sig.anl.$YYYY$MM$DD$HH.* | sed 's/.*\.//g'`
+                echo $FILE_FORMAT
+	fi
+	@FTASS@ $DATA_DIR/sig.anl.$YYYY$MM$DD$HH.$FILE_FORMAT sig.anl.base.$FILE_FORMAT
+	if [ $FILES = sigsfc ] ; then
+		if [ -s $DATA_DIR/sfc.anl.$YYYY$MM$DD$HH.* ] ; then
+	          FILE_FORMAT=`ls $DATA_DIR/sfc.anl.$YYYY$MM$DD$HH.* | sed 's/.*\.//g'`
+		fi
+		@FTASS@ $DATA_DIR/sfc.anl.$YYYY$MM$DD$HH.$FILE_FORMAT sfc.anl.base.$FILE_FORMAT
+	fi
+	#
+	else
+	#
+	if [ ! -s $DATA_DIR/r_sig.ft$xc ] ; then
+		echo "coarse grid data $DATA_DIR/r_sig.ft$xc empty"
+		exit 8
+	fi
+	if [ $FILES = sigsfc ] ; then
+		if [ ! -s $DATA_DIR/r_sfc.ft$xc ] ; then
+			echo "coarse grid data $DATA_DIR/r_sfc.ft$xc empty"
+			exit 8
+		fi
+	fi
+	#
+	@RUNSCR_DIR@/r_sigsfc_chgdates $xc $fhadj $DATA_DIR || exit 8
+	#
+	fi
+	#
+fi
+#
+if [ $C2RP = no ]; then
+#
+#  conversion
+#
+if [ ! -s sfc.anl.base.$FILE_FORMAT ] ; then
+	touch sfc.anl.base.$FILE_FORMAT
+fi
+@RUNSCR_DIR@/cnvrt \
+		sig.anl.base.$FILE_FORMAT sfc.anl.base.$FILE_FORMAT \
+		cnvrt_base_sig cnvrt_base_sfc || exit 8
+#
+# change resolution
+#
+#@RUNSCR_DIR@/chgr dummy \
+#                  cnvrt_base_sig cnvrt_base_sfc \
+#                  model_base_sig model_base_sfc || exit 8
+#
+#  convert to 4-digit year if not
+#
+#@RUNSCR_DIR@/cnv4dig model_base_sig model_base_sfc \
+#
+@RUNSCR_DIR@/cnv4dig cnvrt_base_sig cnvrt_base_sfc \
+                    sig.base.$YYYY$MM$DD$HH \
+										sfc.base.$YYYY$MM$DD$HH \
+										$SFC_FILE_TYPE || exit 8
+#
+#
+#
+fi
+#

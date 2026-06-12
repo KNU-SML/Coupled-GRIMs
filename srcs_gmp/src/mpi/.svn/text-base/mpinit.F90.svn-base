@@ -1,0 +1,65 @@
+!
+   subroutine mpinit(strwtime)
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram:    mpinit
+!            
+! abstract: initializing the mpi by each pe.
+!
+! program history log:
+!    99-06-27  henry juang    finish entire test for gsm
+!
+! usage:   call mpinit
+!
+! subprograms called:
+!   mpi_comm_size   - to get total number of pe for the comm
+!   mpi_comm_rank   - to get my own pe number 
+!   mpi_comm_split   - to split entire comm into sub comm
+!
+!-------------------------------------------------------------------------------
+   use paramodel, only : npes_, ncol_, nrow_
+!  use commpi, only : npes, ncol, nrow, mpi_comm_world, mype, mycol, myrow,    &
+   use commpi       ! npes, ncol, nrow, mpi_comm_world, mype, mycol, myrow,    &
+                    ! comm_row, comm_column, msgtag, master
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+!  real*8               ::  strwtime, mpi_wtime
+   real*8               ::  strwtime
+   integer              ::  ierr, jerr
+!
+   npes=npes_
+   strwtime=mpi_wtime()
+   call mpi_comm_size(mpi_comm_world,npes,ierr)
+   call mpi_comm_rank(mpi_comm_world,mype,jerr)
+   if( ierr.ne.0 .or. jerr.ne.0 .or. npes.ne.npes_ ) then
+     print *,'PE',mype,':********* Error stop in mpinit ********* '
+     print *,'PE',mype,':error code from mpi_comm_size = ',ierr
+     print *,'PE',mype,':error code from mpi_comm_rank = ',jerr
+     print *,'PE',mype,':npes preset in code = ',npes_
+     print *,'PE',mype,':npes request from environment = ',npes
+     print *,'PE',mype,':******* End of output for mpinit ******* '
+     call mpabort
+   else
+     master=0
+     ncol=ncol_
+     nrow=nrow_
+     msgtag=0
+     myrow=mype/ncol
+     mycol=mod(mype,ncol)
+     call mpi_comm_split(mpi_comm_world,myrow,mycol,comm_row,ierr)
+     call mpi_comm_split(mpi_comm_world,mycol,myrow,comm_column,jerr)
+     if( ierr.ne.0 .or. jerr.ne.0 ) then
+       print *,'PE',mype,':********* Error stop in mpinit ********* '
+       print *,'PE',mype,':error code for doing comm_row = ',ierr
+       print *,'PE',mype,':error code for doing comm_column = ',jerr
+       print *,'PE',mype,':******* End of output for mpinit ******* '
+       call mpabort
+     endif
+   endif
+!
+   return
+   end subroutine mpinit
+!-------------------------------------------------------------------------------

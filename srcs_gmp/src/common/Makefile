@@ -1,0 +1,118 @@
+LIB = common.a
+
+OBJ_COMMON = comfrivh.o vargrb.o   varsfc.o      vic_veglib.o \
+	parmchgr.o      paramter.o    padchgr.o       comchgr.o    \
+	comkindex.o     comcon.o      comsfc.o        comfgrid.o   \
+	comfphys.o      comio.o       comreduce.o                  \
+	co2tab_sw.o     combgt.o      comboxes.o      comcd1.o     \
+	comcdma.o       comcmf.o      comconsts.o     comcorct.o   \
+	comcorp.o       comcount.o    comdata.o                    \
+	comdate.o       comdate1.o    comdate2.o      comerror.o   \
+	comevnsnd.o     comevnsnd2.o  comhck.o        comheader.o  \
+	comhyck.o       cominimsg.o   comiso.o                     \
+	comlev926.o     comlevel.o    comlevel2.o     comlevman.o  \
+	comlims.o       comlimsc.o    commoistr.o     commsgs.o    \
+	comoblist.o     comoblist1.o  comparams.o     comparams2.o \
+	compmand.o      comradcom.o   comreprt.o      comserch.o   \
+	comsigchk.o     comslims.o    comstats.o      comstn.o     \
+	comstnknt.o     comstnknt2.o  comsunny.o      comswitch.o  \
+	comtck.o        comtcor.o     comvck.o                     \
+	rdparm99.o      rdparm8.o     rdparm.o        paramco2.o   \
+	comswaer.o      comswaer99.o  comswaer8.o                  \
+	comsfcscm.o     comscmini.o   aerparm.o       comadj.o     \
+        comall.o        comreado3.o                                \
+	comgda.o        comgrad.o     comfgsm.o       comfver.o    \
+	comfspec.vr.o   comznl.o      comgpln.o       comgpd.o     \
+	comlfm.o        compspec.o    radiag.o        comfibm.o    \
+	compsplit.o     hcon.o        rnddta.o        co2dta.o     \
+	guang.o         comco2.o      comfcst.o       comccn.o
+
+OBJ_RMP = pintidx.o   rsparltb.o      rmpindex.o    rscombgt.o    rscomcpu.o  \
+	rscomver.o    rscompln.o      rscomrad.o    rscomloc.o \
+	rscomf.o      rscomf.rerun.o  rscomfc.o     rscomgpd.o    rscomgrad.o \
+	rscomltb.o    rscommap.o      sumfidx.o     \
+	rscomrsml.o   rscomrinpg.o    rscomrmtn.o   rscompost.o
+
+OBJ_DFS = dfsvar.o
+
+OBJ_DYN = comdyn.o
+
+OBJ_MODULE = module_sph_reduced_grid.o module_trans.o         module_file_write.o \
+	module_sph_semi_implicit.o     module_sph_legendre.o  module_parm_ptr.o  \
+	module_nislq.o     module_stochastic.o dcmip_grims.o
+
+OBJS1= ${OBJ_COMMON}   ${OBJ_DYN} ${OBJ_MODULE} 
+OBJS2= module_trans_reduce_ser.o
+OBJS= ${OBJS1} ${OBJS2}
+
+SRCS = ${OBJS1:.o=.F90}
+
+MACHINE = linux_intel
+SHELL = /bin/sh
+AR = ar
+CP = cp
+RM = rm
+CD = cd
+CHMOD = chmod
+
+CC = icc
+CPP = cpp -traditional-cpp
+F77 = ifort
+FORT_FLAGS = -r8 -O2 -DLINUX -convert big_endian -module ../include -m64 -mcmodel medium -I/usr/local/netcdf/4.6.1_intel21/include -L/usr/local/netcdf/4.6.1_intel21/lib -lnetcdff -lnetcdf
+EXTC_FLAGS = 
+LOAD_FLAGS = -r8 -O2 -DLINUX -convert big_endian -module ../include -m64 -mcmodel medium -I/usr/local/netcdf/4.6.1_intel21/include -L/usr/local/netcdf/4.6.1_intel21/lib -lnetcdff -lnetcdf
+INCLUDE_DIR = -I../.. -I../include 
+LIB_DIR = /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/lib
+INSTALLDLIB = /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/srcs_gmp/bin
+
+EXP_PARENT = ..
+
+ALL : ${LIB}
+
+${SRCS} :
+
+common.a : ${SRCS} ${OBJS} ../share/paramodel_ser.o
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALLDLIB}
+	- mv *.mod ../include
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90 .il
+
+.F90.f90 :
+	sed 's/ *module *[0-z_]*/&_ser/;s/ *use *[0-z_]*/&_ser/;s/_ser_ser/_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TMP.F90
+	${CPP} -P ${INCLUDE_DIR} TMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TMP.F90
+
+.F90.o :
+	sed 's/ *module *[0-z_]*/&_ser/;s/ *use *[0-z_]*/&_ser/;s/_ser_ser/_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TMP.F90
+	${CPP} -P ${INCLUDE_DIR} TMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TMP.F90
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.F90.il :
+	sed 's/ *module *[0-z_]*/&_ser/;s/ *use *[0-z_]*/&_ser/;s/_ser_ser/_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TMP.F90
+	${CPP} -P ${INCLUDE_DIR} TMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TMP.F90
+	${F77} ${EXTC_FLAGS} $*.f90 -o $*.il
+	
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+module_trans_reduce_ser.o:module_trans.F90
+	sed 's/ *module *[0-z_]*/&_ser/;s/ *use *[0-z_]*/&_ser/' module_trans.F90 > TMP.F90
+	sed 's/module_trans/&_reduce_ser/;s/use constant_ser/use constant/g;s/_ser_ser/_ser/;/define.h/{G;s/$$/#undef MP/;}' TMP.F90 > TMP1.F90
+	sed '/define.h/{G;s/$$/#undef REDUCE_GRID/;}' TMP1.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i ; rm -f  TEMP.F90 TMP*.F90 
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90; rm -f $*.i
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -rf *.f90 *.o *.x *.a core *.il ../include/module_trans_*.mod
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -rf rii_files Makefile

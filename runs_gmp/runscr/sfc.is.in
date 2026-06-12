@@ -1,0 +1,143 @@
+#!/bin/sh
+#
+#XLFRTEOPTS="namelist=old"
+#export XLFRTEOPTS
+#
+PROG=sfc
+cd %EXECSUBDIR%
+if [ $? -ne 0 ] ; then
+  echo "`date` $0:cd to %EXECSUBDIR% failed" >> ERROR.out
+  exit 8
+fi
+#
+sstclim=%SSTCLIM%
+snoclim=%SNOCLIM%
+iceclim=%ICECLIM%
+#
+sstanl=%SSTANL%
+iceanl=%ICEANL%
+snoanl=%SNOANL%
+#
+if [ "$sstclim" = default ] ; then
+	sstclim=
+fi
+if [ "$snoclim" = default ] ; then
+	snoclim=
+fi
+if [ "$iceclim" = default ] ; then
+	iceclim=
+fi
+#
+#  default mvalid
+#
+mvalid=4
+#
+# sst file options
+#
+if [ "$sstanl" = 'guess' ]; then
+	sstanl=' '
+	ctsfs=1.
+elif [ "$sstanl" = 'climatology' ] ; then
+	sstanl=' '
+	ctsfs=0.
+elif [ -n "$sstanl" ] ; then
+	sstanl=$sstanl
+	ctsfs=0.
+	mvalid=4
+else
+	echo "sstanl file is blank"
+	exit 8
+fi
+#
+# ice file options
+#
+if [ "$iceanl" = 'guess' ]; then
+	iceanl=' '
+	caiss=1.
+elif [ "$iceanl" = 'climatology' ] ; then
+	iceanl=' '
+	caiss=0.
+elif [ -n "$iceanl" ] ; then
+	iceanl=$iceanl
+	caiss=0.
+	mvalid=4
+else
+	echo "iceanl file is blank"
+	exit 8
+fi
+#
+# snow file options
+#
+if [ "$snoanl" = 'guess' ]; then
+	snoanl=' '
+	csnol=1.
+elif [ "$snoanl" = 'climatology' ] ; then
+	snoanl=' '
+	csnol=0.
+elif [ -n "$snoanl" ] ; then
+	snoanl=$snoanl
+	csnol=0.
+	mvalid=4
+else
+	echo "snoanl file is blank"
+	exit 8
+fi
+#
+sstan0=''
+sstcl0=''
+#
+PROG=sfc
+fhe=%FHE%
+cat >$PROG.parm <<EOF
+ &NAMMAIN
+ IY=%YYYY%, IM=%MM%, ID=%DD%, IH=%HH%, FH=%FHS%.,
+ FHE=%FHE%.,
+ FHINC=%INTSFCX%.,
+ &END
+ &NAMSFC
+ FNBGSI='sfci'
+ FNBGSO='sfco'
+ FNOROG='%FNOROG%'
+ FNMASK='slmsk'
+ FNMSKG='@CON_DIR@/slmsk1x1.asc'
+ FNGLAC='@CON_DIR@/clim.glacier.grib'
+ FNMXIC='@CON_DIR@/clim.maxice.grib'
+ FNTSFC='${sstclim:=@CON_DIR@/clim.sst.grib}'
+ FNSNOC='${snoclim:=@CON_DIR@/clim.snow.grib}'
+ FNAISC='${iceclim:=@CON_DIR@/clim.ice.grib}'
+ FNZORC='@CON_DIR@/clim.sibrough.grib'
+ FNALBC='@CON_DIR@/clim.yhalbedo.grib'
+ FNAL1C='@CON_DIR@/clim.sibalbedo.grib'
+ FNPLRC='@CON_DIR@/clim.sibresis.grib'
+ FNTG3C='@CON_DIR@/clim.tg3.grib'
+ FNVEGC='@CON_DIR@/clim.vegfrac@VEG_RES@.grib'
+ FNVETC='@CON_DIR@/clim.vegtype@VEG_RES@.grib'
+ FNSOTC='@CON_DIR@/clim.soiltype@VEG_RES@.grib'
+ FNSCVC=' '
+ FNSMCC='@CON_DIR@/clim.soilw.r2.1979-1998.grib'
+ FNSTCC=' '
+ FNACNC=' '
+ FNTSFA='$sstanl'
+ FNACNA='$iceanl'
+ FNSCVA='$snoanl'
+ FNTSF0='$sstan0'
+ FNTSC0='$sstcl0'
+ MVALID=$mvalid
+ CSNOL=$csnol,
+ CAISS=$caiss,
+ CTSFS=$ctsfs,
+ &END
+EOF
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+  assign -R
+fi
+rm -rf $PROG.x
+ln -s @BIN_DIR@/$PROG.x $PROG.x
+ulimit
+@RUNENV@ ./$PROG.x <$PROG.parm 1>sfcout.ft%FHE% 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+grep '<WARNING>:' sfcout.ft%FHE% >>ERROR.out
+exit 0

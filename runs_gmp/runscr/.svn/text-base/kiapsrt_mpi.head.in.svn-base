@@ -1,0 +1,6 @@
+#!/bin/sh
+#PBS -V
+#PBS -l select=@NNODES@:ncpus=@NCPU_PER_NODE@:mpiprocs=@NPES_PER_NODE@:ompthreads=@NTHREADS@
+#PBS -q @MPI_QUE@
+#PBS -j eo
+#PBS -l place=scatter:excl

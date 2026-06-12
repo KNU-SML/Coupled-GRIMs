@@ -1,0 +1,10 @@
+#!/bin/sh
+#PBS -A nim
+#PBS -V
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:30:00
+#PBS -N GRIMs_post
+#PBS -j eo
+#PBS -o GRIMs_post.out
+#PBS -W umask=022
+#PBS -q batch

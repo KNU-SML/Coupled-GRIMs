@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# delete files (checks permission and leave the file alone if write protected)
+#
+#  $1 ... file name prefix [pgb/fgb/fcstout/...]
+#  $2 ... starting forecast hour
+#  $3 ... ending forecast hour
+#  $4 ... forecast hour interval
+#
+if [ $# -ne 4 ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+file=$1
+start_forecast_hour=$2
+end_forecast_hour=$3
+intvl=$4
+#
+fh=`expr $start_forecast_hour + 0`
+while [ $fh -le $end_forecast_hour ] ; do
+	fhr=$fh
+	if [ $fh -lt 10 ] ; then
+		fhr=0$fh
+	fi
+	filey=$file.ft$fhr
+	if [ -s $filey ] ; then
+		ls -l $filey | grep '^\-rw' >/dev/null
+		if [ $? -eq 0 ] ; then
+			rm $filey
+		fi
+	fi
+	fh=`expr $fh + $intvl`
+done

@@ -1,0 +1,21 @@
+EXECUTABLE = cvar.env
+
+RM = @RM@
+CPP = @CPP@
+CHMOD = @CHMOD@
+
+INCLUDE_DIR = -I../
+
+execs :	 ${EXECUTABLE}
+	${CHMOD} 755 $?
+
+.SUFFIXES : .env .F
+
+.F.env :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\//#/;s/\!/#/' $*.i >$*.env ; rm $*.i
+
+clean :
+	- ${RM} -rf core rii_files ${EXECUTABLE}
+
+# DO NOT DELETE

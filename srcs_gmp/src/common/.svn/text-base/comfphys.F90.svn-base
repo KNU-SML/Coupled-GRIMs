@@ -1,0 +1,159 @@
+#include <define.h>
+   module comfphys
+!-------------------------------------------------------------------------------
+   use paramodel, only   :  LONF2S,LATG2S,levs_,mtnvar_
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+   private              ::  LONF2S,LATG2S,levs_,mtnvar_
+!
+   integer                                 ::  ldum0
+   real                                    ::  sdec,cdec,slag,solhr,clstp
+   logical                                 ::  lastep
+   real   , allocatable, dimension(:)      ::  slrad
+   real   , allocatable, dimension(:,:)    ::  sfcnsw, sfcdlw                 ,&
+#ifdef VIC
+                                               sfcusw, sfcdsw                 ,&
+#endif
+                                               coszen, coszer                 ,&
+                                               xlon  , xlat                   ,&
+                                               tsflw                          ,&
+                                               dusfc , dvsfc                  ,&
+                                               dtsfc , dqsfc                  ,&
+                                               dlwsfc, ulwsfc                 ,&
+                                               raintot                        ,&
+#ifdef NOAHYDRO
+                                               raintot2                       ,&
+#endif
+                                               dugwd , dvgwd                  ,&
+#ifdef GWDC
+                                               dugwdc, dvgwdc                 ,&
+#endif
+#ifdef SMP_NUDGING_RAD
+                                               scmsdn, scmsup                 ,&
+#endif
+                                               u10m  , v10m                   ,&
+                                               t2m   , q2m                    ,&
+                                               psurf , psmean                 ,&
+                                               raincps                        ,&
+                                               gflux                          ,&
+#ifdef VICLSM1
+                                               gheat                          ,&
+#endif
+                                               runoff                         ,&
+                                               tmpmax, tmpmin                 ,&
+                                               ep                             ,&
+                                               cldwrk                         ,&
+                                               hpbl                           ,&
+                                               pwat                           ,&
+                                               snowmelt                       ,&
+                                               snowfall                       ,&
+                                               snowevap                       ,&
+                                               qull  , qvll                   ,&
+                                               alhtfl                         ,&
+                                               evcnp                          ,&
+                                               bgrun
+   real   , allocatable, dimension(:,:,:)  ::  swh                            ,&
+                                               hlw                            ,&
+                                               ozon                           ,&
+                                               hprime
+#ifdef NIM
+   real   , allocatable, dimension(:,:,:)  ::  hprime2d
+#endif
+!
+#ifdef COUPLE_ROP
+   real                                    ::  romsrtime, romsrtswup, romsrtswdn
+   real   , allocatable, dimension(:,:)    ::  romsevap, romssens             ,&
+                                               romsustr, romsvstr             ,&
+                                               romslwup, romsswup             ,&
+                                               romslwdn, romsswdn             ,&
+                                               romsprcp, romssgz
+#endif
+!
+   contains
+!-------------------------------------------------------------------------------
+   subroutine comfphys_init
+!-------------------------------------------------------------------------------
+   allocate(   slrad   (LONF2S)               )
+   allocate(   sfcnsw  (LONF2S,LATG2S)                                        ,&
+               sfcdlw  (LONF2S,LATG2S)                                        ,&
+#ifdef VIC
+               sfcusw  (LONF2S,LATG2S)                                        ,&
+               sfcdsw  (LONF2S,LATG2S)                                        ,&
+#endif
+               coszen  (LONF2S,LATG2S)                                        ,&
+               coszer  (LONF2S,LATG2S)                                        ,&
+               xlon    (LONF2S,LATG2S)                                        ,&
+               xlat    (LONF2S,LATG2S)                                        ,&
+               tsflw   (LONF2S,LATG2S)                                        ,&
+               dusfc   (LONF2S,LATG2S)                                        ,&
+               dvsfc   (LONF2S,LATG2S)                                        ,&
+               dtsfc   (LONF2S,LATG2S)                                        ,&
+               dqsfc   (LONF2S,LATG2S)                                        ,&
+               dlwsfc  (LONF2S,LATG2S)                                        ,&
+               ulwsfc  (LONF2S,LATG2S)                                        ,&
+               raintot (LONF2S,LATG2S)                                        ,&
+#ifdef NOAHYDRO
+               raintot2(LONF2S,LATG2S)                                        ,&
+#endif
+               dugwd   (LONF2S,LATG2S)                                        ,&
+               dvgwd   (LONF2S,LATG2S)                                        ,&
+#ifdef GWDC
+               dugwdc  (LONF2S,LATG2S)                                        ,&
+               dvgwdc  (LONF2S,LATG2S)                                        ,&
+#endif
+#ifdef SMP_NUDGING_RAD
+               scmsdn  (LONF2S,LATG2S)                                        ,&
+               scmsup  (LONF2S,LATG2S)                                        ,&
+#endif
+               u10m    (LONF2S,LATG2S)                                        ,&
+               v10m    (LONF2S,LATG2S)                                        ,&
+               t2m     (LONF2S,LATG2S)                                        ,&
+               q2m     (LONF2S,LATG2S)                                        ,&
+               psurf   (LONF2S,LATG2S)                                        ,&
+               psmean  (LONF2S,LATG2S)                                        ,&
+               raincps (LONF2S,LATG2S)                                        ,&
+               gflux   (LONF2S,LATG2S)                                        ,&
+#ifdef VICLSM1
+               gheat   (LONF2S,LATG2S)                                        ,&
+#endif
+               runoff  (LONF2S,LATG2S)                                        ,&
+               tmpmax  (LONF2S,LATG2S)                                        ,&
+               tmpmin  (LONF2S,LATG2S)                                        ,&
+               ep      (LONF2S,LATG2S)                                        ,&
+               cldwrk  (LONF2S,LATG2S)                                        ,&
+               hpbl    (LONF2S,LATG2S)                                        ,&
+               pwat    (LONF2S,LATG2S)                                        ,&
+               snowmelt(LONF2S,LATG2S)                                        ,&
+               snowfall(LONF2S,LATG2S)                                        ,&
+               snowevap(LONF2S,LATG2S)                                        ,&
+               qull    (LONF2S,LATG2S)                                        ,&
+               qvll    (LONF2S,LATG2S)                                        ,&
+               alhtfl  (LONF2S,LATG2S)                                        ,&
+               evcnp   (LONF2S,LATG2S)                                        ,&
+               bgrun   (LONF2S,LATG2S)          )
+   allocate(   swh     (LONF2S,levs_,LATG2S)                                  ,&
+               hlw     (LONF2S,levs_,LATG2S)                                  ,&
+               ozon    (LONF2S,levs_,LATG2S)                                  ,& 
+               hprime  (LONF2S,LATG2S,mtnvar_)  )
+#ifdef NIM
+   allocate(   hprime2d(LONF2S,LATG2S,mtnvar_)  )
+   ozon=0.   !initialized here for SMS
+#endif
+!
+#ifdef COUPLE_ROP
+   allocate(   romsevap(LONF2S,LATG2S)                                        ,&
+               romssens(LONF2S,LATG2S)                                        ,&
+               romsustr(LONF2S,LATG2S)                                        ,&
+               romsvstr(LONF2S,LATG2S)                                        ,&
+               romslwup(LONF2S,LATG2S)                                        ,&
+               romsswup(LONF2S,LATG2S)                                        ,&
+               romslwdn(LONF2S,LATG2S)                                        ,&
+               romsswdn(LONF2S,LATG2S)                                        ,&
+               romsprcp(LONF2S,LATG2S)                                        ,&
+               romssgz (LONF2S,LATG2S)          )
+#endif
+!
+   end subroutine comfphys_init
+!-------------------------------------------------------------------------------
+   end module comfphys

@@ -1,0 +1,54 @@
+if [ $# -ne 3 ] ; then
+	echo 'Usage: chgdates newyr:newmo:newdy:newhr:fhnew isig:isfc osig:osfc'
+	echo "`date` $0: Wrong usage" >>ERROR.out
+	exit 8 
+fi
+#
+PROG=chgdates
+#
+FTNID=fort.
+#
+newyr=`echo $1 | cut -d':' -f1`
+newmo=`echo $1 | cut -d':' -f2`
+newdy=`echo $1 | cut -d':' -f3`
+newhr=`echo $1 | cut -d':' -f4`
+fhnew=`echo $1 | cut -d':' -f5`
+#
+isig=`echo $2 | cut -d':' -f1`
+isfc=`echo $2 | cut -d':' -f2`
+#
+osig=`echo $3 | cut -d':' -f1`
+osfc=`echo $3 | cut -d':' -f2`
+#
+if [ ! -s $isig ] ; then
+	echo "<WARNING> $isig:  No such file"
+	echo "<WARNING> `date` $0: $isig. No such file." >>ERROR.out
+fi
+if [ ! -s $isfc ] ; then
+	echo "<WARNING> $isfc:  No such file"
+	echo "<WARNING> `date` $0: $isfc. No such file." >>ERROR.out
+fi
+#
+rm -f fort.11 fort.12 fort.51 fort.52 
+if [ linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ] ; then
+  assign -R
+fi
+ln -fs $isig fort.11
+ln -fs $isfc fort.12
+ln -fs $osig fort.51
+ln -fs $osfc fort.52
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp  fort.1
+
+echo ' &NAMIN' >$PROG.parm
+echo " NEWYR=$newyr,NEWMO=$newmo,NEWDY=$newdy,NEWHR=$newhr," >>$PROG.parm
+echo " FHNEW=$fhnew.,                                       " >>$PROG.parm
+echo ' &END' >>$PROG.parm
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/$PROG.x $PROG.x
+ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo " $PROG: Execution failed"
+	echo "`date` $PROG: Execution failed." >>ERROR.out
+	exit 8
+fi
+exit 0

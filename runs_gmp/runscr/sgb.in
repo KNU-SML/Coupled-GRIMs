@@ -1,0 +1,52 @@
+#!/bin/sh
+#------------------------------------------------------------------end_of_header
+#
+# sgb
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending forecast hour
+#  $3 ... forecast hour increment
+#
+#  This script assumes that the input sigma file is the form sig.ftxx
+#  The output pressure file is the form sgb.ftxx
+#
+fhs=${fhs:=$1}
+fhe=${fhe:=$2}
+fhinc=${fhinc:=$3}
+EXECDIR=${EXECDIR:=$4}
+if [ "$fhinc" = "" ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+if [ "$EXECDIR" != "" ]; then
+	cd $EXECDIR
+fi
+#
+PROG=sgb
+cat >$PROG.parm <<EOF
+&NAMSGB
+ ICEN2=1,
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+ KEID=0,
+/
+EOF
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+fi
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+fi
+rm -f $PROG.x
+@FTASS@ @BIN_DIR@/$PROG.x             $PROG.x
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@  fort.1
+ulimit -s unlimited
+ulimit -c unlimited
+@RUNENV@ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm -f filenv.$$ >/dev/null
+exit 0

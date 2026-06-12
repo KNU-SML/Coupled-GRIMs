@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# extract
+#
+if [ $# -ne 3 ] ; then
+        echo "`date` $0: argument error" >>ERROR.out
+        exit 8
+fi
+fhs=$1
+fhe=$2
+fhinc=$3
+#
+set -x
+wgrb=@ETC_DIR@/wgrib
+fh=$fhs
+while [ $fh -le $fhe ] ; do
+	fhr=`expr $fh + 0`
+	if [ $fhr -lt 10 ] ; then
+		fhr=0$fhr
+	fi
+	pgbfile=pgb.ft$fhr
+	fgbfile=fgb.ft$fhr
+	extfile=extvars.ft$fhr
+
+	if [ ! -s $pgbfile ] ; then
+		echo $pgbfile missing
+		exit 8
+	fi
+	if [ $fhr != 00 -a ! -s $fgbfile ] ; then
+		echo $fgbfile missing
+		exit 8
+	fi
+
+	$wgrb $pgbfile | grep ":HGT:kpds5=7:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -o $extfile
+
+	$wgrb $pgbfile | grep ":HGT:kpds5=7:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=100:kpds7=700:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=100:kpds7=300:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":PRMSL:kpds5=2:kpds6=102:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	if [ $fhr != 00 ] ; then
+		$wgrb $fgbfile | grep ":PRATE:kpds5=59:kpds6=1:kpds7=0:" | \
+		$wgrb $fgbfile -i -grib -append -o $extfile
+
+		$wgrb $fgbfile | grep ":TMP:kpds5=11:kpds6=105:kpds7=2:" | \
+		$wgrb $fgbfile -i -grib -append -o $extfile
+	fi
+
+	fh=`expr $fh + $fhinc`
+done
+
+exit

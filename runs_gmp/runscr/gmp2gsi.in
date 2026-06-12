@@ -1,0 +1,46 @@
+#!/bin/sh 
+set -x
+analtim=$1
+indir=$2
+oudir=$3
+rundir=$3
+
+yyyy=`echo $analtim | cut -c1-4`
+mm=`echo $analtim | cut -c5-6`
+dd=`echo $analtim | cut -c7-8`
+hh=`echo $analtim | cut -c9-10`
+
+cd $rundir
+initial_sigma=$indir/sig.ft03
+initial_sfc=$indir/sfc.ft03
+out_sigma=$oudir/gdas3.t${hh}z.sf03
+out_sfc=$oudir/gdas3.t${hh}z.bf03
+out_tsfc=
+
+@ETC_DIR@/gsi_sigma_cnvrt gsm noa1 \
+   254:768:384:64 \
+    -1:-1:-1:-1:-1 \
+    bin:ieee $initial_sigma:$initial_sfc \
+    $out_sigma:$out_sfc:$out_tsfc || exit 8
+
+initial_sigma=$indir/sig.ft06
+initial_sfc=$indir/sfc.ft06
+out_sigma=$oudir/gdas3.t${hh}z.sf06
+out_sfc=$oudir/gdas3.t${hh}z.bf06
+
+@ETC_DIR@/gsi_sigma_cnvrt gsm noa1 \
+   254:768:384:64 \
+    $yyyy:$mm:$dd:$hh:06 \
+    bin:ieee $initial_sigma:$initial_sfc \
+    $out_sigma:$out_sfc:$out_tsfc || exit 8
+
+initial_sigma=$indir/sig.ft09
+initial_sfc=$indir/sfc.ft09
+out_sigma=$oudir/gdas3.t${hh}z.sf09
+out_sfc=$oudir/gdas3.t${hh}z.bf09
+
+@ETC_DIR@/gsi_sigma_cnvrt gsm noa1 \
+   254:768:384:64 \
+    -1:-1:-1:-1:-1 \
+    bin:ieee $initial_sigma:$initial_sfc \
+    $out_sigma:$out_sfc:$out_tsfc || exit 8

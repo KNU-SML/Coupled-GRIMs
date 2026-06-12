@@ -1,0 +1,14 @@
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@,
+#PBS -l walltime=0:30:0
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+for envvar in `env | grep PBS | cut -d'=' -f1`
+do
+        export $envvar
+done

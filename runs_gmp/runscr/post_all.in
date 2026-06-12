@@ -1,0 +1,101 @@
+#!/bin/sh
+#------------------------------------------------------------------end_of_header
+set -ax
+#
+EXECDIR=${EXECDIR:=`pwd`}
+cd $EXECDIR
+YYYY=${YYYY:=$1}
+MM=${MM:=$2}
+DD=${DD:=$3}
+HH=${HH:=$4}
+h=${h:=$5}
+hx=${hx:=$6}
+INTSFCX=${INTSFCX:=$7}
+INTSFC=${INTSFC:=$8}
+ENDHOUR=${ENDHOUR:=$9}
+INCHOUR=${INCHOUR:=${10}}
+INTFLX=${INTFLX:=${11}}
+INTSIG=${INTSIG:=${12}}
+INTAVG=${INTAVG:=${13}}
+archive_dir=${archive_dir:=${14}}
+ARCHIVE_PLATFORM=${ARCHIVE_PLATFORM:=${15}}
+ARCHIVE_FTP_PROTOCOL=${ARCHIVE_FTP_PROTOCOL:=${16}}
+#
+CPSCLD=`grep 'EXPLICIT_CLOUDINESS' @SRCS_DIR@/define.h | awk '{print $1}' | sed 's/\#//g'`
+#
+cp sig.ft$hx sigit
+mv sigp.ft$hx sigitdt
+cp sfc.ft$hx sfci
+if [ "$CPSCLD" = "define" ]; then
+	cp cpscld.ft$hx cpscldi
+fi
+#
+if [ @CATPGB@ = yes ] ; then
+	@ETC_DIR@/catpgb
+fi
+#
+#  post processing of the forecasts (pgb and average)
+#
+@RUNSCR_DIR@/cpost non_batch $EXECDIR \
+	$YYYY:$MM:$DD:$HH:$h:$hx:$INTSFCX \
+	$ENDHOUR:$INCHOUR:$INTFLX:$INTSIG:$INTAVG \
+	$archive_dir $ARCHIVE_PLATFORM \
+	$ARCHIVE_FTP_PROTOCOL || exit 8
+#
+#  Delete old short archive files
+#
+rc=0
+for filex in $FILES_TO_BE_KEPT
+do
+	if [  $filex = pgb ] ; then
+		rc=1
+	fi
+done
+rd=0
+for filex in $FILES_TO_BE_AVERAGED
+do
+	if [  $filex = pgb ] ; then
+		rd=1
+	fi
+done
+keepsig=yes
+if [ $rc -eq 0 -a $rd -eq 0 ] ; then
+	keepsig=no
+fi
+for file in $LIST_OF_FILES
+do
+	rc=0
+	for filex in $FILES_TO_BE_KEPT
+	do
+		if [ $filex = $file ] ; then
+			rc=1
+		fi
+	done
+	if [ $rc -eq 1 ] ; then
+		  continue
+	fi
+	if [ $file = sig -a $keepsig = yes ] ; then
+		continue
+	fi
+	if [ $h -eq 00 ] ; then
+		hhds=$h
+	else
+		hhds=`expr $h + $INTFLX`
+	fi
+	hxx=$hx
+	intvl=$INTFLX
+	if [ $file = sfc ] ; then
+	    	intvl=$INTSFC
+	elif [ $file = sfcanl ] ; then
+	 	intvl=$INTSFCX
+		hxx=`expr $hx - $INTSFCX`
+	elif [ $file = cgs ] ; then
+   		intvl=$INTSIG
+       	hxx=`expr $hx - $INTSIG`
+	fi
+	if [ $hxx -ge 0 ] ; then
+		@RUNSCR_DIR@/delfile $file $hhds $hxx $intvl || exit 8
+	fi
+done
+#
+exit 0

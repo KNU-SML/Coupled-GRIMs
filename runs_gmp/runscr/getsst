@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# obtain sst, ice and snow for the current verifying year
+#
+#  $1 .. Directory to place the sst/snow/ice files 
+#  $2 .. directory on archive station where sst/ice/snow are stored
+#  $3 .. sst file name on archive station
+#  $4 .. ice file name on archive station
+#  $5 .. snow file name on archive station
+#  $6 .. archive station ip address
+#  $7 .. protocol name (ftp, sftp, ...)
+#
+if [ $# -lt 5 -o $# -gt 7 ] ; then
+	echo "$0: argument error"
+	exit 8
+fi
+DIR=$1
+SST_DIR=$2
+SST_FILENAME=$3
+ICE_FILENAME=$4
+SNO_FILENAME=$5
+SST_PLATFORM=$6
+FTP=$7
+#
+sst_dir=`eval echo $SST_DIR`
+sst_filename=`eval echo $SST_FILENAME`
+ice_filename=`eval echo $ICE_FILENAME`
+sno_filename=`eval echo $SNO_FILENAME`
+#
+mkdir $DIR 2>/dev/null
+if [ -z "$SST_PLATFORM" ] ; then
+	if [ -s "$sst_dir/$sst_filename" ] ; then
+		cp $sst_dir/$sst_filename $DIR/sst.grib
+	else
+		echo $sst_filename does not exist
+	fi
+	if [ -s "$sst_dir/$ice_filename" ] ; then
+		cp $sst_dir/$ice_filename $DIR/ice.grib
+	else
+		echo $ice_filename does not exist
+	fi
+	if [ -s "$sst_dir/$sno_filename" ] ; then
+		cp $sst_dir/$sno_filename $DIR/sno.grib
+	else
+		echo $sno_filename does not exist
+	fi
+else
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/getrsst $DIR \
+			$SST_PLATFORM $sst_dir \
+			$sst_filename $ice_filename $sno_filename $FTP
+fi

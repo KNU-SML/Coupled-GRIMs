@@ -1,0 +1,168 @@
+#!/bin/sh
+#
+#  This script replaces specified field in the initial sfc file
+#  It is necessary to edit variables defined in the lines between 
+#  the two #===================================== lines below to select
+#  the fields to be replaced.  Current default is SNOW_DEPTH and
+#  SOIL_WETNESS (both layers) are set to climatology
+#
+#  $1 .... gsm or rsm
+#  $2 .... input sfc file name
+#  $3 .... output sfc file name
+#  $4 .... input sfc file type [osu1,osu2,noa1,vic1]
+#
+set -x
+if [ $# -lt 4 ] ; then
+	echo $0: Argument error
+	echo '$1'=$1 
+	echo '$2'=$2 
+	echo '$3'=$3 
+	echo '$4'=$4 
+	exit 8
+fi
+#
+GSM0RSM=$1
+FNIN=$2
+FNOUT=$3
+SFCFTYPIN=$4
+if [ $# = 5 ]; then
+	FH=$5
+else
+	FH=0
+fi
+#
+PROG=sfc0
+#
+cat >${PROG}.parm <<EOF
+ &NAMSFC0
+ FNIN='$FNIN',
+ FNOUT='$FNOUT',
+ SFCFTYPIN='$SFCFTYPIN',
+ FH=${FH}.
+/
+EOF
+if [ $GSM0RSM = rmp ] ; then
+	cat rsm.parm >>$PROG.parm
+fi
+if [ $GSM0RSM = rmp ] ; then
+cat >>${PROG}.parm <<EOF
+ &NAMSFC
+ FNOROG='$EXECDIR/r_orogrd'
+ FNMASK='$EXECDIR/r_slmsk'
+EOF
+else
+cat >>${PROG}.parm <<EOF
+ &NAMSFC
+ FNOROG='$EXECDIR/orogrd.smth'
+ FNMASK='$EXECDIR/slmsk'
+EOF
+fi
+cat >>${PROG}.parm <<EOF
+ FNMSKG='/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.maskh.grib'
+ CONDIR='/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con'
+ BINDIR='/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin'
+ FNGRB(1)='clim.glacier.grib    '
+ FNGRB(2)='clim.maxice.grib     '
+ FNGRB(4)='${ICE_GRB_T0:=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.grib}'
+ FNGRB(5)='$SCV_GRB_T0'
+ FNGRB(6)='${SNO_GRB_T0:=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.grib}'
+ FNGRB(7)='${SST_GRB_T0:=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.sst.grib}'
+ FNGRB(8)='clim.yhalbedo.grib   '
+ FNGRB(9)='clim.sibalbedo.grib  '
+ FNGRB(10)='clim.yhalbedo.grib   '
+ FNGRB(11)='$SM2_GRB_T0'
+ FNGRB(13)='clim.sibrough.grib   '
+ FNGRB(14)='clim.sibresis.grib   '
+ FNGRB(15)='clim.tg3.grib        '
+ FNGRB(18)='clim.vegfrac.grib '
+ FNGRB(19)='clim.vegtype.grib '
+ FNGRB(20)='clim.soiltype.grib'
+ FNGRB(21)='clim.slptyp.grib     '
+ FNGRB(22)='clim.snoalb.grib     '
+ FNGRB(23)='clim.shdmax.grib     '
+ FNGRB(24)='clim.shdmin.grib     '
+EOF
+#
+if [ `echo ${iicegrb0:=0}` -eq 1 ]; then
+    echo " lfgrb(1,4)=f" >> ${PROG}.parm
+    echo " lfgrb(2,4)=f" >> ${PROG}.parm
+    echo " lfgrb(3,4)=t" >> ${PROG}.parm
+    echo " lfgrb(4,4)=f" >> ${PROG}.parm
+    echo " lfgrb(5,4)=f" >> ${PROG}.parm
+else
+    echo " lfgrb(1,4)=F" >> ${PROG}.parm
+    echo " lfgrb(2,4)=F" >> ${PROG}.parm
+    echo " lfgrb(3,4)=F" >> ${PROG}.parm
+    echo " lfgrb(4,4)=F" >> ${PROG}.parm
+    echo " lfgrb(5,4)=F" >> ${PROG}.parm
+fi
+if [ `echo ${isnogrb0:=0}` -eq 1 ]; then
+    echo " lfgrb(1,6)=T" >> ${PROG}.parm
+    echo " lfgrb(2,6)=T" >> ${PROG}.parm
+    echo " lfgrb(3,6)=T" >> ${PROG}.parm
+    echo " lfgrb(4,6)=T" >> ${PROG}.parm
+    echo " lfgrb(5,6)=T" >> ${PROG}.parm
+else
+    echo " lfgrb(1,6)=F" >> ${PROG}.parm
+    echo " lfgrb(2,6)=F" >> ${PROG}.parm
+    echo " lfgrb(3,6)=F" >> ${PROG}.parm
+    echo " lfgrb(4,6)=F" >> ${PROG}.parm
+    echo " lfgrb(5,6)=F" >> ${PROG}.parm
+fi
+if [ `echo ${isstgrb0:=0}` -eq 1 ]; then
+    echo " lfgrb(1,7)=T" >> ${PROG}.parm
+    echo " lfgrb(2,7)=F" >> ${PROG}.parm
+    echo " lfgrb(3,7)=F" >> ${PROG}.parm
+    echo " lfgrb(4,7)=F" >> ${PROG}.parm
+    echo " lfgrb(5,7)=F" >> ${PROG}.parm
+else
+    echo " lfgrb(1,7)=F" >> ${PROG}.parm
+    echo " lfgrb(2,7)=F" >> ${PROG}.parm
+    echo " lfgrb(3,7)=F" >> ${PROG}.parm
+    echo " lfgrb(4,7)=F" >> ${PROG}.parm
+    echo " lfgrb(5,7)=F" >> ${PROG}.parm
+fi
+if [ `echo ${ism2grb0:=0}` -eq 1 ]; then
+    echo " lfgrb(1,11)=F" >> ${PROG}.parm
+    echo " lfgrb(2,11)=T" >> ${PROG}.parm
+    echo " lfgrb(3,11)=F" >> ${PROG}.parm
+    echo " lfgrb(4,11)=T" >> ${PROG}.parm
+    echo " lfgrb(5,11)=F" >> ${PROG}.parm
+else
+    echo " lfgrb(1,11)=F" >> ${PROG}.parm
+    echo " lfgrb(2,11)=F" >> ${PROG}.parm
+    echo " lfgrb(3,11)=F" >> ${PROG}.parm
+    echo " lfgrb(4,11)=F" >> ${PROG}.parm
+    echo " lfgrb(5,11)=F" >> ${PROG}.parm
+fi
+echo '/' >> ${PROG}.parm
+#
+if [ linux_intel = dec ];then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+#
+if [ $? -ne 0 ] ; then
+	echo " ulimit execution failed but continue..." >>ERROR.out
+fi
+rm -rf $PROG.x
+ln -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/$PROG.x $PROG.x
+#
+if [ linux_intel = x1e ] ; then
+	FILENV=filenv.$$
+	export FILENV
+	assign -R
+elif [ linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ] ; then
+	assign -R
+else
+	rm -f fort.[0-9]* 2>/dev/null
+fi
+ln -fs ${PROG}.parm                    fort.95
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp    fort.1
+#
+ ./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi

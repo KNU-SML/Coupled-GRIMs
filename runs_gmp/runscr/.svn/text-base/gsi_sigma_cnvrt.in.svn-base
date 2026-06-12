@@ -1,0 +1,93 @@
+#!/bin/sh
+if [ $# -ne 7 ] ; then
+	echo 'Usage: scnvrt gsm0rsm sfcftyp jcap:idim:jdim:kdim newyr:newmo:newdy:newhr:fhnew infmt:ofmt isig:isfc osig:osfc'
+	echo "`date` $0: Wrong usage" 
+	exit 8 
+fi
+#
+# rsm0gsm [gsm,rsm]
+# sfcftyp [osu1,osu2,noa1]
+# newyr,newmo,newdy,newhr,fhnew  -1 for keeping original date record
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+ETC_DIR=`pwd`
+cd $currdir
+#
+gsm0rsm=$1
+sfcftyp=$2
+#
+jcap=`echo $3 | cut -d':' -f1`
+idim=`echo $3 | cut -d':' -f2`
+jdim=`echo $3 | cut -d':' -f3`
+kdim=`echo $3 | cut -d':' -f4`
+#
+newyr=`echo $4 | cut -d':' -f1`
+newmo=`echo $4 | cut -d':' -f2`
+newdy=`echo $4 | cut -d':' -f3`
+newhr=`echo $4 | cut -d':' -f4`
+fhnew=`echo $4 | cut -d':' -f5`
+#
+infmt=`echo $5 | cut -d':' -f1`
+ofmt=`echo $5 | cut -d':' -f2`
+#
+isig=`echo $6 | cut -d':' -f1`
+isfc=`echo $6 | cut -d':' -f2`
+#
+osig=`echo $7 | cut -d':' -f1`
+osfc=`echo $7 | cut -d':' -f2`
+otsfc=`echo $7 | cut -d':' -f3`
+#
+if [ ! -s $isig ] ; then
+	echo "<Warning> $isig:  No such file"
+	echo "<Warning> `date` $0: $isig. No such file." 
+fi
+if [ ! -s $isfc ] ; then
+	echo "<Warning> $isfc:  No such file"
+	echo "<Warning> `date` $0: $isfc. No such file." 
+fi
+#
+rm -f fort.[0-9]* 2>/dev/null
+#
+issfc=1
+issig=1
+
+if [ $isig != "dummy" ]; then
+ ln -fs $isig fort.11
+else
+   issig=0
+fi
+if [ $isfc != "dummy" ]; then
+   ln -fs $isfc fort.12
+else
+   issfc=0
+fi
+if [ $issig -eq 1 ]; then
+   ln -fs $osig fort.51
+fi
+if [ $issfc -eq 1 ]; then
+   ln -fs $osfc fort.52
+fi
+   ln -fs $otsfc fort.53
+
+cat > scnvrt.data << EOF
+   &NAMCNV
+   GSM0RSM='$gsm0rsm',
+   SFCFTYP='$sfcftyp',
+   INFMT='$infmt',OFMT='$ofmt',
+   JCAP=$jcap,IDIM=$idim,JDIM=$jdim,KDIM=$kdim,
+   NEWYR=$newyr,NEWMO=$newmo,NEWDY=$newdy,NEWHR=$newhr,
+   FHNEW=$fhnew.,
+   ISSIG=$issig, ISSFC=$issfc,
+   &END
+EOF
+#
+ $ETC_DIR/scnvrt_gsi.x <scnvrt.data 1>scnvrt.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo " $0: Execution failed"
+	echo "`date` $0: Execution failed " 
+   exit 8
+fi
+#rm -f $FILENV fort.* scnvrt.data >/dev/null
+exit 0

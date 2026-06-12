@@ -1,0 +1,174 @@
+#!/bin/sh
+set -x
+#
+#  creates pgb, averaging and ftp archive script (cpost.sh) and 
+#  execute/submit. with this method, cpost.sh can run independently
+#  from any other job, allowing parallel processing with forecast.
+#  this script is written for seasonal prediction execution
+#
+#  $1 ... if 'batch' then cpost.sh runs as a separate process, else
+#         regular serial execution
+#  $2 ... directory where execution is taking place.  Since this job
+#         execute as a separate process, it needs to know where to
+#         get files.
+#  $3 ... year, month, day, hour, starting forecast hour, ending forecast
+#         hour, surface program execution interval, separated by ':'
+#  $4 ... forecast hour to the end, forecast hour for this segment,
+#         diagnostic file output interval, sigma file output interval,
+#         separated by ':'
+#  $5 ... archive directory of the target ftp
+#  $6 ... ftp ip address
+#  $7 ... ftp protocol
+#
+if [ $# -ne 5 -a $# -ne 7 ] ; then
+        echo $1
+        echo $2
+        echo $3
+        echo $4
+        echo $5
+        echo $6
+        echo $7
+        echo cpost argument error
+        exit 8
+fi
+#
+#  note that the following variables must be passed as environmental variables
+#  otherwise default values defined in this script will be used
+#
+#  LIST_OF_FILES
+#  FILES_TO_BE_KEPT
+#  FILES_TO_BE_AVERAGED
+#  FTP_SIG
+#  FTP_SFC
+#  FTP_ZNL
+#  FTP_FGB
+#  FTP_DIA
+#  FTP_KEN
+#  FTP_PGB
+#  FTP_SGB
+#  FTP_FCSTOUT
+#  FTP_EXTVARS
+#  RMAVRG
+#  VARIANCE
+#  EXTVARS
+#
+LIST_OF_FILES=${LIST_OF_FILES:='sig sfc znl cgs fgb dia ken pgb sgb fcstout extvars'}
+FILES_TO_BE_KEPT=${FILES_TO_BE_KEPT:='fcstout extvars'}
+FILES_TO_BE_AVERAGED=${FILES_TO_BE_AVERAGED:='pgb fgb'}
+FTP_SIG=${FTP_SIG:='no'}
+FTP_SFC=${FTP_SFC:='no'}
+FTP_ZNL=${FTP_ZNL:='no'}
+FTP_FGB=${FTP_FGB:='no'}
+FTP_DIA=${FTP_DIA:='no'}
+FTP_KEN=${FTP_KEN:='no'}
+FTP_PGB=${FTP_PGB:='no'}
+FTP_SGB=${FTP_SGB:='no'}
+FTP_FCSTOUT=${FTP_FCSTOUT:='no'}
+FTP_EXTVARS=${FTP_EXTVARS:='no'}
+FTP_CGS=${FTP_CGS:='no'}
+RMAVRG=${RMAVRG:='yes'}
+VARIANCE=${VARIANCE:='no'}
+EXTVARS=${EXTVARS='no'}
+#
+BATCH=$1
+EXECSUBDIR=$2
+YYYY=`echo $3 | cut -d':' -f1`
+MM=`echo $3 | cut -d':' -f2`
+DD=`echo $3 | cut -d':' -f3`
+HH=`echo $3 | cut -d':' -f4`
+FHS=`echo $3 | cut -d':' -f5`
+FHE=`echo $3 | cut -d':' -f6`
+INTSFCX=`echo $3 | cut -d':' -f7`
+ENDHOUR=`echo $4 | cut -d':' -f1`
+INCHOUR=`echo $4 | cut -d':' -f2`
+INTFLX=`echo $4 | cut -d':' -f3`
+INTSIG=`echo $4 | cut -d':' -f4`
+INTAVG=`echo $4 | cut -d':' -f5`
+FTPDIR=$5
+PLATFORM=$6
+FTP_PROTOCOL=$7
+#
+cat <<EOF >seddat_cpost
+s?%EXECSUBDIR%?$EXECSUBDIR?g
+s?%YYYY%?$YYYY?g
+s?%MM%?$MM?g
+s?%DD%?$DD?g
+s?%HH%?$HH?g
+s?%YYYYS%?$YYYYS?g
+s?%MMS%?$MMS?g
+s?%DDS%?$DDS?g
+s?%HHS%?$HHS?g
+s?%YYYYE%?$YYYYE?g
+s?%MME%?$MME?g
+s?%DDE%?$DDE?g
+s?%HHE%?$HHE?g
+s?%FHS%?$FHS?g
+s?%FHE%?$FHE?g
+s?%INTSFCX%?$INTSFCX?g
+s?%ENDHOUR%?$ENDHOUR?g
+s?%INCHOUR%?$INCHOUR?g
+s?%INTFLX%?$INTFLX?g
+s?%INTFGB%?$INTFGB?g
+s?%INTSIG%?$INTSIG?g
+s?%INTAVG%?$INTAVG?g
+s?%PLATFORM%?$PLATFORM?g
+s?%FTPDIR%?$FTPDIR?g
+s?%LIST_OF_FILES%?$LIST_OF_FILES?g
+s?%FILES_TO_BE_KEPT%?$FILES_TO_BE_KEPT?g
+s?%FILES_TO_BE_AVERAGED%?$FILES_TO_BE_AVERAGED?g
+s?%FTP_PROTOCOL%?$FTP_PROTOCOL?g
+s?%FTP_SIG%?$FTP_SIG?g
+s?%FTP_SFC%?$FTP_SFC?g
+s?%FTP_ZNL%?$FTP_ZNL?g
+s?%FTP_FGB%?$FTP_FGB?g
+s?%FTP_DIA%?$FTP_DIA?g
+s?%FTP_KEN%?$FTP_KEN?g
+s?%FTP_PGB%?$FTP_PGB?g
+s?%FTP_SGB%?$FTP_SGB?g
+s?%FTP_FCSTOUT%?$FTP_FCSTOUT?g
+s?%FTP_EXTVARS%?$FTP_EXTVARS?g
+s?%FTP_CGS%?$FTP_CGS?g
+s?%RMAVRG%?$RMAVRG?g
+s?%VARIANCE%?$VARIANCE?g
+s?%EXTVARS%?$EXTVARS?g
+EOF
+#
+#  finalize cpost.sh.  add header if necessary.
+#
+rm cpost.sh 2>/dev/null
+if [ -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/hs-nml_linux_intel.h ] ; then
+  sed -f seddat_cpost /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/hs-nml_linux_intel.h >cpost.f$FHS-$FHE.sh
+fi
+sed -f seddat_cpost /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/cpost.is >>cpost.f$FHS-$FHE.sh
+chmod a+x cpost.f$FHS-$FHE.sh
+#
+if [ $BATCH = batch ] ; then
+	if [ -z "@MPISUBMIT@" ] ; then
+		nohup cpost.f$FHS-$FHE.sh >cpost.f$FHS-$FHE.out 2>&1 &
+	else
+      if [ linux_intel = x1e ] ; then
+		   qsub -j eo -V -l mppe=4 cpost.f$FHS-$FHE.sh || exit 8
+      else
+		   @MPISUBMIT@ cpost.f$FHS-$FHE.sh >cpost.f$FHS-$FHE.out 2>&1  
+
+      fi
+	fi
+else
+	./cpost.f$FHS-$FHE.sh >cpost.f$FHS-$FHE.out 2>&1 || exit 8
+fi
+#
+# clean up post script and output
+#
+for filex in $FILES_TO_BE_KEPT
+do
+	if [ $filex = post ] ; then
+		inc=`expr $FHE - $FHS`
+		if [ $inc -lt 0 ] ; then
+			inc=0
+		fi
+		FHM=`expr $FHS - $inc`
+		rm  r_post.f$FHM-$FHS.sh r_post.f$FHM-$FHS.out
+	fi
+done
+rm seddat_cpost
+exit 0

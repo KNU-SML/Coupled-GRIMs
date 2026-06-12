@@ -1,0 +1,95 @@
+#!/bin/sh
+set -x
+#
+if [ $# -lt 9 ] ; then
+	echo $0: wrong number of arguments
+   exit 8
+fi
+INPRS=$1
+OUTSIG=$2
+IY=`echo $3 | cut -c1-4`
+IM=`echo $3 | cut -c5-6`
+ID=`echo $3 | cut -c7-8`
+IH=`echo $3 | cut -c9-10`
+FH=`echo $3 | cut -c11-12`
+IFMOISRH=$4
+IFHEIGHT=$5
+
+IUPD5=`echo $6 | cut -d':' -f1`
+IVPD5=`echo $6 | cut -d':' -f2`
+ITPD5=`echo $6 | cut -d':' -f3`
+IQPD5=`echo $6 | cut -d':' -f4`
+IZPD5=`echo $6 | cut -d':' -f5`
+IFMTNGRB=`echo $6 | cut -d':' -f6`
+KDIMQ=`echo $6 | cut -d':' -f7`
+IFCUBIC=`echo $6 | cut -d':' -f8`
+
+STDPRS=$7
+INSFC=$8
+FNMTNGRB=$9
+#
+grb_unit=10
+mtn_unit=11
+sfc_unit=14
+atm_unit=15
+sig_unit=51
+#
+PROG=change_resolution_pressure
+cat > $PROG.parm <<EOF
+&NAMP2S              
+ FN='$INPRS',
+ FNMTNGRB='$FNMTNGRB',
+ IY=$IY,IM=$IM,ID=$ID,IH=$IH,FH=$FH.,
+ STDPRS=$STDPRS, 
+ IFMOISRH=$IFMOISRH,
+ IFHEIGHT=$IFHEIGHT,
+ IFMTNGRB=$IFMTNGRB,
+ IFCUBIC=$IFCUBIC,
+ kdimq=$KDIMQ,
+ IUPD5=$IUPD5,     
+ IVPD5=$IVPD5,    
+ ITPD5=$ITPD5,   
+ IQPD5=$IQPD5,  
+ IZPD5=$IZPD5, 
+ IUGRB=$grb_unit,
+ IUMTN=$mtn_unit,
+ IUSFC=$sfc_unit,
+ IUATM=$atm_unit,
+ IUSIG=$sig_unit,
+&END         
+EOF
+#
+# IFMOISRH=0  Specific humidity input
+# IFMOISRH=1  Relative humidity input
+#
+#cat rsm.parm >>$PROG.parm
+#
+rm -f @FTNID@[0-9]* 2>/dev/null
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 ] ; then
+	assign -R
+fi
+ln -fs orogrd.smth                       @FTNID@${mtn_unit}
+ln -fs $INSFC                            @FTNID@${sfc_unit}
+ln -fs $OUTSIG                           @FTNID@${sig_unit}
+if [ "@MODEL@" = dfs ]; then
+    ln -fs @CON_DIR@/standard_atm.asc       @FTNID@${atm_unit} || exit 8
+fi
+
+#
+rm $PROG.x 2>/dev/null
+#
+if [ @SYSTEM@ = dec ]; then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+#
+@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@ fort.1
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo `date` - $PROG execution failed >>ERROR.out
+	exit 8
+fi
+rm -f @FTNID@* 2> /dev/null
+exit 0

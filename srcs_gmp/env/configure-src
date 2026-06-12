@@ -1,0 +1,1117 @@
+#!/bin/sh
+#set -ax
+#-------------------------------------------------------------------------------
+#
+#  grims src-script configuration
+#
+#    Program history :
+#
+#    12-19-2000   song-you hong & masao kanamitsu     initial development
+#    03-19-2011   song-you hong & nml group members   grims setup
+#
+#-------------------------------------------------------------------------------
+#
+#    LIBS_DIR    .... Model library, utility executables, scripts
+#                        and constants directory (where configure-lib
+#                        and make are executed). This directory should
+#                        already exist.
+#
+LIBS_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp
+#soojin_couple
+OASIS_LIB=/rhome/soo/NEMO/oasis3-mct/INSTALL_OASIS/lib
+OASIS_INC=/rhome/soo/NEMO/oasis3-mct/INSTALL_OASIS/build-static/lib/psmile.MPI1
+NETCDF_LIB=/usr/local/netcdf/461_intel21/lib
+############################
+#
+#    MODEL  .... sph, dfs, nim, mul, rmp, smp, ssi, gsi, gop, rop, chm
+#
+#      sph : spherical harmonics gmp
+#      dfs : double fourier spectral gmp
+#      nim : non-hydrostatic icosahedral model (noaa/esrl)
+#      mul : aqua-planet testbed - neale and hoskins (2001, asl)
+#      rmp : regional model program
+#      gop : global ocean model program (mom3)
+#      gom : global ocean model program (mom4p1)
+#      rop : regional ocean model program
+#      smp : single column model program
+#      ssi : spectral statistical interpolation data assimilation
+#      gsi : grid point statistical interpolation data assimilation
+#      chm : global model program with aerosol chemistry module
+#
+MODEL=sph
+#
+# define model version
+#     =  /v1.0/v2.0/v3.0/v4.0/v5.0  (see doc/readme files for sub-versions)
+#
+VERSION=v3.2
+#
+#    MARCH          .... select from single/mpi/thread/hybrid
+#
+MARCH=mpi
+#
+# define smp data   .... select from arms18/arms38/gate19/toga40/trmm37
+#
+if [ $MODEL = smp ]; then
+SMP_OBS=arms18
+fi
+#
+# define ibrary directory  
+#
+MPICH_DIR=`echo $MPICH`
+if [ $MODEL = gop -o $MODEL = rop -o $MODEL = gom ]; then
+#MPIGOP_DIR=/usr/local/mpich2/1.2.1p1/intel/11.1/072
+#NETCDF_DIR=/opt/netcdf/3.6.3/static/intel/12.0/4.184
+MPIGOP_DIR=/app/sw/openmpi/1.4.4/intel/11.1
+NETCDF_DIR=/app/sw/netcdf/3.6.3/intel/11.1
+fi
+if [ $MODEL = gsi ]; then
+WRF_DIR=/home/bbk/wrf
+NETCDF_DIR=/glade/u/apps/opt/netcdf/4.2/pgi/12.5
+fi
+#
+# ==============================================================================
+#
+#--- End of user edit section --- Do not change below ---------
+#
+# ==============================================================================
+#
+machine=`grep '^#define ' $LIBS_DIR/machine.h | cut -d' ' -f2 | tr '[A-Z]' '[a-z]'`
+march=`grep '^MARCH=' $LIBS_DIR/configure-lib | cut -d'=' -f2`
+COMR4=false
+if [ $march = mpi -a $machine = x1e ] ; then
+	COMR4=false
+fi
+#
+MODEL_DEFINE=`pwd`/def/model
+#
+if [ $MODEL = smp -o $MODEL = nim ] ; then
+	MARCH=single
+fi
+if [ $MODEL = nim ]; then
+        machine=intel
+        march=single
+fi
+#
+MODEL_DIR=`pwd`
+#
+if [ $MODEL = smp ] ; then
+	case "$SMP_OBS" in
+                arms18 | arms38 | gate19 | toga40 | trmm37)
+		MODEL_SIGLEV=$SMP_OBS;;
+	*)
+		echo "smp experiment needs --arms18/arms38/gate19/toga40/trmm37 "
+		exit 1;;
+        esac
+	enable_single=yes
+fi
+#
+if [ $MARCH = mpi -o $MARCH = hybrid ] ; then
+	MPI=_mpi
+else
+	MPI=
+fi
+#
+if [ $MARCH != $march ] ; then
+	echo "inconsistent library."
+	echo "Library compiled for $march, but sources to be compiled for $MARCH"
+	echo "Do you want to continue?(y)"
+	read yn
+	if [ "$yn" != y ] ; then
+		exit 8
+	fi
+fi
+#
+#   Warning section
+#
+if [ ! -s "$LIBS_DIR" ] ; then
+	echo "Edit $0 and change the variable LIBS_DIR"
+	exit 8
+fi
+if [ ! -s "$MODEL_DEFINE" ] ; then
+	echo MODEL_DEFINE=$MODEL_DEFINE does not exist
+	echo "Edit $0 and change the variable MODEL_DEFINE"
+	exit 8
+fi
+#
+#for ES only, enter the following
+USERNAME=$USER
+#
+LIB_DIR=$LIBS_DIR/lib
+ETC_DIR=$LIBS_DIR/etc
+CON_DIR=$LIBS_DIR/con
+#
+MODEL_BIN_DIR=$MODEL_DIR/bin
+MODEL_LIB_DIR=$MODEL_DIR/bin
+#
+INSTALL_DIR=$MODEL_BIN_DIR
+#
+if [ $MODEL = nim ] ; then
+cp ${LIB_DIR}/modelib/sfcfld.F90 $MODEL_DIR/src/fcst/sfcfld.F90
+LIB_DIR=/lfs0/projects/nim/hwangso/ra2/libs/lib
+MODEL_BIN_DIR=../
+MODEL_LIB_DIR=../
+INSTALL_DIR=../
+fi
+#
+#  Create install directory
+#
+mkdir -p $MODEL_BIN_DIR 2>/dev/null
+#
+#  Copy define files to the user experiment directory
+#
+#  create machine.h
+#
+currdir=`pwd`
+cd $LIBS_DIR
+cpdir=`pwd`
+cd $currdir
+if [ "$currdir" != "$cpdir" ] ; then
+	cp $LIBS_DIR/machine.h . || exit 8
+fi
+#
+# ----------- start creation of define.h -----------------
+#
+# create Makefile for cvar program which extracts #define variable
+# values, creates cvar.env file that can be used in the script to
+# define them as environmental variables.
+#
+echo "set variables from $LIBS_DIR/opt_libs/options-$machine-$march"
+if [ $MODEL = nim ] ; then
+        cp $LIBS_DIR/opt_libs/options-$machine-$march-nim options
+elif [ $MODEL = rop ] ; then
+	cp $LIBS_DIR/opt_libs/options-$machine-$march-rop options
+	cp $LIBS_DIR/machine.h ./src/rop_pre/Initial/Include
+	cp $LIBS_DIR/machine.h ./src/rop_pre/Boundary/Include
+	cp $LIBS_DIR/machine.h ./src/rop_pre/Forcing/Include
+	cp $LIBS_DIR/machine.h ./src/rop_src/ROMS/Include
+	cp def/model/define_rop.h ./src/rop_pre/Initial/Include/roms.h
+	cp def/model/define_rop.h ./src/rop_pre/Boundary/Include/roms.h
+	cp def/model/define_rop.h ./src/rop_pre/Forcing/Include/roms.h
+	cp def/model/define_rop.h ./src/rop_src/ROMS/Include/test.h
+else
+	cp $LIBS_DIR/opt_libs/options-$machine-$march options
+fi
+chmod a+x options
+. ./options
+F77_FCST=${F77_FCST:=$F77}
+#
+echo "Creating define.h"
+if [ $MODEL = smp ] ; then
+  	slev=`echo $MODEL_SIGLEV | cut -c5-6`
+  	OBS=`echo $MODEL_SIGLEV | cut -c1-4`
+  	cp $MODEL_DEFINE/define_$MODEL.h define.h || exit 8
+#
+   sed "1,$ s?LEVS?$slev?g" define.h > define-smp.h
+  	if [ $OBS = arms ] ; then
+        site=ARM
+        extra1=GATE
+        extra2=TOGA
+        extra3=TRMM
+    	if [ $slev = 18 ] ; then
+      		SGPyy=SGP97
+    	else
+      		SGPyy=SGP00
+    	fi
+  	elif [ $OBS = gate ] ; then
+        site=GATE
+        extra1=ARM
+        extra2=TOGA
+        extra3=TRMM
+        SGPyy=SGP00
+  	elif [ $OBS = toga ] ; then
+    	site=TOGA
+        extra1=GATE
+        extra2=ARM
+        extra3=TRMM
+        SGPyy=SGP00
+  	elif [ $OBS = trmm ] ; then
+    	site=TRMM
+        extra1=GATE
+        extra2=TOGA
+        extra3=ARM
+        SGPyy=SGP00
+  	fi
+    cat <<EOF >seddat_smp
+	s%CHOOSE_OBS%$site%g
+	s%EXTRA1_OBS%$extra1%g
+	s%EXTRA2_OBS%$extra2%g
+	s%EXTRA3_OBS%$extra3%g
+EOF
+        sed -f seddat_smp  define-smp.h > define.h   || exit 8
+	/bin/rm -f define-smp.h
+elif [ $MODEL != gop -o $MODEL != rop ] ; then
+    cp ${MODEL_DEFINE}/define_$MODEL.h define.h || exit 8
+fi
+if [ $MARCH = mpi -o $MARCH = hybrid ] ; then
+	sed 's/#undef *MP/#define MP/g' define.h >temp.h$$
+	mv temp.h$$ define.h
+fi
+#
+cat def/grims-$VERSION.h >> define.h
+#
+#  Add more defines for mpi option
+#
+echo "#define _march_ $MARCH" >>./define.h
+#
+if [ $MODEL = smp ] ; then
+  	sed "1,$ s?SGPyy?$SGPyy?g" define.h > define-smp.h
+	mv define-smp.h define.h
+fi
+if [ $MODEL = ssi ] ; then
+    cat ./def/ssi.h >> ./define.h
+fi
+cat def/grims-depend.h >>./define.h
+#
+CPP=`eval echo $CPP`
+$CPP -P -I./ def/cvar.F > cvar.i
+sed '/^ *$/d;s/\//#/;s/\!/#/' cvar.i >cvar.env
+rm -f cvar.i
+. ./cvar.env
+#
+#  for mpi or hybrid, add extra define.h
+#
+if [ $MARCH = mpi -o $MARCH = hybrid ] ; then
+	echo 'Creating define_mpi.h'
+	echo "#define MP"                 >  define_mpi.h
+	echo "#define MPI_REAL mpi_real8" >> define_mpi.h
+	echo "#define _mpi_real_ 8"       >> define_mpi.h
+	if [ $machine = mac -a $COMR4 != true ] ; then
+		sed "s/mpi_real8/mpi_double_precision/g" define_mpi.h >tmp.define_mpi.h
+		mv tmp.define_mpi.h define_mpi.h
+	fi
+   echo "     " >>./define_mpi.h
+   echo "#include <define_mpi.h>" >>./define.h
+fi
+#
+#  Add machine dependent functioning include
+#
+cat ./def/function.h >>./define.h
+#
+#-------------- end of define.h -----------------------------
+#
+#  INCLUDE_DIR is relative to ./src/prog 
+#    ../.. to get define.h and machine.h
+#    ../include to get parameter/common includes
+#
+#soojin_couple
+if [ $machine = linux -a $MARCH = mpi -o $MARCH = hybrid ] ; then
+	INCLUDE_DIR="-I../.. -I../include -I$MPICH_DIR/include "
+else
+	INCLUDE_DIR="-I../.. -I../include "
+fi
+if [ $MODEL = nim ] ; then
+        INCLUDE_DIR="-I.. -I../include"
+fi
+#
+# re-define model resolution related environmental variables
+#
+echo lsoil=$lsoil,sfcftyp=$sfcftyp
+echo nstype=$nstype,nvtype=$nvtype
+echo mtnres=$mtnres,mtnvar=$mtnvar
+echo march=$march
+#
+#  Create sed files for Makefile.in edit
+#
+for march in default single thread mpi hybrid
+do
+	if [ $march = default ] ; then
+			seddat=seddat_srcs
+	else
+			seddat=seddat_srcs-$march
+	fi
+	#
+	EXTRA_LIBS=`eval echo $EXTRA_LIBS`
+	EXTRA_LIBS_FCST=`eval echo $EXTRA_LIBS_FCST`
+	EXTRA_LIBS_RFCST=`eval echo $EXTRA_LIBS_RFCST`
+	EXTRA_LIBS_SSI=`eval echo $EXTRA_LIBS_SSI`
+	EXTRA_LIBS_SFC0=`eval echo $EXTRA_LIBS_SFC0`
+	#
+	#  selection of subroutines to compile
+	#
+	grep '^osulsm1=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_PROGTM_OSU1=\${OBJ_PROGTM_OSU1} 
+	fi
+	grep '^osulsm2=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_PROGTM_OSU2=\${OBJ_PROGTM_OSU2} 
+	fi
+	grep '^noalsm1=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then
+		OBJ_PROGTM_NOA1=\${OBJ_PROGTM_NOA1}
+		OBJ_PROGTM_OSU2=\${OBJ_PROGTM_OSU2}
+	fi
+	grep '^viclsm1=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_VIC1=\${OBJ_VIC1} 
+	fi
+	grep '^kuo=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_KUO=\${OBJ_KUO} 
+	fi
+	grep '^sas=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_SAS=\${OBJ_SAS} 
+	fi
+	grep '^ras=yes' cvar.env >/dev/null 2>/dev/null
+	rc=$?
+	if [ $rc -eq 0 ] ; then 
+		OBJ_RAS=\${OBJ_RAS} 
+	fi
+	grep '^rasv2=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_RASV2=\${OBJ_RASV2}
+	elif [ $rc -eq 0 ] ; then
+		OBJ_RASV1=\${OBJ_RASV1}
+	fi
+	grep '^ccm=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_CCM=\${OBJ_CCM} 
+	fi
+	grep '^cldslingo=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_CNVCLD_SLINGO=\${OBJ_CNVCLD_SLINGO} 
+	else
+		OBJ_CNVCLD_TABLE=\${OBJ_CNVCLD_TABLE} 
+	fi
+	grep '^lwrmdc=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_LW_CHOU=\${OBJ_LW_CHOU} 
+	else
+		OBJ_LW_FS=\${OBJ_LW_FS}
+	fi
+	grep '^rad_smooth_cloud=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_RAD_INT=\${OBJ_RAD_INT} 
+	fi
+	grep '^sw99update=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_SW_99UPDATE=\${OBJ_SW_99UPDATE} 
+	fi
+	grep '^reduce_grid=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_REDUCE=\${OBJ_REDUCE} 
+	fi
+	grep '^mrg_post=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_POST=\${OBJ_POST} 
+	fi
+	grep '^dg=yes' cvar.env >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then 
+		OBJ_DG=\${OBJ_DG} 
+	fi
+	#
+	if [ $MODEL = rmp -o $MODEL = rop ] ; then
+		SFC0_RMPL=\${INSTALLDLIB}/rmpl.a
+		SFC0_RGMP=\${INSTALLDLIB}/rgmp.a
+		OBJ_RMP=\${OBJ_RMP}
+		SRC_RMP=\${SRC_RMP}
+		if [ $MARCH = mpi ] ; then
+			OBJ_MPI=\${OBJ_MPI}
+			DIR_COMMPI=mpi
+		else
+			OBJ_MPI=
+			DIR_COMMPI=
+		fi
+	fi
+	#
+	if [ $MODEL = sph -o $MODEL = mul -o $MODEL = nim -o $MODEL = ssi -o $MODEL = smp -o $MODEL = dfs -o $MODEL = gop -o $MODEL = gsi -o $MODEL = chm ] ; then
+		if [ $MARCH = mpi -o  $MARCH = hybrid ] ; then
+			FCST_COMMON=\${INSTALLDLIB}/common_par.a
+			FCST_SFCL=\${INSTALLDLIB}/sfcl_par.a
+			FCST_MPI=\${INSTALLDLIB}/mpi.a
+			OBJ_MPI=\${OBJ_MPI}
+			DIR_COMMPI=mpi
+		else
+			FCST_COMMON=\${INSTALLDLIB}/common_par.a
+			FCST_SFCL=\${INSTALLDLIB}/sfcl_par.a
+			FCST_MPI=
+			OBJ_MPI=
+			DIR_COMMPI=
+		fi
+		if [ $MODEL = dfs ]; then
+			OBJ_DFS=\${OBJ_DFS}
+			SRC_DFS=\${SRC_DFS}
+			MODEL_=${MODEL}_
+			if [ $MARCH = mpi ] ; then
+				DIR_COMMPI=mpi_dfs
+			fi
+			if [ "$MPI" = "" ]; then
+				OBJ_MODULE=\${OBJ_MODULE}
+			fi
+		fi
+		if [ $MODEL = sph -o $MODEL = mul -o $MODEL = nim -o $MODEL = smp -o $MODEL = gop -o $MODEL = gsi -o $MODEL = chm ]; then
+			OBJ_SPH=\${OBJ_SPH}
+			SRC_SPH=\${SRC_SPH}
+			OBJ_SPH=\${OBJ_SPH}
+			MODEL_=
+		fi
+		if [ $MODEL = nim ]; then
+			FCST_COMMON=\${INSTALLDLIB}/common.a
+			FCST_SFCL=\${INSTALLDLIB}/sfcl.a
+			FCST_MPI=
+			OBJ_MPI=
+			DIR_COMMPI=
+		fi
+	fi
+	if [ $MODEL = chm ] ; then
+		FCST_CHEM=\${INSTALLDLIB}/chemistry.a
+	fi
+	#
+	 cat <<EOF >$seddat
+	 s%@MACHINE@%$machine%g
+	 s%@SHELL@%$SHELL%g
+	 s%@AR@%$AR%g
+	 s%@AS@%$AS%g
+	 s%@CP@%$CP%g
+	 s%@RM@%$RM%g
+	 s%@CD@%$CD%g
+	 s%@CC@%$CC%g
+	 s%@CPP@%$CPP%g
+	 s%@MAKE@%$MAKE%g
+	 s%@MKDIR@%$MKDIR%g
+	 s%@CHMOD@%$CHMOD%g
+	 s%@ECHO@%$ECHO%g
+	 s%@FTNID@%$FTNID%g
+	 s%@FTASS@%$FTASS%g
+	 s%@RUNENV@%$RUNENV%g
+
+	 s%@F77@%$F77%g
+	 s%@F77_FCST@%$F77_FCST%g
+	 s%@FORT_FLAGS@%$FORT_FLAGS%g
+	 s%@EXTRA_FORT_FLAGS@%$EXTRA_FORT_FLAGS%g
+	 s%@LOAD_FLAGS@%$LOAD_FLAGS%g
+
+	 s%@LIB_DIR@%$LIB_DIR%g
+	 s%@ETC_DIR@%$ETC_DIR%g
+	 s%@CON_DIR@%$CON_DIR%g
+
+	 s%@MODEL_DIR@%$MODEL_DIR%g
+   s%@OASIS_LIB@%$OASIS_LIB%g
+   s%@OASIS_INC@%$OASIS_INC%g
+   s%@NETCDF_LIB@%$NETCDF_LIB%g
+
+	 s%@TMP_DIR@%$TMP_DIR%g
+	 s%@INCLUDE_DIR@%$INCLUDE_DIR%g
+	 s%@INSTALL_DIR@%$INSTALL_DIR%g
+	 s%@INSTALLDLIB@%$MODEL_BIN_DIR%g
+	 s%@INSTALL_LIB@%$MODEL_LIB_DIR%g
+	 s%@EXP_PARENT@%$EXP_PARENT%g
+	 s%@EXTRA_SRCS_FCST@%$EXTRA_SRCS_FCST%g
+	 s%@EXTRA_SRCS_RFCST@%$EXTRA_SRCS_RFCST%g
+	 s%@EXTRA_SRCS_SSI@%$EXTRA_SRCS_SSI%g
+	 s%@EXTRA_LIBS@%$EXTRA_LIBS%g
+	 s%@EXTRA_LIBS_CHGR@%$EXTRA_LIBS_CHGR%g
+	 s%@EXTRA_LIBS_FCST@%$EXTRA_LIBS_FCST%g
+	 s%@EXTRA_LIBS_RFCST@%$EXTRA_LIBS_RFCST%g
+	 s%@EXTRA_LIBS_SSI@%$EXTRA_LIBS_SSI%g
+	 s%@EXTRA_LIBS_SFC0@%$EXTRA_LIBS_SFC0%g
+	 s%@EXTRA_LIBS_PGB@%$EXTRA_LIBS_PGB%g
+	 s%@EXTRA_LIBS_SGB@%$EXTRA_LIBS_SGB%g
+	 s%@EXTRA_LIBS_MTN@%$EXTRA_LIBS_MTN%g
+	 s%@EXTRA_LIBS_RINPG@%$EXTRA_LIBS_RINPG%g
+	 s%@EXTRA_LIBS_RMTN@%$EXTRA_LIBS_RMTN%g
+	 s%@EXTRA_LIBS_RPGB@%$EXTRA_LIBS_RPGB%g
+	 s%@EXTRA_LIBS_RSGB@%$EXTRA_LIBS_RSGB%g
+	 s%@MTNSUBMIT@%$MTNSUBMIT%g
+	 s%@MTNRES@%$mtnres%g
+	 s%@MTNVAR@%$mtnvar%g
+	 s%@MPI@%$MPI%g
+	 s%@MODEL@%$MODEL%g
+     s%@OBJ_SPH@%$OBJ_SPH%g
+     s%@OBJ_SPH@%$OBJ_SPH%g
+     s%@SRC_SPH@%$SRC_SPH%g
+     s%@OBJ_DFS@%$OBJ_DFS%g
+     s%@SRC_DFS@%$SRC_DFS%g
+     s%@OBJ_MODULE@%$OBJ_MODULE%g
+     s%@OBJ_RMP@%$OBJ_RMP%g
+     s%@SRC_RMP@%$SRC_RMP%g
+     s%@OBJ_SPH@%$OBJ_SPH%g
+     s%@SRC_SPH@%$SRC_SPH%g
+	 s%@OBJ_PROGTM_OSU1@%$OBJ_PROGTM_OSU1%g
+	 s%@OBJ_PROGTM_OSU2@%$OBJ_PROGTM_OSU2%g
+	 s%@OBJ_PROGTM_NOA1@%$OBJ_PROGTM_NOA1%g
+	 s%@OBJ_VIC1@%$OBJ_VIC1%g
+	 s%@OBJ_KUO@%$OBJ_KUO%g
+	 s%@OBJ_SAS@%$OBJ_SAS%g
+	 s%@OBJ_RAS@%$OBJ_RAS%g
+	 s%@OBJ_RASV1@%$OBJ_RASV1%g
+	 s%@OBJ_RASV2@%$OBJ_RASV2%g
+	 s%@OBJ_CCM@%$OBJ_CCM%g
+	 s%@OBJ_CNVCLD_TABLE@%$OBJ_CNVCLD_TABLE%g
+	 s%@OBJ_CNVCLD_SLINGO@%$OBJ_CNVCLD_SLINGO%g
+	 s%@OBJ_LW_CHOU@%$OBJ_LW_CHOU%g
+	 s%@OBJ_LW_FS@%$OBJ_LW_FS%g
+	 s%@OBJ_SW_CHOU@%$OBJ_SW_CHOU%g
+	 s%@OBJ_RAD_INT@%$OBJ_RAD_INT%g
+	 s%@OBJ_SW_99UPDATE@%$OBJ_SW_99UPDATE%g
+	 s%@OBJ_REDUCE@%$OBJ_REDUCE%g
+	 s%@OBJ_DG@%$OBJ_DG%g
+	 s%@OBJ_POST@%$OBJ_POST%g
+	 s%@SFC0_RMPL@%$SFC0_RMPL%g
+	 s%@SFC0_RGMP@%$SFC0_RGMP%g
+	 s%@FCST_COMMON@%$FCST_COMMON%g
+	 s%@FCST_SFCL@%$FCST_SFCL%g
+	 s%@FCST_MPI@%$FCST_MPI%g
+	 s%@FCST_CHEM@%$FCST_CHEM%g
+	 s%@OBJ_MPI@%$OBJ_MPI%g
+	 s%@DIR_COMMPI@%$DIR_COMMPI%g
+	 s%@USERNAME@%$USERNAME%g
+	 s%@INLINE@%$INLINE%g
+	 s%@EXTRAC_FLAG@%$EXTRAC_FLAG%g
+	 s%@MPIGOP_DIR@%$MPIGOP_DIR%g
+	 s%@MPIROP_DIR@%$MPIROP_DIR%g
+	 s%@MPIGSI_DIR@%$MPIGSI_DIR%g
+	 s%@NETCDF_DIR@%$NETCDF_DIR%g
+	 s%@OCN_FLAGS@%$OCN_FLAGS%g
+	 s%@OCN_FLAGS1@%$OCN_FLAGS1%g
+	 s%@OCN_CPP@%$OCN_CPP%g
+	 s%@ICE_CPP@%$ICE_CPP%g
+	 s%@GSILIB_FORT_FLAGS@%$GSILIB_FORT_FLAGS%g
+	 s%@GSILIB_CC@%$GSILIB_CC%g
+	 s%@FFLAGS_BUFR@%$FFLAGS_BUFR%g
+	 s%@CFLAGS_BUFR@%$CFLAGS_BUFR%g
+	 s%@CFLAGS@%$CFLAGS%g
+	 s%@CFLAGS2@%$CFLAGS2%g
+	 s%@WRF_DIR@%$WRF_DIR%g
+	 s%@ROMS_AR_FLAGS@%$ROMS_AR_FLAGS%g
+	 s%@ROMS_CPP@%$ROMS_CPP%g
+	 s%@ROMS_CPPFLAGS@%$ROMS_CPPFLAGS%g
+	 s%@ROMS_F77@%$ROMS_F77%g
+	 s%@ROMSSUP_F77@%$ROMSSUP_F77%g
+	 s%@ROMSSUP_FORT_FLAGS@%$ROMSSUP_FORT_FLAGS%g
+	 s%@ROMSSUP_LOAD_FLAGS@%$ROMSSUP_LOAD_FLAGS%g
+	 s%@ROMS_FORT_FLAGS@%$ROMS_FORT_FLAGS%g
+	 s%@ROMS_LOAD_FLAGS@%$ROMS_LOAD_FLAGS%g
+	 s%@ROMSSUP_EXTRA_LIBS@%$ROMSSUP_EXTRA_LIBS%g
+	 s%@ROMS_EXTRA_LIBS@%$ROMS_EXTRA_LIBS%g
+	 s%@MDEPFLAGS@%$MDEPFLAGS%g
+	 s%@HDF5_LIBDIR@%$HDF5_LIBDIR%g
+EOF
+done
+#
+#  List of Makefile.in directories to configure
+#
+if [ $MODEL = sph -o $MODEL = dfs -o $MODEL = mul ] ; then
+	SRC_DIRS="\
+		sfcl \
+		sfcl_par \
+		chgr \
+		chgdates \
+		co2 \
+		mtn \
+		pgb \
+		fcst \
+		sgb \
+		fgb \
+  		sfc0 \
+  		p2sig \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		if [ $MODEL = dfs ]; then
+			MARCH_SRC_DIRS="\
+			share \
+			mpi_dfs \
+			common \
+			common_par \
+			"
+		else
+			MARCH_SRC_DIRS="\
+			share \
+			common \
+			common_par \
+			mpi \
+			"
+		fi
+	else
+		MARCH_SRC_DIRS="\
+		share \
+		common \
+		common_par \
+		"
+	fi
+elif [ $MODEL = gop ] ; then
+	GOP_DIRS=" \
+	gop_w3lib \
+	gop_lib \
+	gop_pre \
+	gop_src \
+	"
+	SRC_DIRS="\
+		sfcl \
+		sfcl_par \
+		chgr \
+		chgdates \
+		co2 \
+		mtn \
+		pgb \
+		fcst \
+		sgb \
+		fgb \
+  		sfc0 \
+  		p2sig \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		if [ $MODEL = dfs ]; then
+			MARCH_SRC_DIRS="\
+			share \
+			mpi_dfs \
+			common \
+			common_par \
+			"
+		else
+			MARCH_SRC_DIRS="\
+			share \
+			common \
+			common_par \
+			mpi \
+			"
+		fi
+	fi
+elif [ $MODEL = gom ] ; then
+	GOM_DIRS=" \
+		objs_ocn \
+		objs_ice \
+	"	
+	SRC_DIRS="\
+		sfcl \
+		sfcl_par \
+		chgr \
+		chgdates \
+		co2 \
+		mtn \
+		pgb \
+		fcst \
+		sgb \
+		fgb \
+  		sfc0 \
+  		p2sig \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		if [ $MODEL = dfs ]; then
+			MARCH_SRC_DIRS="\
+			share \
+			mpi_dfs \
+			common \
+			common_par \
+			"
+		else
+			MARCH_SRC_DIRS="\
+			share \
+			common \
+			common_par \
+			mpi \
+			"
+		fi
+	fi
+elif [ $MODEL = gsi ] ; then
+	GSI_DIRS=" \
+	gsi_libs \
+	gsi_main \
+	"
+	SRC_DIRS="\
+		sfcl \
+		sfcl_par \
+		chgr \
+		chgdates \
+		co2 \
+		mtn \
+		pgb \
+		fcst \
+		sgb \
+		fgb \
+  		sfc0 \
+  		p2sig \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		if [ $MODEL = dfs ]; then
+			MARCH_SRC_DIRS="\
+			share \
+			mpi_dfs \
+			common \
+			common_par \
+			"
+		else
+			MARCH_SRC_DIRS="\
+			share \
+			common \
+			common_par \
+			mpi \
+			"
+		fi
+	else
+		MARCH_SRC_DIRS="\
+		share \
+		common \
+		common_par \
+		"
+	fi
+elif [ $MODEL = nim ] ; then
+	SRC_DIRS="\
+	share \
+	common \
+	sfcl \
+	fcst \
+	"
+	DELETE_SRC_DIRS="
+	common_par \
+	sfcl_par   \
+	mpi        \
+	mpi_dfs    \
+	chgr       \
+	cnvrt      \
+	chgdates   \
+	co2        \
+	presmp     \
+	mtn        \
+	pgb        \
+	fgb        \
+	sgb        \
+	p2sig      \
+	sfc0       \
+	gop_w3lib  \
+	gop_lib    \
+	gop_pre    \
+	gop_src    \
+	rop_pre    \
+	rop_src    \
+	gsi_main   \
+	gsi_libs   \
+	"
+	MARCH_SRC_DIRS=""
+elif [ $MODEL = smp ] ; then
+	SRC_DIRS="\
+	share \
+	common \
+	common_par \
+	sfcl \
+	sfcl_par \
+	chgr   \
+	chgdates \
+	co2  \
+	presmp \
+	mtn  \
+	fcst \
+	pgb  \
+	fgb  \
+	sfc0 \
+	"
+	MARCH_SRC_DIRS=""
+
+elif [ $MODEL = rmp ] ; then
+	SRC_DIRS="\
+	common\
+	sfcl\
+	chgr \
+	co2 \
+	rgmp \
+	rmpl \
+	rinpg \
+	rfcst \
+	rmtn \
+	rpgb \
+	rsgb \
+	sfc0 \
+	rchgdates \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		MARCH_SRC_DIRS="\
+		share \
+		common_par \
+		rmpi \
+		sfcl_par \
+		rgmp_par \
+		rmpl_par \
+		rpgb_par \
+		rfcst_par \
+		"
+	else
+		MARCH_SRC_DIRS="share"
+	fi
+
+elif [ $MODEL = rop ] ; then
+	ROP_DIRS=" \
+	rop_pre \
+	rop_src \
+	"
+	SRC_DIRS=" \
+	common\
+	sfcl\
+	chgr \
+	co2 \
+	rgmp \
+	rmpl \
+	rinpg \
+	rfcst \
+	rmtn \
+	rpgb \
+	sfc0 \
+	rchgdates \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		MARCH_SRC_DIRS="\
+		share \
+		common_par \
+		rmpi \
+		sfcl_par \
+		rgmp_par \
+		rmpl_par \
+		rpgb_par \
+		rfcst_par \
+		"
+	else
+		MARCH_SRC_DIRS="share"
+	fi
+
+elif [ $MODEL = ssi ] ; then
+ 	#combobog   #removed
+	SSI_DIRS="acqc \
+	cldtune \
+	combrtrh3 \
+	combbufr \
+	cqc \
+	edbuoy \
+	eddrib \
+	ednosat \
+	edrejx \
+	edsatw \
+	edswnd \
+	edupat \
+	fixpaobs \
+	grepsat \
+	oiqc \
+	postvents \
+	prevents \
+	ssi \
+	precipadj "
+
+	SRC_DIRS=" \
+	common \
+	common_par \
+	sfcl \
+	sfcl_par \
+	chgr \
+	chgdates \
+	co2 \
+	mtn \
+	pgb \
+	fcst \
+	sgb \
+	fgb \
+	sfc0 \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		MARCH_SRC_DIRS="\
+		share \
+		common_par \
+		mpi \
+		sfcl_par \
+		"
+	else
+		MARCH_SRC_DIRS="share"
+	fi
+
+elif [ $MODEL = chm ] ; then
+	SRC_DIRS="\
+		sfcl \
+		sfcl_par \
+		chgr \
+		chgdates \
+		co2 \
+		mtn \
+		pgb \
+		chem \
+		fcst \
+		sgb \
+		fgb \
+  		sfc0 \
+  		p2sig \
+	"
+	if [ $MARCH = mpi -o $MARCH = hybrid ]; then
+		MARCH_SRC_DIRS="\
+		share \
+		common \
+		common_par \
+		mpi \
+		"
+	else
+		MARCH_SRC_DIRS="\
+		share \
+		common \
+		common_par \
+		"
+	fi
+fi
+SSI_DIRS=${SSI_DIRS:=""}
+GOP_DIRS=${GOP_DIRS:=""}
+GOM_DIRS=${GOM_DIRS:=""}
+ROP_DIRS=${ROP_DIRS:=""}
+GSI_DIRS=${GSI_DIRS:=""}
+cat <<EOF >> seddat_srcs-$MARCH
+	 s%@SRC_DIRS@%$SRC_DIRS%g
+	 s%@SSI_DIRS@%$SSI_DIRS%g
+	 s%@GOP_DIRS@%$GOP_DIRS%g
+	 s%@GOM_DIRS@%$GOM_DIRS%g
+	 s%@ROP_DIRS@%$ROP_DIRS%g
+	 s%@GSI_DIRS@%$GSI_DIRS%g
+	 s%@MARCH_SRC_DIRS@%$MARCH_SRC_DIRS%g
+EOF
+#
+#  Configure
+#
+echo "creating Makefile"
+if [ $MODEL = ssi -o $MODEL = gop -o $MODEL = rop -o $MODEL = gsi ]; then
+	sed -f seddat_srcs makefiles/Makefile.$MODEL.in >Makefile
+	mkdir -p src/gsi_include
+else
+	sed -f seddat_srcs makefiles/Makefile.in >Makefile
+fi
+if [ $MODEL = gsi ]; then
+echo "creating configure.gsi"
+	sed -f seddat_srcs def/configure.gsi.in >configure.gsi
+fi
+echo "creating ./src/Makefile"
+sed -f seddat_srcs ./src/Makefile.in >./src/Makefile
+#
+for dir in $SRC_DIRS $SSI_DIRS $GOP_DIRS $GOM_DIRS $ROP_DIRS $GSI_DIRS
+do
+	echo "creating ./src/$dir/Makefile"
+	case $dir in
+		*objs_* )
+			sed -f seddat_srcs ./src/gom/$dir/Makefile.in >./src/gom/$dir/Makefile ;;
+		* )
+			sed -f seddat_srcs ./src/$dir/Makefile.in >./src/$dir/Makefile ;;
+	esac
+	if [ $MODEL = rop ]; then
+		mv ./src/$dir/Makefile ./src/$dir/makefile
+	fi
+	if [ $MODEL = gsi ]; then
+		mv ./src/$dir/Makefile ./src/$dir/makefile
+	fi
+done
+if [ $MODEL = gop ]; then
+	PROG_GOP="
+	gop_mppnccombine \
+	gop_skim_sst \
+	gop_convert_restart \
+	gop_coupa2o \
+	gop_coupo2a \
+	gop_force_grib_date_y2k \
+	gop_grib_eta_daily \
+	gop_grib_ocean \
+	gop_mom3_daily_proc \
+	gop_mom3_etadaily2.5 \
+	gop_ndate \
+	"
+for dir in $PROG_GOP
+do
+	echo "creating ./src/gop_pre/$dir/Makefile"
+	sed -f seddat_srcs ./src/gop_pre/$dir/Makefile.in >./src/gop_pre/$dir/Makefile
+done
+fi
+if [ $MODEL = rop ]; then
+  PROG_ROP="
+  Boundary \
+  Forcing \
+  Initial \
+  Gridpak \
+  Utils \
+  "
+for dir in $PROG_ROP
+do
+  echo "creating ./src/rop_pre/$dir/Makefile"
+  sed -f seddat_srcs ./src/rop_pre/$dir/Makefile.in >./src/rop_pre/$dir/Makefile
+done
+fi
+if [ $MODEL = rop ]; then
+  PROG_ROP="
+  Boundary \
+  Forcing \
+  Initial \
+  Gridpak \
+  "
+for dir in $PROG_ROP
+do
+  echo "creating ./src/rop_pre/$dir/Compilers/compiler.mk  "
+  sed -f seddat_srcs ./src/rop_pre/$dir/Compilers/compiler.mk.in \
+	>./src/rop_pre/$dir/Compilers/compiler.mk
+done
+  echo "creating ./src/rop_src/Compilers/compiler.mk  "
+  sed -f seddat_srcs ./src/rop_src/Compilers/compiler.mk.in \
+	>./src/rop_src/Compilers/compiler.mk
+fi
+#
+# thread/mpi/hybrid option
+#
+seddat=seddat_srcs-$MARCH
+if [ $MARCH = thread -o $MARCH = mpi -o $MARCH = hybrid ] ; then
+	if [ ! -s "$seddat" ] ; then
+		echo $seddat does not exist for MARCH=$MARCH 
+		exit 8
+	fi
+fi
+if [ -s "$seddat" ] ; then
+	if [ $MODEL = sph -o $MODEL = mul -o $MODEL = nim -o $MODEL = ssi -o $MODEL = dfs -o $MODEL = gop -o $MODEL = chm ] ; then
+		echo "re-creating ./src/Makefile for $MARCH"
+		sed -f $seddat ./src/Makefile.in >./src/Makefile
+		for dir in $MARCH_SRC_DIRS
+		do
+			echo "re-creating ./src/$dir/Makefile for $MARCH"
+			sed -f $seddat ./src/$dir/Makefile.in >./src/$dir/Makefile
+		done
+	else
+		if [ $MARCH = mpi -o $MARCH = hybrid ] ; then
+			sed -f $seddat ./src/Makefile.in >./src/Makefile
+			for dir in $MARCH_SRC_DIRS
+			do
+				echo "creating ./src/$dir/Makefile for $MARCH"
+				sed -f $seddat ./src/$dir/Makefile.in \
+					> ./src/$dir/Makefile
+			done
+		else
+			sed -f $seddat ./src/Makefile.in >./src/Makefile
+			for dir in $MARCH_SRC_DIRS
+			do
+				echo "creating ./src/$dir/Makefile for $MARCH"
+				sed -f $seddat ./src/$dir/Makefile.in \
+					> ./src/$dir/Makefile
+			done
+		fi
+	fi
+fi
+if [ $MODEL = nim ] ; then
+	sed 's|${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS_FCST}|${AR} -r $@ ${OBJS}|g;s|fcst.x|fcst.a|g;s|grims_init4nim.o|grims_init4nim.o      sfcfld.o|g;s|dyn_sph_driver.o||g' ./src/fcst/Makefile > ./src/fcst/Makefile.TMP1
+	sed 's|paramodel.o| ReadNamelist.o  paramodel.o|g' ./src/share/Makefile > ./src/share/Makefile.TMP1
+	sed 's/module_trans_reduce_ser.o//g' ./src/common/Makefile > ./src/common/Makefile.TMP1
+	sed '/&_ser/d;s/sfc_check_file.o//g' ./src/sfcl/Makefile > ./src/sfcl/Makefile.TMP1
+	sed '/INSTALL_DIR/d;s/*.mod/*.mod *.a/g' ./src/Makefile > ./src/Makefile.TMP1
+	mv ./src/Makefile.TMP1 ./src/Makefile
+cat <<EOF >seddat_nim
+include ../../../macros.make
+EOF
+echo "creating nim_grims.tar"
+mkdir grims
+for dir in $SRC_DIRS
+do
+	echo $dir
+	if [ ! -s ./src/$dir/Makefile.TMP1 ] ; then
+		mv ./src/$dir/Makefile ./src/$dir/Makefile.TMP1
+	fi
+	cat seddat_nim ./src/$dir/Makefile.TMP1 > ./src/$dir/Makefile.TMP
+	sed 's|${FORT_FLAGS} -c|${FORT_FLAGS} ${EXTRA_FORT_FLAGS} ${INCLUDE_DIR} -c|g' ./src/$dir/Makefile.TMP > ./src/$dir/Makefile.TMP1
+	sed 's|${LIB_DIR}/modelib.a| |g;s|${LIB_DIR}/w3lib.a| |g;s|$(GRIMSFLAGS)| $(GRIMSFLAGS)|g' ./src/$dir/Makefile.TMP1 > ./src/$dir/Makefile.TMP
+	sed 's|TEMP.F90 >|$*.F90 >|g;s|TMP.F90 >|$*.F90 >|g;s|rm |rm -f |g;s|-f -f| -f |g' ./src/$dir/Makefile.TMP > ./src/$dir/Makefile
+	cp -r ./src/$dir ./grims/$dir
+	rm -f ./src/$dir/Makefile.TMP* ./grims/$dir/Makefile.TMP* ./grims/$dir/Makefile.in
+done
+cp -r ./src/include ./grims/
+cp ./define.h ./machine.h ./src/Makefile ./grims/
+for dir in $DELETE_SRC_DIRS
+do
+	rm -rf ./grims/$dir
+done
+tar cvf nim_grims.tar grims
+rm -rf grims
+fi
+#
+rm seddat*

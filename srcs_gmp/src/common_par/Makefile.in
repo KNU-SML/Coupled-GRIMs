@@ -1,0 +1,115 @@
+LIB = common_par.a
+OBJ_COMMON = comfrivh.o vargrb.o   varsfc.o      vic_veglib.o \
+   parmchgr.o      paramter.o    padchgr.o       comchgr.o    \
+	comkindex.o     comcon.o      comsfc.o      comfgrid.o   \
+	comfphys.o      comio.o       comreduce.o  \
+	co2tab_sw.o     combgt.o      comboxes.o    comcd1.o     \
+	comcdma.o	comcmf.o      comconsts.o   comcorct.o   \
+	comcorp.o       comcount.o    comdata.o    \
+	comdate.o       comdate1.o    comdate2.o    comerror.o   \
+	comevnsnd.o     comevnsnd2.o  comhck.o      comheader.o  \
+	comhyck.o       cominimsg.o   comiso.o     \
+	comlev926.o     comlevel.o    comlevel2.o   comlevman.o  \
+	comlims.o       comlimsc.o    commoistr.o   commsgs.o    \
+	comoblist.o     comoblist1.o  comparams.o   comparams2.o \
+	compmand.o      comradcom.o   comreprt.o    comserch.o   \
+	comsigchk.o     comslims.o    comstats.o    comstn.o     \
+	comstnknt.o     comstnknt2.o  comsunny.o    comswitch.o  \
+	comtck.o        comtcor.o     comvck.o     \
+	rdparm99.o      rdparm8.o     rdparm.o      paramco2.o   \
+	comswaer.o      comswaer99.o  comswaer8.o  \
+	comsfcscm.o     comscmini.o   aerparm.o     comadj.o     \
+    comall.o        comreado3.o                              \
+	comgda.o        comgrad.o     comfgsm.o     comfver.o    \
+	comfspec.vr.o   comznl.o      comgpln.o     comgpd.o     \
+	comlfm.o        compspec.o    radiag.o      comfibm.o    \
+	compsplit.o     hcon.o        rnddta.o      co2dta.o     \
+	guang.o         comco2.o      comfcst.o     comccn.o     \
+    module_stochastic.o
+
+OBJ_MPI = commpi.o
+
+OBJ_RMP = pintidx.o   rsparltb.o      rmpindex.o    rscombgt.o    rscomcpu.o  \
+	rscomver.o    rscompln.o      rscomrad.o    rscomloc.o \
+	rscomf.o      rscomf.rerun.o  rscomfc.o     rscomgpd.o    rscomgrad.o \
+	rscomltb.o    rscommap.o      sumfidx.o     \
+   rscomrsml.o   rscomrinpg.o    rscomrmtn.o    rscompost.o
+
+OBJ_DFS = dfsvar.o
+
+OBJ_DYN = comdyn.o
+
+OBJ_MODULE = module_sph_reduced_grid.o module_trans.o         module_file_write.o \
+	module_sph_semi_implicit.o     module_sph_legendre.o   \
+	module_nislq.o dcmip_grims.o
+
+OBJS= ${OBJ_COMMON} @OBJ_RMP@ @OBJ_MPI@ @OBJ_DFS@ ${OBJ_DYN} ${OBJ_MODULE}
+
+SRCS = ${OBJS:.o=.F90}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77_FCST@
+FORT_FLAGS = @FORT_FLAGS@
+EXTC_FLAGS = @EXTRAC_FLAG@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALLDLIB = @INSTALLDLIB@
+DIR_COMMPI = @DIR_COMMPI@
+
+EXP_PARENT = ..
+
+ALL : ${LIB}
+
+${SRCS} :
+	if [ -f ../fcst/$@ ]; then \
+		ln -fs ${EXP_PARENT}/fcst/$@ $@; \
+	elif [ -f ../common/$@ ]; then \
+		ln -fs ${EXP_PARENT}/common/$@ $@; \
+	elif [ -f ../${DIR_COMMPI}/$@ ]; then \
+		ln -fs ${EXP_PARENT}/${DIR_COMMPI}/$@ $@; \
+	fi
+
+${LIB} : ${SRCS} ${OBJS}
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALLDLIB}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90 .il
+
+.F90.f90 :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+
+.F90.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.F90.il :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+	${F77} ${EXTC_FLAGS} $*.f90 -o $*.il
+	
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -rf *.F90 *.f90 *.o *.x *.a core *.il
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -rf rii_files Makefile
+	- find ./ -type l -exec rm -f {} \;

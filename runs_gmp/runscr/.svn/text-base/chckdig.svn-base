@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# check digit of year, month, day, hour
+#
+#  $1 ... year
+#  $2 ... month
+#  $3 ... day
+#  $4 ... hour
+#
+n=`expr $1 : '.*'`
+if [ $n -ne 4 ] ; then
+	echo year should be four digit
+	exit 8
+fi
+n=`expr $2 : '.*'`
+if [ $n -ne 2 ] ; then
+	echo month should be two digit
+	exit 8
+fi
+n=`expr $3 : '.*'`
+if [ $n -ne 2 ] ; then
+	echo day should be two digit
+	exit 8
+fi
+n=`expr $4 : '.*'`
+if [ $n -ne 2 ] ; then
+	echo hour should be two digit
+	exit 8
+fi
+#

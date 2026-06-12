@@ -1,0 +1,152 @@
+#include <define.h>
+   subroutine mpgetken
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram:    mpgetken
+!            
+! abstract: transpose (nvrken,npointp,itnum) to (nvrken,npointf,itnum)
+!           for DGP point output
+!
+! program history log:
+!    99-06-27  henry juang    finish entire test for gsm
+!
+! usage:   call mpgetken
+!
+!    input argument lists:
+!
+!    output argument list:
+! 
+! subprograms called:
+!   mpi_gather   - to gather all message from pe to master pe
+!   mpi_gatherv   - same as mpi_gather but variated length
+!
+!-------------------------------------------------------------------------------
+   use paramodel, only : ncpus_
+   use commpi       ! mpi_integer,mpi_comm_world,mype,master,npes_,MPI_REAL
+   use comgpd
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+#ifdef DGP
+   integer            ::  nptotal,n,i,j,k,mk,itnum
+   real(_mpi_real_), allocatable::  tmpsnd(:),tmprcv(:)
+   integer,allocatable::  itmppnt(:),itmpgrd(:)
+   integer,allocatable::  loc(:),len(:)
+!
+   npes=npes_
+   allocate(tmpsnd(nvrken*nptken*nstken))
+   allocate(tmprcv(nvrken*nptken*nstken))
+   allocate(itmppnt(nptken))
+   allocate(itmpgrd(nptken))
+   allocate(loc(0:ncpus_-1))
+   allocate(len(0:ncpus_-1))
+!
+!soojin_couple
+!   call mpi_gather(npoint,1,mpi_integer,                                       &
+!        itmppnt,1,mpi_integer,0,mpi_comm_world,ierr)
+   call mpi_gather(npoint,1,mpi_integer,                                       &
+        itmppnt,1,mpi_integer,0,mpi_comm_private,ierr)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       loc(n)=mk
+       len(n)=itmppnt(n)
+       mk=mk+len(n)
+     enddo
+     nptotal=mk
+   endif
+!
+!soojin_couple
+!   call mpi_gatherv(igrd,npoint,mpi_integer,                                   &
+!        itmpgrd,len(0),loc(0),mpi_integer,0,mpi_comm_world,ierr)
+  call mpi_gatherv(igrd,npoint,mpi_integer,                                   &
+        itmpgrd,len(0),loc(0),mpi_integer,0,mpi_comm_private,ierr)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       do i = 1,len(n)
+         mk=mk+1
+         igrd(mk)=itmpgrd(mk)
+       enddo
+     enddo
+   endif
+!
+!soojin_couple
+!   call mpi_gatherv(jgrd,npoint,mpi_integer,                                   &
+!        itmpgrd,len(0),loc(0),mpi_integer,0,mpi_comm_world,ierr)
+   call mpi_gatherv(jgrd,npoint,mpi_integer,                                   &
+        itmpgrd,len(0),loc(0),mpi_integer,0,mpi_comm_private,ierr)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       do i = 1,len(n)
+         mk=mk+1
+         jgrd(mk)=itmpgrd(mk)
+       enddo
+     enddo
+   endif
+!
+   if( mype.eq.master ) then
+     mk=0
+     do n = 0,npes-1
+       loc(n)=mk
+       do k = 1,itnum
+         do j = 1,itmppnt(n)
+           do i = 1,nvrken
+             mk=mk+1
+           enddo
+         enddo
+       enddo
+       len(n)=nvrken*itnum*itmppnt(n)
+     enddo
+   endif
+!
+   mk=0
+   do k = 1,itnum
+     do j = 1,npoint
+       do i = 1,nvrken
+         mk=mk+1
+         tmpsnd(mk)=svdata(i,j,k)
+       enddo
+     enddo
+   enddo
+!
+!soojin_couple
+!   call mpi_gatherv(tmpsnd,mk,MPI_REAL,                                        &
+!        tmprcv,len(0),loc(0),MPI_REAL,0,mpi_comm_world,ierr)
+   call mpi_gatherv(tmpsnd,mk,MPI_REAL,                                        &
+        tmprcv,len(0),loc(0),MPI_REAL,0,mpi_comm_private,ierr)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+   if( mype.eq.0 ) then
+     mk=0
+     do n = 0,npes-1
+       do k = 1,itnum
+         do j = 1,itmppnt(n)
+           do i = 1,nvrken
+             mk=mk+1
+             svdata(i,j,k)=tmprcv(mk)
+           enddo
+         enddo
+       enddo
+     enddo
+     npoint=nptotal
+   endif
+!
+   deallocate(tmpsnd)
+   deallocate(tmprcv)
+   deallocate(itmppnt)
+   deallocate(itmpgrd)
+   deallocate(loc)
+   deallocate(len)
+#endif
+!
+   return
+   end subroutine mpgetken
+!-------------------------------------------------------------------------------

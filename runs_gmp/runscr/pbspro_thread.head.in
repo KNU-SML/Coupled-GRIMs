@@ -1,0 +1,5 @@
+#!/bin/sh
+#PBS -V
+#PBS -l select=1:ncpus=@NCPUS@:mpiprocs=1:ompthreads=@NCPUS@
+#PBS -q normal
+#PBS -j eo

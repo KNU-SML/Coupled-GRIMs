@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+#  For given year and month, returns forecast hour from the beginning
+#  of the year.  This script is used in amip integrations to stop
+#  forecast intgrations for monthly average calculations. 
+#
+#  $1 ... year
+#  $2 ... month
+#
+#
+YYYY=$1
+MM=$2
+#
+leap=no
+nn=`expr $YYYY \/ 4`
+nx=`expr $nn \* 4`
+if [ $YYYY -eq $nx ] ; then
+	leap=yes
+fi
+ndays_00=0
+for month in 01 02 03 04 05 06 07 08 09 10 11 12
+do
+	if [ $month = 01 ]  ;then
+		ndays_01=31
+	elif [ $month = 02 ] ; then
+		if [ $leap = no ] ; then
+			ndays_02=`expr $ndays_01 + 28`
+		else
+			ndays_02=`expr $ndays_01 + 29`
+		fi
+	elif [ $month = 03 ] ; then
+		ndays_03=`expr $ndays_02 + 31`
+	elif [ $month = 04 ] ; then
+		ndays_04=`expr $ndays_03 + 30`
+	elif [ $month = 05 ] ; then
+		ndays_05=`expr $ndays_04 + 31`
+	elif [ $month = 06 ] ; then
+		ndays_06=`expr $ndays_05 + 30`
+	elif [ $month = 07 ] ; then
+		ndays_07=`expr $ndays_06 + 31`
+	elif [ $month = 08 ] ; then
+		ndays_08=`expr $ndays_07 + 31`
+	elif [ $month = 09 ] ; then
+		ndays_09=`expr $ndays_08 + 30`
+	elif [ $month = 10 ] ; then
+		ndays_10=`expr $ndays_09 + 31`
+	elif [ $month = 11 ] ; then
+		ndays_11=`expr $ndays_10 + 30`
+	elif [ $month = 12 ] ; then
+		ndays_12=`expr $ndays_11 + 31`
+	fi
+done
+#
+mmn=`expr $MM - 1`
+if [ $mmn -lt 10 ] ; then
+	mmn=0$mmn
+fi
+mdays=\$ndays_$mmn
+mdays=`eval echo $mdays`
+start_forecast_hour=`expr $mdays \* 24 + 24`  
+ndays=\$ndays_$MM
+ndays=`eval echo $ndays`
+end_forecast_hour=`expr $ndays \* 24`
+echo $start_forecast_hour $end_forecast_hour

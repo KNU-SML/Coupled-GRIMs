@@ -1,0 +1,62 @@
+#!/bin/sh
+#------------------------------------------------------------------end_of_header
+#
+# pgb
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending forecast hour
+#  $3 ... forecast hour increment
+#
+#  This script assumes that the input sigma file is the form sig.ftxx
+#  The output pressure file is the form pgb.ftxx
+#
+phs=${phs:=$1}
+phe=${phe:=$2}
+phinc=${phinc:=$3}
+EXECDIR=${EXECDIR:=$4}
+if [ "$phinc" = "" ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+if [ "$EXECDIR" != "" ]; then
+	cd $EXECDIR
+fi
+#
+PROG=pgb
+cat >$PROG.parm <<EOF
+ &NAMPGB
+ ICEN2=1,
+ FHS=$phs.,FHE=$phe.,FHINC=$phinc.,
+ KEID=0,
+ MGRID=0,
+ &END
+EOF
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+fi
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+fi
+#
+rm -f $PROG.x
+#
+if [ @SYSTEM@ = dec ]; then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+#
+@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@ fort.1
+@RUNENV@ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+#
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm -f filenv.$$ >/dev/null
+#
+echo "`date` $0: pgb is completely ended"
+exit 0

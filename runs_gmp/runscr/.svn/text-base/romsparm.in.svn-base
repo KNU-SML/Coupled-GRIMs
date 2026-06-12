@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+#  Input:
+#   ROMS_NTIMES
+#   ROMS_DT
+#   ROMS_NRST
+#   ROMS_NHIS
+#   ROMS_NAVG
+#   NRREC
+#
+if [ $# -ne 6 ] ; then
+	echo "$0:  error in the number of arguments"
+	exit 8
+fi
+#
+ROMS_NTIMES=$1
+ROMS_DT=$2
+ROMS_NRST=$3
+ROMS_NHIS=$4
+ROMS_NAVG=$5
+NRREC=$6
+#
+cat << EOF >roms_parm.sed
+s/%ROMS_NTIMES%/$ROMS_NTIMES/g
+s/%ROMS_DT%/$ROMS_DT/g
+s/%ROMS_NRST%/$ROMS_NRST/g
+s/%ROMS_NHIS%/$ROMS_NHIS/g
+s/%ROMS_NAVG%/$ROMS_NAVG/g
+s/%NRREC%/$NRREC/g
+s/%LDEFOUT%/$LDEFOUT/g
+EOF
+#
+sed -f roms_parm.sed @RUNSCR_DIR@/roms.parm.is >@RUNSCR_DIR@/roms.parm
+#
+rm roms_parm.sed
+
+

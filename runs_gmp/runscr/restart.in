@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+#  Restart
+#
+#  Get fhour from sigit file and return its value
+#
+h=`@ETC_DIR@/fhour sigit`
+h=`expr $h + 0`
+if [ $h -lt 10 ] ; then h=0$h ; fi
+echo $h
+echo "Restarting from $h" >>ERROR.out

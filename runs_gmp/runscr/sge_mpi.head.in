@@ -1,0 +1,7 @@
+#!/bin/sh
+#$ -V
+#$ -cwd
+#$ -pe mpi_@NPES_PER_NODE@cpu @NPES@
+#$ -q normal 
+#$ -R yes
+#$ -l h_rt=06:00:00

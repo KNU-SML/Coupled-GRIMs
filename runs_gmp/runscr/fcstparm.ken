@@ -1,0 +1,111 @@
+#!/bin/sh
+set -x
+#
+#  forecast namelist data for ken-point option
+#
+#  forecast namelist data
+#
+#  $1 ... INCHOUR forecast length of the segment
+#  $2 ... ENDHOUR forecast hour to the end
+#  $3 ... INTSFCX surface program execution interval
+#  $4 ... INSIG:INTSFC:INTFLX output intervals of sig, sfc and flx files
+#
+#  you need to manually edit the following variables to specify the
+#  ken point location
+#
+#      NUM(1300) ... number of ken points
+#      NUM(1303) ... time step skip count (1 is every time step)
+#      CON(1301-) ... latitude of ken point (-90 - 90)
+#      CON(1501-) ... longitude of ken point (-180 - 180)
+#
+#  The following variables can be overwritten by defining it in
+#  the calling program and by exporting it
+#
+#      SWHR_GBL ... short wave radiation interval in hour unit (default 6)
+#      LWHR_GBL ... long wave radiation interval in hour unit (default 6)
+#      INTPFIX  ... interval of pressure correction in hour unit (default 24)
+#
+INCHOUR=$1
+ENDHOUR=$2
+INTSFCX=$3
+INTSIG=`echo $4 | cut -d':' -f1`
+INTSFC=`echo $4 | cut -d':' -f2`
+INTFLX=`echo $4 | cut -d':' -f3`
+INTRESTART=`echo $4 | cut -d':' -f4`
+#
+SWHR_GBL=${SWHR_GBL:=6}
+LWHR_GBL=${LWHR_GBL:=6}
+INTPFIX=${INTPFIX:=24}
+#
+cat >fcst.parm <<EOF
+ &NAMSMF
+ NUM(5)=0,
+ CON(1)=1200.,CON(3)=$INIHR_GBL.,
+ CON(4)=$SWHR_GBL.,CON(5)=$LWHR_GBL.,
+ CON(7)=$INCHOUR.,
+ CON(9)=$INCHOUR.,CON(17)=$ENDHOUR.,
+ INTPFIX=$INTPFIX,
+ INTSFCX=$INTSFCX,
+ INTSIG=$INTSIG,
+ INTSFC=$INTSFC,
+ INTFLX=$INTFLX,
+ INTRESTART=$INTRESTART,
+ NUM(1300)=27,NUM(1301)=0,NUM(1302)=0,NUM(1303)=1,
+ CON(1301)=+40.0,CON(1501)=-120.0
+ CON(1302)=+37.5,CON(1502)=-095.0
+ CON(1303)=+36.0,CON(1503)=-080.0
+ CON(1304)=+40.0,CON(1504)=+090.0
+ CON(1305)=+45.0,CON(1505)=+005.0
+ CON(1306)=+60.0,CON(1506)=+110.0
+ CON(1307)=+25.0,CON(1507)=+000.0
+ CON(1308)=-05.0,CON(1508)=-060.0
+ CON(1309)=-25.0,CON(1509)=+130.0
+ CON(1300)=-20.0,CON(1500)=+020.0
+ CON(1311)=-30.0,CON(1511)=-060.0
+ CON(1312)=+00.0,CON(1502)=+160.0
+ CON(1313)=+00.0,CON(1503)=-160.0
+ CON(1314)=+00.0,CON(1514)=-110.0
+ CON(1315)=-10.0,CON(1515)=+075.0
+ CON(1316)=+10.0,CON(1516)=+060.0
+ CON(1317)=+20.0,CON(1517)=+075.0
+ CON(1318)=-10.0,CON(1518)=+130.0
+ CON(1319)=+30.0,CON(1519)=-170.0
+ CON(1320)=-25.0,CON(1520)=-130.0
+ CON(1321)=+00.0,CON(1521)=-030.0
+ CON(1322)=+30.0,CON(1522)=-050.0
+ CON(1323)=-30.0,CON(1523)=-030.0
+ CON(1324)=-50.0,CON(1524)=+090.0
+ CON(1325)=-50.0,CON(1525)=-120.0
+ CON(1326)=+90.0,CON(1526)=+000.0
+ CON(1327)=-90.0,CON(1527)=+000.0
+/
+EOF
+#
+#CON(1301)=+40.0,CON(1501)=-120.0  Western US
+#CON(1302)=+37.5,CON(1502)=-095.0  Central US
+#CON(1303)=+36.0,CON(1503)=-080.0  Eastern US
+#CON(1304)=+40.0,CON(1504)=+090.0  Himalayas
+#CON(1305)=+45.0,CON(1505)=+005.0  Europe
+#CON(1306)=+60.0,CON(1506)=+110.0  Siberia
+#CON(1307)=+25.0,CON(1507)=+000.0  Sahara
+#CON(1308)=-05.0,CON(1508)=-060.0  Amazon
+#CON(1309)=-25.0,CON(1509)=+130.0  Australia
+#CON(1300)=-20.0,CON(1500)=+020.0  South Africa
+#CON(1311)=-30.0,CON(1511)=-060.0  South America
+#CON(1312)=+00.0,CON(1502)=+160.0  Western Equatrial Pacific
+#CON(1313)=+00.0,CON(1503)=-160.0  Central Equatorical Pacific
+#CON(1314)=+00.0,CON(1514)=-110.0  Eastern Equatorical Pacific
+#CON(1315)=-10.0,CON(1515)=+075.0  Central Indial Ocean
+#CON(1316)=+10.0,CON(1516)=+060.0  Somali Jet max
+#CON(1317)=+20.0,CON(1517)=+075.0  Central India
+#CON(1318)=-10.0,CON(1518)=+130.0  Australian Monsoon area
+#CON(1319)=+30.0,CON(1519)=-170.0  Central North Pacific
+#CON(1320)=-25.0,CON(1520)=-130.0  Central South Pacific
+#CON(1321)=+00.0,CON(1521)=-030.0  Central equatorial Atlantic
+#CON(1322)=+30.0,CON(1522)=-050.0  North Central equatorial Atlantic
+#CON(1323)=-30.0,CON(1523)=-030.0  South Central equatorial Atlantic
+#CON(1324)=-50.0,CON(1524)=+090.0  Southern hemisphere storm zone east
+#CON(1325)=-50.0,CON(1525)=-120.0  Southern hemisphere storm zone west
+#CON(1326)=+90.0,CON(1526)=+000.0  North pole
+#CON(1327)=-90.0,CON(1527)=+000.0  South pole
+#

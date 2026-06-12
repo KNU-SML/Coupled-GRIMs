@@ -1,0 +1,53 @@
+#!/bin/sh
+#------------------------------------------------------------------end_of_header
+set -ax
+#
+EXECDIR=${EXECDIR:=$1}
+cd $EXECDIR
+YMDH=${YMDH:=$2}
+h=${h:=$3}
+hx=${hx:=$4}
+YYYY=${YYYY:=$5}
+YYYYS=${YYYYS:=$6}
+MMS=${MMS:=$7}
+DDS=${DDS:=$8}
+
+
+NPROC=`cat $PBS_NODEFILE | wc -l`
+VDATE=` @ETC_DIR@/validate.s $YMDH $h`
+export  EXPDIR YMDH h hx YYYY YYYYS MMS DDS
+
+# 
+     echo after MOM3 forecast from $h to $hx
+
+     NXTDATE=`@ETC_DIR@/validate.s $VDATE 24`
+
+#     @RUNSCR_DIR@/ocean_post batch $EXPDIR/$YMDH \
+#           $VDATE $INCHOUR || exit 8
+
+# create new sst file in regular lat/lon gribbed file
+
+     sst_init=`eval echo $SST_ANL_T0`
+     echo  $YMDH $hx $VDATE $INCHOUR $sst_init
+
+      @RUNSCR_DIR@/coupo2a $YMDH $hx $VDATE $INCHOUR $sst_init
+
+     rc=$?
+     if [ $rc -ne 0 ] ; then
+        exit 1
+     fi
+
+     vyyyymmdd=`echo $NXTDATE | cut -c1-8` 
+     if [ ! -s sst1x1For$vyyyymmdd.grb ] ; then
+           echo New sst file from ocean does not exist
+           exit 7
+     fi
+
+     @ETC_DIR@/wgrib sst1x1For$vyyyymmdd.grb -o $EXPDIR/$YYYYC/sst.grib -grib -append -s -d 1
+     cp sst1x1For$vyyyymmdd.grb $EXPDIR/sst/sstgrb.fnl.$vyyyymmdd\00
+
+     echo VDATE = $VDATE after O2A `date`
+
+     rm -f *.nc.000* *.gr
+
+exit 0

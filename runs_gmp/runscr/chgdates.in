@@ -1,0 +1,54 @@
+if [ $# -ne 3 ] ; then
+	echo 'Usage: chgdates newyr:newmo:newdy:newhr:fhnew isig:isfc osig:osfc'
+	echo "`date` $0: Wrong usage" >>ERROR.out
+	exit 8 
+fi
+#
+PROG=chgdates
+#
+FTNID=@FTNID@
+#
+newyr=`echo $1 | cut -d':' -f1`
+newmo=`echo $1 | cut -d':' -f2`
+newdy=`echo $1 | cut -d':' -f3`
+newhr=`echo $1 | cut -d':' -f4`
+fhnew=`echo $1 | cut -d':' -f5`
+#
+isig=`echo $2 | cut -d':' -f1`
+isfc=`echo $2 | cut -d':' -f2`
+#
+osig=`echo $3 | cut -d':' -f1`
+osfc=`echo $3 | cut -d':' -f2`
+#
+if [ ! -s $isig ] ; then
+	echo "<WARNING> $isig:  No such file"
+	echo "<WARNING> `date` $0: $isig. No such file." >>ERROR.out
+fi
+if [ ! -s $isfc ] ; then
+	echo "<WARNING> $isfc:  No such file"
+	echo "<WARNING> `date` $0: $isfc. No such file." >>ERROR.out
+fi
+#
+rm -f @FTNID@11 @FTNID@12 @FTNID@51 @FTNID@52 
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+  assign -R
+fi
+@FTASS@ $isig @FTNID@11
+@FTASS@ $isfc @FTNID@12
+@FTASS@ $osig @FTNID@51
+@FTASS@ $osfc @FTNID@52
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@  @FTNID@1
+
+echo ' &NAMIN' >$PROG.parm
+echo " NEWYR=$newyr,NEWMO=$newmo,NEWDY=$newdy,NEWHR=$newhr," >>$PROG.parm
+echo " FHNEW=$fhnew.,                                       " >>$PROG.parm
+echo ' &END' >>$PROG.parm
+#
+@FTASS@ @SRCS_DIR@/bin/$PROG.x $PROG.x
+@RUNENV@ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo " $PROG: Execution failed"
+	echo "`date` $PROG: Execution failed." >>ERROR.out
+	exit 8
+fi
+exit 0

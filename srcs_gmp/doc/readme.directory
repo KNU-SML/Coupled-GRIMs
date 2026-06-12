@@ -1,0 +1,49 @@
+
+This file contains the following directories:
+
+acqc      ... GDAS Aircraft quality control program sources
+albaer    ... Yutai's albdeo interpolation program sources
+chgr      ... change resolution sources
+cldtune   ... Cloud tuning program sources
+cnvaer    ... Program sources required for albaer
+cnvalb    ... Program sources required for albaer
+anvalb    ... Program required for albaer
+cnvrt     ... Program sources that converts sig/sfc files to native format
+co2       ... CO2 vertical interpolation sources
+combbufr  ... Combine two bufr files to one
+combobog  ... Combine bogus bufr and reqular bufr files
+combrtrh3 ... Program sources required for cloud tuning
+cqc       ... Complex Quality Control sources
+edbuoy    ... Bufr buoy editor sources
+eddrib    ... Bufr drifting buoy editor sources using blacklist
+ednosat   ... Remove satellite related data sources
+edrejx    ... Blacklisting of raobs(?) sources
+edsatw    ... Remove satwind  sources
+edswnd    ... Remove satwind from orbiting satellite sources
+edupat    ... Remove raobs sources
+fcst      ... Global spectral model sources
+fixpaobs  ... Fix location error of paobs sources
+grepsat   ... Remove satellite data(?) sources
+include   ... Include files (define, parameter, common ..)
+mtn       ... Global model orography program sources
+oiqc      ... Optimum Interpolation quality control sources
+pgb       ... Global model post-processor to pressure level sources
+postvents ... Post-events program sources for gdas
+precipadj ... Precipitation adjustment program sources for reanalysis rerun
+prevents  ... Pre_events program sources for gdas
+rbln      ... RSM Utility(?)
+rfcst     ... Regional Spectral Model (RSM) forecast program source
+rgsm      ... Global model physics program for RSM (this should disappear)
+rinpg     ... Interpolation from global to regional domain source
+rinpr     ... Interpolation from regional to regional domain source
+rloc      ... RSM domain location program sources
+rmrgsfc   ... Interpolation of sfc file from Global to RSM sources
+rmtn      ... Orography program source for RSM
+rpgb      ... RSM post-processor to pressure level sources
+rsgb      ... RSM Sigma level file gribbing sources
+rsml      ... RSM common sources
+sgb       ... Sigma level file gribbing program sources
+share     ... Global model share program sources
+ssi       ... Statistical Spectral Interplation Analysis  program sources
+#
+

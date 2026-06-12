@@ -1,0 +1,67 @@
+#!/bin/sh
+#PBS -l nodes=3:ppn=36
+#PBS -V
+##PBS -j eo
+#------------------------------------------------------------------end_of_header
+set -ax
+#
+EXECDIR=${EXECDIR:=$1}
+cd $EXECDIR
+date4restart=${date4restart:=$2}
+YMDH=${YMDH:=$3}
+h=${h:=$4}
+hx=${hx:=$5}
+YYYY=${YYYY:=$6}
+YYYYS=${YYYYS:=$7}
+MMS=${MMS:=$8}
+DDS=${DDS:=$9}
+OCN_IN_TEMP=${OCN_IN_TEMP:=${10}}
+OCN_IN_SALT=${OCN_IN_SALT:=${11}}
+OCN_IN_UGRD=${OCN_IN_UGRD:=${12}}
+OCN_IN_VGRD=${OCN_IN_UGRD:=${13}}
+
+# 
+# prepare environments
+#
+#   cp sig.ft$hx sigit.$date4restart
+#   cp sigp.ft$hx sigitdt.$date4restart
+#   cp sfc.ft$hx sfci.$date4restart
+
+   set -e
+#     cp sig.ft$hx sigit
+#     mv sigp.ft$hx sigitdt
+#     cp sfc.ft$hx sfci
+     if [ no = yes ] ; then
+        /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/catpgb
+     fi
+   set +e
+#
+# couple
+     /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/coupa2o  $YMDH $h $hx 
+#
+     rc=$?
+     if [ $rc -ne 0 ] ; then
+       exit 1
+     fi
+
+     echo after A2O from $h to $hx
+
+# run ocean model
+     if [ $h -eq 0 ] ;then
+     ocn_in_temp=`eval echo $OCN_IN_TEMP` 
+     ocn_in_salt=`eval echo $OCN_IN_SALT`
+     ocn_in_ugrd=`eval echo $OCN_IN_UGRD`
+     ocn_in_vgrd=`eval echo $OCN_IN_VGRD`
+       cp $ocn_in_temp temp.mom.ic
+       cp $ocn_in_salt salt.mom.ic
+       cp $ocn_in_ugrd ugrd.mom.ic
+       cp $ocn_in_vgrd vgrd.mom.ic
+     fi
+
+     VDATE=` /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s $YMDH $h`
+     mom3rt=1000
+
+     /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ocean $VDATE  $mom3rt $h $npes $YYYY $YYYYS
+
+
+exit 0

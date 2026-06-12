@@ -1,0 +1,744 @@
+#!/bin/sh
+#set -ax
+#
+#-------------------------------------------------------------------------------
+#
+#  grims run-script configuration
+#
+#    Program history :
+#
+#    12-19-2000   song-you hong & masao kanamitsu     initial development
+#    03-19-2011   song-you hong & nml group           grims setup
+#
+#-------------------------------------------------------------------------------
+#
+#  Change the following variable:
+#
+#    SRCS_DIR      .... Model executable directory is $SRCS_DIR/bin.
+#
+SRCS_DIR=`pwd`/../srcs
+OUTPUT_DIR=`pwd`
+POST_DIR=`pwd`/post
+#
+# set the environmental variables
+#
+model=`grep '^MODEL=' $SRCS_DIR/configure-src | \
+						sed 's/ *$//g' | cut -d'=' -f2`
+. ./env/env.s
+#
+#  Need to select resolutions 
+#
+WAVE=62          # define wave number = 62,126,170,214,254,320,426,510,1020,2046
+MODEL_LAYER=28   # define number of vertical layer = 18, 28, 42, 64, 128
+POST_IGRD=360    # define number of x-axis grids of pressure output file
+POST_JGRD=181    # define number of y-axis grids of pressure output file
+                 # POST_IGRD = 144(2.5deg), 360(1deg), 720(0.5deg), 1440(0.25deg)
+                 # POST_JGRD =  73(2.5deg), 181(1deg), 361(0.5deg),  721(0.25deg)
+POST_LAYER=17    # define number of pressure output file 
+#                         = 12 (rmp), 17(ra2), 21(ra2+4), 26(fnl), 30(fnl+4)
+#
+#  Need to select rmp map projection data.. see ../rmp_domain for more options
+#
+RMP_MAP=./rmp_domain/rmp_108x85_60km_nps.korea
+#
+if [ $model = rmp -o $model = rop ]; then
+	IGRD=108      # rmp grid selection (IGRD/JGRD)
+	JGRD=85       # igrd: product of integer powers 2,3,5; jgrd: odd number 
+	              # = 54/55, 81/67, 81/87, 108/69, 108/85, 128/85, 162/105
+	CIGRD=0       # define number of coarse regional x-axis grids (only for C2R)
+	CJGRD=0       # define number of coarse regional y-axis grids (only for C2R)
+	IRELX=10      # define relaxation factor in implicit diffusion (only for rmp)
+fi
+#
+# input surface & spherical wave file resolution
+#
+# T42  (128,64),   T62  (192,94),   T126 (384,192),   T170 (512,256), 
+# T214 (648,324),  T254 (768,384),  T320 (968,484),   T426 (1280,640), 
+# T510 (1536,768), T1020 (3072,1536), T2046 (6144,3072)
+#
+ILONF=192     # for SFC file
+ILATG=94      # for SFC file
+IJCAP=62      # for SIG file
+ILEVS=28      # for SIG file
+if [ $1 = gmp_gfs -o $1 = gmp_gfs2 -o $1 = gmp_kaf -o $1 = gmp_gfs_sig ]; then
+	ILONF=1760
+	ILATG=880
+	IJCAP=574
+	ILEVS=64
+fi
+if [ $1 = gmp_gfs_pgb ]; then
+    ILONF=1536
+    ILATG=768
+    IJCAP=510
+    ILEVS=64
+fi
+#
+# For DFS, NCOL should be less than MODEL_LAYER,
+#                         more than 2*NPES/JCAP.
+#
+NCPUS=1                 # number of threads (when MARCH = thread or hybrid)
+NPES=32                 # number of MPI pes (when MARCH = mpi    or hybrid)
+NCPU_PER_NODE=16        # number of total cores per node
+NCOL=2                  # number of column (when MARCH=mpi or hybrid)
+#
+if [ $model = rop ]; then
+	RMP_NPES=12
+	ROM_NPES=12   # temporarily fixed --- should be comparible to NtileI and NtileJ
+                  # in roms.parm.is.in 
+	NPES=`expr $RMP_NPES + $ROM_NPES`  # number of  (when MARCH = mpi or hybrid)
+	NPES=$NPES
+	if [ @BATCHQUE@ = bsub ]; then
+	MPMD_COMMAND="export MP_PGMMODEL=mpmd"
+	else
+	MPMD_COMMAND=
+	fi
+fi
+#
+# ------------------ End of user edit section -----------------------
+# ------------------ Do not change below ----------------------------
+#
+# pre-defined post-grids
+#
+if [ "$POST_IGRD" == "" -o "$POST_IGRD" == "" ]; then
+	if [ $WAVE -eq 62 ]; then
+		POST_IGRD=144
+		POST_JGRD=73
+	elif [ $WAVE -eq 126 ]; then
+		POST_IGRD=360
+		POST_JGRD=181
+	elif [ $WAVE -eq 254 ]; then
+		POST_IGRD=720
+		POST_JGRD=361
+	elif [ $WAVE -eq 510 ]; then
+		POST_IGRD=1440
+		POST_JGRD=721
+	fi
+fi
+#
+RUNS_DIR=`pwd`
+set -a
+script=$1
+RUNNAME=""
+if [ $# -eq 2 ]; then
+	RUNNAME=$2
+fi
+#
+if [ ! -s "$SRCS_DIR" ] ; then
+	echo wrong SRCS_DIR
+	exit 8
+fi
+#
+if [ -n "$NCOL" ]; then
+	if [ $march = mpi -o $march = hybrid ] ; then
+		NROW=`expr $NPES \/ $NCOL` 
+		if [ `expr $NROW \* $NCOL` -ne $NPES ] ; then
+			echo "NPES=$NPES not divisible by NCOL=$NCOL"
+			exit 8
+		fi
+	fi
+else
+	NCOL=
+fi 
+#
+#  library directory 
+#
+if [ -s $SRCS_DIR/configure-src ] ; then
+	LIBS_DIR=`grep '^LIBS_DIR=' $SRCS_DIR/configure-src | \
+					sed 's/ *$//g' | cut -d'=' -f2`
+	LIBS_DIR=`eval echo $LIBS_DIR`
+	INSTITUTION=`grep '^INSTITUTION=' $LIBS_DIR/configure-lib | \
+					sed 's/ *$//g' | cut -d'=' -f2`
+elif [ -s $SRCS_DIR/configure-exp ] ; then
+	EXP_PARENT=`grep '^EXP_PARENT=' $SRCS_DIR/configure-exp | \
+					sed 's/ *$//g' | cut -d'=' -f2`
+	EXP_PARENT=`eval echo $EXP_PARENT`
+	count=1
+	while [ $count -le 10 ] ; do
+		if [ -s $EXP_PARENT/configure-src ] ; then
+			LIBS_DIR=`grep '^LIBS_DIR=' $EXP_PARENT/configure-src | \
+								sed 's/ *$//g' | cut -d'=' -f2`
+         LIBS_DIR=`eval echo $LIBS_DIR`
+			INSTITUTION=`grep '^INSTITUTION=' $LIBS_DIR/configure-lib | \
+							sed 's/ *$//g' | cut -d'=' -f2`
+			break
+		elif [ -s $EXP_PARENT/configure-exp ] ; then
+			EXP_PARENT=`grep '^EXP_PARENT=' $EXP_PARENT/configure-exp | \
+							sed 's/ *$//g' | cut -d'=' -f2`
+		else
+			echo "could not locate configure-src.  Wrong SRCS_DIR."
+			exit 8
+		fi
+		count=`expr $count + 1`
+	done
+else
+	echo "could not locate configure-src.  Wrong SRCS_DIR."
+	exit 8
+fi
+echo LIBS_DIR=$LIBS_DIR
+#
+ETC_DIR=$LIBS_DIR/etc
+CON_DIR=$LIBS_DIR/con
+CONGOP_DIR=$LIBS_DIR/con_gop
+CONROP_DIR=$LIBS_DIR/con_rop
+BIN_DIR=$SRCS_DIR/bin
+OBS_DIR=`pwd`/bufr
+SMPCON_DIR=$LIBS_DIR/con_smp
+INPUT_DIR=/storage3/shong
+R2_DIR=/storage1/REAN/6hour/sig_sfc
+#
+#  Define model environmental variables
+#
+# Machine 
+#
+SYSTEM=`grep '^MACHINE=' $LIBS_DIR/configure-lib | cut -d'=' -f2`
+SYSTEM2=`echo $SYSTEM | cut -d"_" -f1`
+#
+# Hostname
+#
+HOST_NAME=${INSTITUTION}_$SYSTEM
+#
+# Directory for runscr scripts
+#
+RUNSCR_DIR=`pwd`/runscr
+if [ -s `pwd`/runscr_gdas ] ; then
+	GDASCR_DIR=`pwd`/runscr_gdas 
+fi
+BARO_TEST=0
+if [ -s $SRCS_DIR/configure-src ] ; then
+	if [ $model = dfs ]; then
+		BARO_TEST=`grep BARO_TEST $SRCS_DIR/define.h | grep '#define' | wc -l`
+	fi
+fi
+# SMP setting
+if [ $model = smp ] ; then
+ WAVE=0
+ SMP_OBS=`grep '^SMP_OBS=' $SRCS_DIR/configure-src | cut -d'=' -f2`
+ MODEL_LAYER=`echo $SMP_OBS | cut -c5-6`
+ POST_LAYER=$MODEL_LAYER
+ ILONF=1
+ ILATG=2
+ IJCAP=0
+ LONF=1
+ LATG=2
+ JCAP=0
+ ILEVS=$MODEL_LAYER
+ NCPUS=1
+ SITE_NAME=not_used_here
+fi
+#
+# Other model resolution dependent variables
+#
+if [ ! -z "$NPES" ] ; then
+	npes=$NPES
+fi
+ncpus=$NCPUS
+#
+jcap=$WAVE
+levs=$MODEL_LAYER
+echo jcap=$jcap,levs=$levs
+if [ $model = rmp -o $model = rop ] ;then
+	if [ $1 = rmp_ideal ]; then
+		CIGRD=`expr $IGRD \* 2`
+		CJGRD=`expr $JGRD \* 2`
+		CJGRD=`expr $CJGRD - 1`
+	fi
+	igrd=$IGRD;jgrd=$JGRD;cigrd=$CIGRD;cjgrd=$CJGRD;irelx=$IRELX
+	echo igrd=$IGRD,jgrd=$JGRD,cigrd=$CIGRD,cjgrd=$CJGRD,irelx=$IRELX
+fi
+echo ijcap=$IJCAP,ilevs=$ILEVS,ilonf=$ILONF,ilatg=$ILATG
+echo lsoil=$lsoil,nstype=$nstype,nvtype=$nvtype
+echo mtnres=$mtnres,mtnvar=$mtnvar
+echo march=$march,npes=$npes,ncpus=$ncpus
+#
+if [ $SYSTEM = x1e ]; then
+    NPES_PER_NODE=`expr $NCPU_PER_NODE \* $ncpus`
+    MPPE=`expr $npes \* $ncpus`
+fi
+if [ $march = 'thread' ]; then
+	NNODES=1
+	NPES_PER_NODE=1
+	NCPU_PER_NODE=$ncpus   # forced
+	npes=1                 # forced
+fi
+if [ $march = 'mpi' ]; then
+	if [ $npes -le $NCPU_PER_NODE ]; then
+		NNODES=1
+		NPES_PER_NODE=$npes
+		NCPU_PER_NODE=$npes  # forced
+#		npes=$npes
+	else
+		NNODES=`echo "($npes-1)/$NCPU_PER_NODE+1" | bc`
+		NPES_PER_NODE=$NCPU_PER_NODE
+#		NCPU_PER_NODE=$NCPU_PER_NODE
+		ncpus=1              # forced
+	fi
+fi
+if [ $march = 'hybrid' ]; then
+	NCPUPE=`expr $NCPUS \* $NPES`
+	if [ $NCPUPE -le $NCPU_PER_NODE ]; then
+		NNODES=1
+		NPES_PER_NODE=$NPES
+ 		NCPU_PER_NODE=$NCPUPE
+#		ncpus=$ncpus
+	else
+		NNODES=`echo "($NCPUPE-1)/$NCPU_PER_NODE+1"| bc`
+		NPES_PER_NODE=`expr $NCPU_PER_NODE \/ $NCPUS`
+#		NCPU_PER_NODE=$NCPU_PER_NODE
+#		ncpus=$ncpus
+	fi
+fi
+#
+if [ ! -z "$igrd" ] ; then
+	igrd1=`expr $igrd + 1`
+fi
+if [ ! -z "$jgrd" ] ; then
+	jgrd1=`expr $jgrd + 1`
+fi
+if [ ! -z "$cigrd" ] ; then
+	cigrd1=`expr $cigrd + 1`
+fi
+if [ ! -z "$cjgrd" ] ; then
+	cjgrd1=`expr $cjgrd + 1`
+fi
+#
+#  GSI setting
+#
+if [ $1 = gsi ] ; then
+	if [ $jcap = 62 ] ; then
+    	LONA=192
+		LATA=94
+	elif [ $jcap = 126 ] ; then
+    	LONA=384
+		LATA=192
+	elif [ $jcap = 254 ] ; then
+    	LONA=512
+		LATA=256
+	elif [ $jcap = 510 ] ; then
+    	LONA=1536
+		LATA=768
+	fi
+fi
+#
+#  GDAMP setting
+#
+if [ $1 = gdamp -o $1 = chm_gdamp ] ; then
+	if [ $jcap = 62 ] ; then
+    	LONF=192
+		LATG=94
+	elif [ $jcap = 126 ] ; then
+    	LONF=384
+		LATG=192
+	elif [ $jcap = 254 ] ; then
+    	LONF=768
+		LATG=384
+	elif [ $jcap = 510 ] ; then
+    	LONF=1536
+		LATG=768
+	fi
+fi
+#
+#  domain specification file for rmp
+#
+if [ -n "$script" ] ; then
+    CDIR=
+    if [ "$script" = crsm -o "$script" = csim ] ; then
+        if [ -s "$script" ] ; then
+            cdir=`grep '^BASE_SIG=' $script | cut -d'=' -f2 | sed 's%[^/]*$%%g' | sed 's%/$%%g'`
+        fi
+        echo "Type the run directory of the large domain run [$cdir]"
+        read CDIR
+        if [ -z "$CDIR" ] ; then
+            CDIR=$cdir
+        fi
+        if [ ! -s "$CDIR" ] ; then
+            echo $CDIR does not exist
+            exit 8
+        fi
+    fi
+    if [ $model = rmp -o $model = rop ] ; then
+        if [ ! -s $RMP_MAP ] ; then
+		    echo "cannot find the $RMP_MAP file "
+		    echo "make it and do configure again "
+		    exit 1
+	    elif [ -f $RMP_MAP ]; then
+		    cat $RMP_MAP | tr -d ' ' > ./tmp.$$
+		    . ./tmp.$$
+		    rm -f ./tmp.$$
+		    cat <<EOL > tmp.$$
+		    RPROJ=$proj
+		    RTRUTH=$truth
+		    RORIENT=$orient
+		    RDELX=$delx
+		    RDELY=$dely
+		    RCENLAT=$cenlat
+		    RCENLON=$cenlon
+		    RLFTGRD=$xleftgrd
+		    RBTMGRD=$botmgrd
+EOL
+        fi
+		    rm -f ./tmp.$$
+        if [ ! -z "$CDIR" ] ; then
+            #
+            #  larger domain specification from $CDIR
+            #
+            if [ ! -s $CDIR/rfcst.parm ] ; then
+                echo "$CDIR/rfcst.parm does not exist"
+                exit 8
+            fi
+            sed 's/ *//g' $CDIR/rfcst.parm > ./out.$$
+            grep '^RPROJ=' ./out.$$ | sed 's/,.*//g' >out2.$$
+            grep '^RTRUTH=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            grep '^RORIENT=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            grep '^RDELX=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            delx=`grep '^RDELX=' out.$$ | sed 's/,.*//g'`
+            grep '^RDELY=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            grep '^RCENLAT=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            grep '^RCENLON=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            grep '^RLFTGRD=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            grep '^RBTMGRD=' ./out.$$ | sed 's/,.*//g' >>out2.$$
+            cp ./out.$$ ./out
+            rm ./out.$$
+            echo '#' >>domfile
+            sed 's/^R/C/g' ./out2.$$ >>domfile
+            rm ./out2.$$
+        fi
+    else
+      touch dummy
+    fi
+fi
+#
+#  fortran unit naming for link (normally fort. but may be different)
+#
+FTNID=`grep '^FTNID=' $LIBS_DIR/opt_libs/options-$SYSTEM-$march | cut -d'=' -f2`
+FTASS=`grep '^FTASS=' $LIBS_DIR/opt_libs/options-$SYSTEM-$march | cut -d'=' -f2 | sed "s/'//g"`
+RUNENV=`grep '^RUNENV=' $LIBS_DIR/opt_libs/options-$SYSTEM-$march | cut -d'=' -f2 | sed "s/'//g"`
+#
+if [ $nstype -eq 16 -a $nvtype -eq 12 ] ; then
+        VEG_RES=20m
+else
+        VEG_RES=
+fi
+#
+grep '^sfcftyp=noa1' $CURR_DIR/cvar.env >/dev/null
+if [ $? -ne 0 ] ; then
+        NOAH=no
+else
+        NOAH=yes
+fi
+#
+FCST_SFC_FILE_TYPE=`grep '^sfcftyp=' $CURR_DIR/cvar.env | cut -d'=' -f2`
+#
+MTNVAR=`grep '^mtnvar=' $CURR_DIR/cvar.env | cut -d'=' -f2`
+#
+grep '^gtopo30=yes' $CURR_DIR/cvar.env >/dev/null
+if [ $? -ne 0 ] ; then
+        GTOPO30=no
+else
+        GTOPO30=yes
+fi
+grep '^pgb_parallel=yes' $CURR_DIR/cvar.env >/dev/null
+if [ $? -ne 0 ] ; then
+        CATPGB=no
+else
+        CATPGB=yes
+fi
+grep '^pgb_semiparallel=yes' $CURR_DIR/cvar.env >/dev/null
+if [ $? -eq 0 -o $CATPGB = yes ] ; then
+        DOPOST=no
+else
+        DOPOST=yes
+fi
+#
+#  Define DELTAT
+#
+DELTAT=""
+if [ $model = rmp -o $model = rop ]; then
+  grdsiz=`echo $delx | cut -d'.' -f1`
+  if [ $grdsiz -ge 60000 ]; then
+    DELTAT=240
+  elif [ $grdsiz -ge 30000 ]; then
+    DELTAT=120
+  elif [ $grdsiz -ge 10000 ]; then
+    DELTAT=60
+  elif [ $grdsiz -ge  5000 ]; then
+    DELTAT=10
+  elif [ $grdsiz -ge  2000 ]; then
+    DELTAT=6
+  elif [ $grdsiz -ge  1000 ]; then
+    DELTAT=3
+  elif [ $grdsiz -ge   500 ]; then
+    DELTAT=1
+  else
+    DELTAT=1
+  fi
+else
+  if [ $jcap -eq 0 ] ; then
+    DELTAT=600
+  elif [ $jcap -le 20 ] ; then
+    DELTAT=3600
+  elif [ $jcap -le 40 ] ; then
+    DELTAT=1800
+  elif [ $jcap -le 42 ] ; then
+    DELTAT=1800
+  elif [ $jcap -le 62 ] ; then
+    DELTAT=1200
+  elif [ $jcap -le 126 ] ; then
+    DELTAT=600
+  elif [ $jcap -le 170 ] ; then
+    DELTAT=480
+  elif [ $jcap -le 214 ] ; then
+    DELTAT=360
+  elif [ $jcap -le 254 ] ; then
+    DELTAT=300
+  elif [ $jcap -le 320 ] ; then
+    DELTAT=270
+  elif [ $jcap -le 372 ] ; then
+    DELTAT=240
+  elif [ $jcap -le 426 ] ; then
+    DELTAT=180
+  elif [ $jcap -le 510 ] ; then
+    DELTAT=120
+  elif [ $jcap -le 1022 ] ; then
+    DELTAT=90
+  elif [ $jcap -le 2046 ] ; then
+    DELTAT=60
+  fi
+fi
+#
+if [ "$DELTAT" = "" ]; then
+	echo "DELTAT not defined for this resolution"
+	echo "edit runscr/fcstparm and change the DELTAT"
+	echo "press enter"
+	read dummy
+fi
+if [ "$BARO_TEST" = 1 ]; then
+	DELTAT=600
+fi
+if [ ! -z "$igrd1" ] ; then
+	igrd=`expr $igrd1 - 1`
+	jgrd=`expr $jgrd1 - 1`
+fi
+if [ ! -z "$igrd" ] ; then
+	igrdm1=`expr $igrd - 1`
+	jgrdm1=`expr $jgrd - 1`
+fi
+#
+if [ $1 = rmp_ideal ]; then
+	levs=$MODEL_LAYER
+fi
+#
+PWD=`pwd`
+#
+. $LIBS_DIR/opt_libs/options-$SYSTEM-$march
+#
+cat <<EOF >seddat_script
+s%@SYSTEM@%$SYSTEM%g
+s%@SYSTEM2@%$SYSTEM2%g
+s%@FTNID@%$FTNID%g
+s%@RUNENV@%$RUNENV%g
+s%@FTASS@%$FTASS%g
+s%@LIBS_DIR@%$LIBS_DIR%g
+s%@MODEL@%$model%g
+s%@SRCS_DIR@%$SRCS_DIR%g
+s%@ETC_DIR@%$ETC_DIR%g
+s%@CON_DIR@%$CON_DIR%g
+s%@CONGOP_DIR@%$CONGOP_DIR%g
+s%@CONROP_DIR@%$CONROP_DIR%g
+s%@SMPCON_DIR@%$SMPCON_DIR%g
+s%@OBS_DIR@%$OBS_DIR%g
+s%@BIN_DIR@%$BIN_DIR%g
+s%@INPUT_DIR@%$INPUT_DIR%g
+s%@R2_DIR@%$R2_DIR%g
+s%@HOST_NAME@%$HOST_NAME%g
+s%@JCAP@%$jcap%g
+s%@LEVS@%$levs%g
+s%@POST_IGRD@%$POST_IGRD%g
+s%@POST_JGRD@%$POST_JGRD%g
+s%@POST_LAYER@%$POST_LAYER%g
+s%@IRELX@%$IRELX%g
+s%@MTNRES@%$mtnres%g
+s%@MTNVAR@%$MTNVAR%g
+s%@IGRD1@%$igrd1%g
+s%@JGRD1@%$jgrd1%g
+s%@CIGRD1@%$cigrd1%g
+s%@CJGRD1@%$cjgrd1%g
+s%@IGRD@%$igrd%g
+s%@JGRD@%$jgrd%g
+s%@IGRDM1@%$igrdm1%g
+s%@JGRDM1@%$jgrdm1%g
+s%@PROJ@%$proj%g
+s%@TRUTH@%$truth%g
+s%@COTRU@%$cotru%g
+s%@ORIENT@%$orient%g
+s%@DELX@%$delx%g
+s%@DELY@%$dely%g
+s%@CENLAT@%$cenlat%g
+s%@CENLON@%$cenlon%g
+s%@LFTGRD@%$xleftgrd%g
+s%@BTMGRD@%$botmgrd%g
+s%@JCAP@%$JCAP%g
+s%@LONF@%$LONF%g
+s%@LATG@%$LATG%g
+s%@IJCAP@%$IJCAP%g
+s%@ILONF@%$ILONF%g
+s%@ILATG@%$ILATG%g
+s%@ILEVS@%$ILEVS%g
+s%@RUNSCR_DIR@%$RUNSCR_DIR%g
+s%@GDASCR_DIR@%$GDASCR_DIR%g
+s%@RUNS_DIR@%$RUNS_DIR%g
+s%@MARCH@%$march%g
+s%@NTHREADS@%$ncpus%g
+s%@FCST_NPES@%$npes%g
+s%@NCPU_PER_NODE@%$NCPU_PER_NODE%g
+s%@NPES_PER_NODE@%$NPES_PER_NODE%g
+s%@NNODES@%$NNODES%g
+s%@NPES@%$npes%g
+s%@NCOL@%$NCOL%g
+s%@FCST_NCPUS@%$ncpus%g
+s%@NCPUS@%$ncpus%g
+s%@NCPU_PER_MODULE@%$NCPU_PER_MODULE%g
+s%@INSTITUTION@%$INSTITUTION%g
+s%@NOTIFY_MAIL@%$NOTIFY_MAIL%g
+s%@BARO_TEST@%$BARO_TEST%g
+s%@CLASS@%$CLASS%g
+s%@DELTAT@%$DELTAT%g
+s%@VEG_RES@%$VEG_RES%g
+s%@NOAH@%$NOAH%g
+s%@FCST_SFC_FILE_TYPE@%$FCST_SFC_FILE_TYPE%g
+s%@GTOPO30@%$GTOPO30%g
+s%@DOPOST@%$DOPOST%g
+s%@CATPGB@%$CATPGB%g
+s%@PWD@%$PWD%g
+s%@POST_DIR@%$POST_DIR%g
+s%@OUTPUT_DIR@%$OUTPUT_DIR%g
+s%@SMP_OBS@%$SMP_OBS%g
+s%@SITE_NAME@%$SITE_NAME%g
+s%@PROJECT_SERIAL_NUMBER@%$PROJECT_SERIAL_NUMBER%g
+s%@BATCHRESOURCES@%$BATCHRESOURCES%g
+s%@SWRMDC@%$swrmdc%g
+s%@RUNNAME@%$RUNNAME%g
+s%@SCRIPT@%$script%g
+s%@MPPE@%$MPPE%g
+s%@LONA@%$LONA%g
+s%@LATA@%$LATA%g
+s%@LSOIL@%$lsoil%g
+s%@CURR_DIR@%$CURR_DIR%g
+s%@RMP_NPES@%$RMP_NPES%g
+s%@ROM_NPES@%$ROM_NPES%g
+s%@ROMS_LEVS@%$roms_levs%g
+s%@ROMS_INI_THETA_S@%$roms_ini_theta_s%g
+s%@ROMS_INI_THETA_B@%$roms_ini_theta_b%g
+s%@ROMS_INI_TCLINE@%$roms_ini_tcline%g
+s%@ROMS_INI_TSTART@%$roms_ini_tstart%g
+s%@ROMS_INI_TEND@%$roms_ini_tend%g
+s%@ROMS_INI_SMTHINP@%$roms_ini_smthinp%g
+s%@ROMS_BNY_THETA_S@%$roms_bny_theta_s%g
+s%@ROMS_BNY_THETA_B@%$roms_bny_theta_b%g
+s%@ROMS_BNY_TCLINE@%$roms_bny_tcline%g
+s%@ROMS_BNY_TSTART@%$roms_bny_tstart%g
+s%@ROMS_BNY_TEND@%$roms_bny_tend%g
+s%@ROMS_BNY_SMTHINP@%$roms_bny_smthinp%g
+s%@ROMS_FOR_NLI@%$roms_for_nli%g
+s%@ROMS_FOR_THETA_S@%$roms_for_theta_s%g
+s%@ROMS_FOR_THETA_B@%$roms_for_theta_b%g
+s%@ROMS_FOR_TCLINE@%$roms_for_tcline%g
+s%@ROMS_FOR_TSTART@%$roms_for_tstart%g
+s%@ROMS_FOR_TEND@%$roms_for_tend%g
+s%@ROMS_FOR_SMTHINP@%$roms_for_smthinp%g
+s%@ROMS_THETA_S@%$roms_theta_s%g
+s%@ROMS_THETA_B@%$roms_theta_b%g
+s%@ROMS_TCLINE@%$roms_tcline%g
+s%@ROMS_STARTUP@%$roms_startup%g
+s%@ROMS_BNY_NLI@%$roms_bny_nli%g
+s%@ROMS_INI_NLI@%$roms_ini_nli%g
+s%@MPMD_COMMAND@%$MPMD_COMMAND%g
+EOF
+#
+for file in `ls runscr/*.in | sed 's/\.in$//g'`
+do
+	echo "creating $file"
+	sed -f seddat_script $file.in >$file
+	chmod a+x $file
+done
+#
+if [ -s `pwd`/runscr_gdas ] ; then
+	for file in `ls runscr_gdas/*.in | sed 's/\.in$//g'`
+	do
+		echo "creating $file"
+		sed -f seddat_script $file.in >$file
+		chmod a+x $file
+	done
+fi
+#
+#  domain specification file for rmp
+#
+if [ -n "$script" ] ; then
+	#
+	#  add header lines for qsub, llsubmit, etc.
+	#
+    scripty=$script
+    rsim_es=no
+    if [ $script = rsim_es ] ; then
+        scripty="rsim_ini rsim_cbs rsim_prp rsim_qsub rsim_xcpy rsim_recv rsim_tar"
+        rsim_es=yes
+    fi
+    if [ $script = gsi ] ; then
+        scripty="gsi_cycle gsi_gmp gsi"
+    fi
+    for scriptx in $scripty
+    do
+        rm $scriptx 2>/dev/null
+        echo "creating $scriptx $SMP_OBS"
+        if [ -s runscr/hp-$HOST_NAME.h -a $rsim_es = no ] ; then
+            sed -f seddat_script runscr/hp-$HOST_NAME.h >>$scriptx
+            sed -f seddat_script expscr/$scriptx.in | sed '/#!\//d' | \
+            sed "/^#insert-rmpdomain/r domfile" | \
+            sed "/^#insert-/d" >> $scriptx
+        else
+            sed -f seddat_script expscr/$scriptx.in | \
+            sed "/^#insert-rmpdomain/r domfile" | \
+            sed "/^#insert-/d" >> $scriptx
+        fi
+		if [ $script = gsi ] ; then
+			sed  's/@BATCHsuffix@//g' $scriptx > $scriptx.a
+			mv -f $scriptx.a $scriptx
+		fi
+        chmod a+x $scriptx
+        if [ $scriptx = csim -o $scriptx = crsm ] ; then
+            sed "s%^BASE_SIG=/.*/%BASE_SIG=$CDIR/%g" $scriptx | \
+            sed "s%^INITIAL_SIG=/.*/%INITIAL_SIG=$CDIR/%g" | \
+            sed "s%^INITIAL_SFC=/.*/%INITIAL_SFC=$CDIR/%g" >out.$$
+            cp out.$$ out
+            mv out.$$ $scriptx
+            chmod a+x $scriptx
+        fi
+    done
+fi
+#
+# BATCHsuffix to obtain JOB ID
+#
+if [ $INSTITUTION = kisti -a $SYSTEM2 = linux ]; then
+	sed  "s/@BATCHsuffix@/| awk '{print \$3}'/g" $script > $script.a
+elif [ $INSTITUTION = kisti -a $SYSTEM2 = ibmsp ]; then
+	sed  "s/@BATCHsuffix@/| awk -F'\"' '{print \$2}' | awk -F. '{print \$1\".\"\$5}'/g" $script > $script.a
+elif [ $INSTITUTION = kaf -o $INSTITUTION = noaa ]; then
+    sed  "s/@BATCHsuffix@/| awk -F'.' '{print \$1}'/g" $script > $script.a
+elif [ $INSTITUTION = kiaps -o $INSTITUTION = kiapsrt ]; then
+    sed  "s/@BATCHsuffix@/| cut -d'.' -f1/g" $script > $script.a
+else
+	sed  's/@BATCHsuffix@//g' $script > $script.a
+fi
+	mv -f $script.a $script
+	chmod a+x $script
+#
+# Make namelist.fcst
+#
+   $RUNSCR_DIR/namelist
+#
+if [ $model = chm ]; then
+#
+# input.geos for chm
+#
+   cp $RUNSCR_DIR/input.geos $RUNS_DIR
+fi
+rm seddat_script dummy 2> /dev/null

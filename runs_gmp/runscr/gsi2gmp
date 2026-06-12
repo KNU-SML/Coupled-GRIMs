@@ -1,0 +1,21 @@
+#!/bin/sh 
+set -x
+analtim=$1
+indir=$2
+oudir=$3
+rundir=$3
+
+cd $rundir
+initial_sigma=$indir/siganl.$analtim
+initial_sfc=$indir/sfcanl.$analtim
+out_sigma=$oudir/siganl.$analtim.bin
+out_sfc=$oudir/sfcanl.$analtim.bin
+
+out_tsfc=
+
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/gsi_sigma_cnvrt gsm noa1 \
+    254:768:384:64 \
+    -1:-1:-1:-1:-1 \
+    ieee:bin $initial_sigma:$initial_sfc \
+    $out_sigma:$out_sfc:$out_tsfc || exit 8
+

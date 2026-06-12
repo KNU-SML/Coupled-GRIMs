@@ -1,0 +1,61 @@
+PROG=rmtn
+#
+set -x
+#
+if [ no = no ] ; then
+	mtnres=` grep '^mtnres=' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/cvar.env | cut -d'=' -f2`
+	avg=top${mtnres}m_avg.20i4.asc
+	var=top${mtnres}m_var.20i4.asc
+	max=top${mtnres}m_max.20i4.asc
+	slm=top${mtnres}m_slm.80i1.asc
+	for file in $avg $var $max $slm
+	do
+		if [ ! -s $file ] ; then
+			cp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/$file.Z . && gunzip $file.Z
+		fi
+	done
+	cp rsm.parm rmtn.parm
+else
+	avg=dummy1
+	var=dummy2
+	max=dymmy3
+	slm=dummy4
+	echo " &namcondir" >condir.parm
+	echo " condir='/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con'," >>condir.parm
+	echo "/" >>condir.parm
+	cat rsm.parm condir.parm >rmtn.parm
+fi
+#
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f fort.[0-9]* 2>/dev/null
+fi
+
+ln -fs $avg                           fort.11
+ln -fs $var                           fort.12
+ln -fs $max                           fort.13
+ln -fs $slm                           fort.14
+ln -fs r_slmsk                        fort.51
+ln -fs r_orogrd                       fort.52
+ln -fs r_mtnvar                       fort.53
+ln -fs r_oroggd                       fort.54
+ln -fs r_smooth_oroggd                fort.55
+ln -fs r_oroview.ieee                 fort.71
+ln -fs r_oroview_latlon.ieee          fort.72
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp   fort.1
+#
+if [ linux_intel = dec ]; then
+  ulimit -s 1024000
+else
+  ulimit -s unlimited
+fi
+#
+rm $PROG.x 2>/dev/null
+ln -fs  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/$PROG.x $PROG.x
+./$PROG.x <rmtn.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+  exit 8
+fi

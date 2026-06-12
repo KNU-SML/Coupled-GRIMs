@@ -1,0 +1,186 @@
+#!/bin/sh
+#
+# extract
+#
+if [ $# -ne 3 ] ; then
+        echo "`date` $0: argument error" >>ERROR.out
+        exit 8
+fi
+fhs=$1
+fhe=$2
+fhinc=$3
+#
+#set -x
+wgrb=@CPSLIBS_DIR@/etc/wgrib
+fh=$fhs
+while [ $fh -le $fhe ] ; do
+	fhr=`expr $fh + 0`
+	if [ $fhr -lt 10 ] ; then
+		fhr=0$fhr
+	fi
+	pgbfile=pgb.ft$fhr
+	fgbfile=fgb.ft$fhr
+	diafile=dia.ft$fhr
+	extfile=extvars.ft$fhr
+
+	if [ ! -s $pgbfile ] ; then
+		echo $pgbfile missing
+		exit 8
+	fi
+	if [ $fhr != 00 -a ! -s $fgbfile ] ; then
+		echo $fgbfile missing
+		exit 8
+	fi
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=50:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=50:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":PRES:MSL:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":HGT:850 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":HGT:500 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":HGT:200 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":TMP:850 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":TMP:500 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":TMP:200 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":TMP:50 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":SPFH:850 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":SPFH:500 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":VVEL:500 mb:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb -s $pgbfile | grep ":PRES:sfc:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	if [ $fhr != 00 ] ; then
+
+	  $wgrb -s $fgbfile | grep ":ULWRF:nom. top:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":PRATE:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":TMP:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":ICEC:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":TMAX:2 m above gnd:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":TMIN:2 m above gnd:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":UGRD:10 m above gnd:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":VGRD:10 m above gnd:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":TMP:2 m above gnd:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":SPFH:2 m above gnd:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":TCDC:atmos col:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":UFLX:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":VFLX:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":PWAT:atmos col:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":SHTFL:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":LHTFL:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":RUNOF:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":SOILW:0-10 cm down:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":SOILW:10-200 cm down" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":WEASD:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":SNOEV:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+	  $wgrb -s $fgbfile | grep ":SNOHF:sfc:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+# PBL height
+	  $wgrb $fgbfile | grep ":kpds5=221:" | \
+	  $wgrb $fgbfile -i -grib -append -o $extfile
+
+################### dia 
+
+	  $wgrb -s $diafile | grep ":DSWRF:sfc:" | \
+	  $wgrb $diafile -i -grib -append -o $extfile
+
+	  $wgrb -s $diafile | grep ":USWRF:sfc:" | \
+	  $wgrb $diafile -i -grib -append -o $extfile
+
+	  $wgrb -s $diafile | grep ":DLWRF:sfc:" | \
+	  $wgrb $diafile -i -grib -append -o $extfile
+
+	  $wgrb -s $diafile | grep ":ULWRF:sfc:" | \
+	  $wgrb $diafile -i -grib -append -o $extfile
+
+	  $wgrb -s $diafile | grep ":DSWRF:nom. top:" | \
+	  $wgrb $diafile -i -grib -append -o $extfile
+
+	  $wgrb -s $diafile | grep ":USWRF:nom. top:" | \
+	  $wgrb $diafile -i -grib -append -o $extfile
+
+        fi
+
+	fh=`expr $fh + $fhinc`
+done
+
+exit

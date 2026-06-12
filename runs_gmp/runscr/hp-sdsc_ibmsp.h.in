@@ -1,0 +1,21 @@
+#!/bin/sh
+#@environment = COPY_ALL; MP_EUILIB=us;XLSMPOPTS=parthds=1:spins=0:
+yields=0: schedule=static; AIXTHREAD_SCOPE=S;AIXTHREAD_MNRATIO=8:8;
+ MP_SHARED_MEMORY=yes;MP_PULSE=0;RT_GRQ=ON;MP_CSS_INTERRUPT=yes;MP_
+INTRDELAY=100
+#@ output = out.$(jobid)
+#@ error = out.$(jobid)
+#@ job_type = parallel
+#@ total_tasks = @NPES@
+#@ node = @NNODES@
+#@ notify_user =
+#@ network.MPI = sn_single, not_shared, US, HIGH
+#@ node_usage = not_shared
+#@ notification = always
+#@ wall_clock_limit = 2:00:00
+#@ class = express
+#@ queue
+MP_INTRDELAY=100
+export MP_INTRDELAY
+#!/bin/sh
+set -ax

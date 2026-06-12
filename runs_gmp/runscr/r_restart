@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+#  Restart
+#
+#  Get fhour from r_sigit file, echo the fhour
+#  check for availability of base sigma analysis files
+#
+#  $1 ... nesting hour
+#
+fh=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/fhour r_sigit`
+fh=`expr $fh + 0`
+if [ $fh -lt 10 ] ; then fh=0$fh ; fi
+echo $fh
+echo "Restarting from $fh" >>ERROR.out
+#

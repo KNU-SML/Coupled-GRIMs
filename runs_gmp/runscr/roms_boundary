@@ -1,0 +1,103 @@
+#!/bin/sh
+#
+#  This script generates boundary condition for ROMS based on SODA
+#
+YYYY_start=$1
+MONTH_start=$2
+YYYY_end=$3
+MONTH_end=$4
+#
+test_script=yes
+#
+# link executables and mask file
+#
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/boundary.x .
+#
+# Generate list of SODA imput monthly files for ROMS lateral boundary
+#
+#  we need to start one month earlier for the interpolation of the day earlier
+#  than day of the middle of the month.
+#
+monm=`expr $MONTH_start - 1`
+if [ $monm -lt 1 ] ; then
+	monm=12
+	yearm=`expr $YYYY_start - 1`
+else
+	yearm=$YYYY_start
+fi
+nfiles=1
+year=$yearm
+yyyy_e=$YYYY_end
+while [ $year -le $yyyy_e ] ; do
+	if [ $year -eq $yearm ] ; then
+		month=$monm
+	else
+		month=1
+	fi 
+	if [ $year -eq $YYYY_end ] ; then
+		month_e=`expr $MONTH_end + 1`
+		if [ $month_e -gt 12 ] ; then
+			month_e=1
+			yyyy_e=`expr $YYYY_end + 1`
+		fi
+	else
+		month_e=12
+	fi
+	while [ $month -le $month_e ] ; do
+		mon=$month
+		if [ $month -le 10 ] ; then
+			mon=0$month
+		fi
+		echo "/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_rop/SODA-$year$mon.nc" >>tmp1.$$
+		nfiles=`expr $nfiles + 1`
+		month=`expr $month + 1`
+	done
+	year=`expr $year + 1`
+done
+#
+#  fetch monthly SODA files from data server
+#  count only the one available and put it into List file
+#
+rm List_of_monthly_SODA_files 2>/dev/null
+nfiles=0
+for file in `cat tmp1.$$` 
+do
+	filex=`echo $file | sed 's%.*/%%g'`
+	cp $file ./$filex 
+	if [ -s $filex ] ; then
+		echo "$filex" >> List_of_monthly_SODA_files
+		nfiles=`expr $nfiles + 1`
+	fi
+done
+if [ $nfiles -le 0 ] ; then
+	echo "valid monthly SODA files for boundary condition not found"
+	exit 8
+fi
+#
+# edit roms_boundary_parm file
+#
+#  Insert multiple lines from insert_file_name after the lines begin 
+#  with #INSERT-insert_file_name.
+#  This is used to insert header lines, domain specifications, etc.
+#
+if [ -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_boundary.parm.is ] ; then
+        for insert in `grep '^#INSERT-'  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_boundary.parm.is`
+        do
+                insert_file=`echo $insert | cut -d'-' -f2 | sed 's/ *//g'`
+                sed "/^#INSERT-$insert_file/r $insert_file"  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/roms_boundary.parm.is | \
+                        sed "/^#INSERT-$insert_file/d" > tmp.$$
+        done
+fi
+sed "s/%NUMBER_OF_MONTHLY_SODA_FILES%/$nfiles/g" tmp.$$ >./roms_boundary.parm
+#
+#  boundary.x creates bdry.nc file
+#
+if [ ! -s bdry.nc ] ; then
+	./boundary.x  < ./roms_boundary.parm 1>./roms_boundary.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "boundary.x failed"
+		exit 8
+		echo "boundary.x complete"
+	fi
+fi
+ln -fs ./bdry.nc  bdry-$YYYY_start$MONTH_start-$YYYY_end$MONTH_end.nc

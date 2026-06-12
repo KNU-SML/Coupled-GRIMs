@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+#  interactive run of this scripts to recompute monthly average
+#  from amip run
+#
+#  this script needs to be executed from the directory where all the
+#  history files exist
+#
+set -x
+pwd=`pwd`
+EXECDIR=`echo $pwd | sed 's?/[^/]*$??g'`
+YYYY=`echo $pwd | sed 's?.*/??g'`
+echo 'which month? ==>\c'
+read MM
+echo 'which file? ==>\c'
+read file
+echo $EXECDIR $YYYY $MM
+
+@RUNSCR_DIR@/getavfh $YYYY $MM >out.$$
+read fhs fhe <out.$$
+
+echo @RUNSCR_DIR@/average $file $fhs $fhe 24 $file.$YYYY$MM.avrg.grib
+@RUNSCR_DIR@/average $file $fhs $fhe 24 $file.$YYYY$MM.avrg.grib

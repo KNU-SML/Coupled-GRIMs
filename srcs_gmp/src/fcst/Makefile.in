@@ -1,0 +1,182 @@
+EXECUTABLE = fcst.x
+
+OBJ_MODULE = diag_point_module.o diag_3d_module.o phys_pbl_ysu_module.o \
+             dcmip_initial_condition.o phys_main_driver_dcmip.o
+
+#soojin_couple
+OBJ_MAIN =  couple_oasis.o     global_model_program.o  gmp_init_array.o \
+            gmp_start.o        phys_oml_wrf.o          gmp_integrate.o  \
+            gmp_end.o          dyn_get_pressure.o
+
+OBJ_CLD3 = phys_mps_wsm3.o
+OBJ_CLD5 = phys_mps_wsm5.o phys_mps_wdm5.o
+OBJ_CLD6 = phys_mps_wsm6.o phys_mps_wdm6.o
+
+OBJ_INI = lsm_init_module.o         gmp_start_setup.o           \
+	phys_flux_zero.o            rad_setup.o                 \
+	sph_derivative_init.o       sph_comp_index.o            \
+	dyn_lon_lat.o              
+
+OBJ_IO = file_read_sigma.o     file_make_grib.o       file_write_diag.o    \
+	file_write_sigma.o     file_write_flux.o      sph_trans_wave2grid.o  \
+	file_read_cpscldi.o
+
+OBJ_DYN = dyn_sph_driver.o     dyn_global_nudging.o       \
+	sph_mass_adjustment.o      sph_fft_trans.o        \
+	sph_del_log_ps.o       sph_trans_wind2divor.o      sph_nonlinear_tend.o
+
+OBJ_LGNDR = sph_comp_coeff.o
+
+OBJ_PHYS = phys_main_solver.o     dyn_get_omega.o      rad_diurnal_cycle.o         \
+	phys_pbl_ysu.o            phys_pbl_mrf.o funct_lsm.o   lsm_osu_main.o     \
+	phys_mps_wsm1.o           lsm_osu_precip.o     phys_main_driver.o          \
+	phys_river_main_driver.o  post_grid_interp.o
+
+OBJ_PROGTM_COMM = lsm_common_subprogram.o lsm_driver.o     
+
+OBJ_PROGTM_NOA1 = lsm_noah_module.o  lsm_noah_main.o
+
+OBJ_SHAL = phys_moist_adiabat.o phys_scv_mrf.o phys_scv_hanpan.o phys_scv_grims.o \
+	phys_moist_adiabat_pa.o
+
+OBJ_KUO = phys_cps_kuo.o
+OBJ_KF2 = phys_cps_kf2.o 
+OBJ_SAS = phys_cps_ksas.o
+OBJ_RAS = phys_ras_module.o  phys_ras2_module.o 
+OBJ_RASV1 = phys_cps_ras.o 
+OBJ_RASV2 = phys_cps_ras2.o 
+OBJ_CCM = phys_ccm_module.o phys_cps_ccm3.o   phys_scv_ccm2.o   
+
+OBJ_CNVCLD_SLINGO = rad_cps_cloud.o
+
+OBJ_HDIF = sph_horizontal_diffusion.o   sph_wind_damping.o   \
+           sph_solve_laplacian.o        phys_grid_diffusion.o 
+
+OBJ_DYN_ONELP = dyn_driver_onestep.o
+
+OBJ_UTIL = dyn_cpu_number.o dyn_comp_rms.o
+
+OBJ_BLOCKDATA = blockdata_kappa.o blockdata_rad_gfdl.o 
+
+OBJ_RAD = funct_rad_cloud.o    funct_rad_lw.o        phys_rad_solver.o     \
+	rad_cloud_prepare.o    rad_main_driver.o     rad_main_solver.o     \
+	rad_aerosol_data.o     rad_readin.o
+
+OBJ_LW_CHOU = rad_lw_nasa_driver.o
+
+OBJ_LW_RRTMG = rad_lw_rrtmg_driver.o
+
+OBJ_SW_99UPDATE = rad_sw_nasa_driver.o
+
+OBJ_SW_CHOU = rad_sw_gfdl_driver.o
+
+OBJ_SW_RRTMG = rad_sw_rrtmg_driver.o
+
+OBJ_LW_FS = rad_lw_gfdl_cloud.o     rad_lw_gfdl_driver.o 
+ 
+OBJ_RADCLD = rad_cloud_comp.o
+
+OBJ_VIC1 = lsm_vic_funct.o   lsm_vic_solver.o  lsm_vic1_driver.o   lsm_vic1_main.o
+
+OBJ_O3 = rad_ozone_setup.o        rad_ozone_physics.o      rad_ozone_time_interp.o
+
+OBJ_NIM = phys_timestep4nim.o        grims_init4nim.o
+
+OBJ_GWD = phys_gwd_alpert.o       phys_gwd_chunbaik.o      phys_gwd_kimarakawa.o 
+
+OBJ_CLD2 = phys_mps_cld2_precip.o phys_mps_cld2_cloud.o
+
+OBJ_POST = post_interp_spline.o   post_pgb_2d.o            post_pgb_3d.o
+
+OBJ_DFI = dyn_digital_filter.o
+
+OBJ_LFM = dyn_low_freq_model.o 
+
+OBJ_NISLQ = nislq_mono_advect.o nislq_mass_advect.o nislq_transpose.o
+
+OBJ_REDUC= sph_reduced_grid_main.o
+
+OBJ_DFS = dfs_diffusion.o              dfs_wind_transform.o    \
+	dfs_global_mean.o              dfs_advection.o         \
+	dyn_dfs_driver.o               dfs_divergence.o        \
+	dfs_mass_adjustment.o       dfs_vertical_grid.o     \
+	dfs_inverse_matrix.o                                   \
+	dfs_fft_transform.o            dfs_semi_implicit.o     \
+	dfs_sincos_lat.o               dfs_constant.o          \
+	dfs_wind_damping.o             dfs_cut_alias.o         \
+	dfs_del_log_ps.o               phys_grid_diffusion.o   \
+	dfs_baro_test_init.o           dfs_ideal_temp.o             
+
+OBJ_SPH = ${OBJ_DYN} ${OBJ_LGNDR} ${OBJ_DYN_ONELP} ${OBJ_POST} ${OBJ_HDIF}
+
+OBJS_F77 = ${OBJ_BLOCKDATA} ${OBJ_MAIN} ${OBJ_CLD3} ${OBJ_CLD5} ${OBJ_CLD6} ${OBJ_IO} ${OBJ_PROGTM_COMM} ${OBJ_PROGTM_NOA1} ${OBJ_SHAL} ${OBJ_KUO} ${OBJ_SAS} ${OBJ_KF2} ${OBJ_RASV1} ${OBJ_RASV2} ${OBJ_CCM} ${OBJ_CNVCLD_SLINGO} ${OBJ_LW_RRTMG} ${OBJ_SW_RRTMG} ${OBJ_RAD} ${OBJ_INI} ${OBJ_LW_CHOU} ${OBJ_LW_FS} ${OBJ_SW_CHOU} ${OBJ_SW_99UPDATE} ${OBJ_RADCLD} ${OBJ_O3} ${OBJ_GWD} ${OBJ_VIC1} ${OBJ_UTIL} ${OBJ_CLD2} ${OBJ_NISLQ} @OBJ_SPH@ ${OBJ_PHYS} ${OBJ_NIM}
+
+OBJS = ${OBJ_MODULE} @OBJ_DFS@ ${OBJ_RAS} ${OBJS_F77}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77_FCST@
+FORT_FLAGS = @FORT_FLAGS@
+EXTRA_FORT_FLAGS = @EXTRA_FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALL_DIR = @INSTALL_DIR@
+INSTALLDLIB = @INSTALLDLIB@
+INSTALL_LIB = @INSTALL_LIB@
+EXTRA_LIBS = @EXTRA_LIBS@
+EXTRA_LIBS_FCST = @EXTRA_LIBS_FCST@
+#soojin_couple
+OASIS_LIB = @OASIS_LIB@
+OASIS_INC = @OASIS_INC@
+NETCDF_LIB = @NETCDF_LIB@
+
+LIBS = @FCST_SFCL@ ${INSTALLDLIB}/share.a @FCST_COMMON@ ${LIB_DIR}/modelib.a ${LIB_DIR}/w3lib.a @FCST_MPI@ @FCST_CHEM@ @EXTRA_LIBS@ ${OASIS_LIB}/libpsmile.MPI1.a ${OASIS_LIB}/libscrip.a ${OASIS_LIB}/libmct.a ${OASIS_LIB}/libmpeu.a ${NETCDF_LIB}/libnetcdf.a
+#LIBS = @FCST_SFCL@ ${INSTALLDLIB}/share.a @FCST_COMMON@ ${LIB_DIR}/modelib.a ${LIB_DIR}/w3lib.a @FCST_MPI@ @FCST_CHEM@ @EXTRA_LIBS@
+
+${EXECUTABLE} : ${OBJS} ${LIBS}
+	if [ @MACHINE@ = mac ] ; then \
+		ranlib -s ${LIBS} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS_FCST}
+	${CP} $@ ${INSTALL_DIR}
+	- mv *.mod ../include
+
+${SRCS} :
+	ln -fs ../rfcst/$@ $@
+
+mainreduce.x : ${OBJ_REDUC}
+	${F77} ${LOAD_FLAGS} -o mainreduce.x ${OBJ_REDUC}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+#soojin_couple
+.F90.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i
+	${F77} ${FORT_FLAGS} -I${OASIS_INC} -c $*.f90
+#	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -I${OASIS_INC} -c $*.f90
+#	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o ${EXECUTABLE} core
+
+dist_clean :
+	- ${RM} -f *.f90 *.o *.x core Makefile
+	- ${RM} -rf rii_files

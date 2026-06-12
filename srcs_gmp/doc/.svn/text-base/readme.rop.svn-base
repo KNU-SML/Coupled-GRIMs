@@ -1,0 +1,77 @@
+step to install...
+
+
+1. cvs co INSTALL
+
+2. vi defs/sysvars.def
+--- machine compiler netcdf mpi libraries
+
+3. ./install ---- download files from the cvs servers
+
+     RSM:ROMS   (model selection)
+4. 
+
+
+
+
+/con 
+
+etopo2.nc etop05 --- ocean bathymetry (2min and 5min)
+topo_R2.nc --- defatult bathymetry (smoothed)
+global-frc-coads r2 : global climagological forcing
+SODA-199002 : ocean reanalysis bdy conditon for testing..
+   --- real case data can be downloaded from coaps site
+
+
+
+Work for grims...
+
+define ROP
+rmtn -- make rop boundary to be consistent with rmp
+
+1. find the roms main program in roms/Master  ocean.h master.F ...
+   and merge into rop_src/Nonlinear
+  : /Master directory .... 
+
+
+   try to merge the define.h for roms 
+      def/model/define.h roms.h rsimroms.h (test_rsmroms.h)
+2. modify the roms/makefile for rop_src/Makefile (variables from configure-model)
+
+  : 
+
+
+
+-------
+
+make and configure did not work properly due to gmake
+thus, comple for rop_src is done using pre-made roms specificafions using gmake
+
+in future, define_rop.h will be replaced the local.h in ROMS directory.
+
+
+Domain setup for ROMS 
+
+roms/Gridpak/Include/gridparam.h.in
+It should be src/rop_pre/Gridpak/Include/gridname.h.in
+
+     integer         L, M
+!     parameter( LPLUS1=@IGRD@, MPLUS1=@JGRD@ )
+!     parameter( L=LPLUS1-1 , M=MPLUS1-1 )
+     parameter( L=@IGRD@ , M=@JGRD@ )
+!
+!  mud2 requires that these values satisfy
+!
+!     L = NXL*2**(NSTEP-1)+1
+!     M = NYL*2**(NSTEP-1)+1
+!
+!  where NXL, NYL and NSTEP are integers.  Try to have NSTEP as large as
+!  possible (see mud2 documentation).
+!
+!  subroutine 'factor' now takes care of passing NXL, NYL and NSTEP to mud2.
+
+The IGRID and JGRID are from the rsm domain definition by configure-model.
+
+This will generate a grid.nc file.
+Then all the other ROMS program will inquiry this netCDF file to get the x, y dimensions.
+

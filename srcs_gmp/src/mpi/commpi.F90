@@ -1,0 +1,49 @@
+#include <define.h>
+   module commpi
+!-------------------------------------------------------------------------------
+   use paramodel, only   : npes_,latg_,jcap_
+#ifdef RMP
+   use paramodel, only   : jgrd12_
+#endif
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+   private              :: npes_,latg_,jcap_
+#ifdef RMP
+   private              :: jgrd12_
+#endif
+   include 'mpif.h'
+   integer              :: npes,ncol,nrow,mype,master,msgtag                  ,&
+                           myrow,mycol,comm_row,comm_column,mpi_comm_rmp
+!soojin_couple
+   integer              :: mpi_comm_private
+!!!!!!!!!!!!!!
+   integer, allocatable :: levstr(:),levlen(:)                                ,&
+                           lerstr(:),lerlen(:)                                ,&
+                           lonstr(:),lonlen(:)                                ,&
+                           latstr(:),latlen(:)                                ,&
+                           lwvstr(:),lwvlen(:)                                ,&
+                           lntstr(:),lntlen(:)                                ,&
+                           lnpstr(:),lnplen(:)                                ,&
+                           lwvdef(:)  ,latdef(:)
+!
+   contains
+!-------------------------------------------------------------------------------
+   subroutine commpi_init
+!-------------------------------------------------------------------------------
+   allocate(               levstr(0:npes_-1),levlen(0:npes_-1)                ,&
+                           lerstr(0:npes_-1),lerlen(0:npes_-1)                ,&
+                           lonstr(0:npes_-1),lonlen(0:npes_-1)                ,&
+                           latstr(0:npes_-1),latlen(0:npes_-1)                ,&
+                           lwvstr(0:npes_-1),lwvlen(0:npes_-1)                ,&
+                           lntstr(0:npes_-1),lntlen(0:npes_-1)                ,&
+                           lnpstr(0:npes_-1),lnplen(0:npes_-1)                ,&
+#ifndef RMP
+                           lwvdef(jcap_+1)  ,latdef(latg_/2)                   )
+#else
+                           lwvdef(jcap_+1)  ,latdef(jgrd12_)                   )
+#endif
+!
+   end subroutine commpi_init
+!-------------------------------------------------------------------------------
+   end module commpi

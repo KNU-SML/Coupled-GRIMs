@@ -1,0 +1,93 @@
+#!/bin/sh
+#set -x
+#
+if [ $# -lt 5 ]; then
+	echo "post_gmp $shour $endhour $intsig $fcstid $log_name $BATCHQUE $BATCHstatus"
+	exit 1
+fi
+#
+shour=$1
+endhour=$2
+intsig=$3
+fcstid=$4
+log_name=$5
+BATCHQUE=$6
+BATCHstatus=$7
+#
+fthour=`expr $shour + $intsig`
+if [ $fthour -lt 10 ]; then
+	fthour=0$fthour
+fi
+#
+# Do post immediately
+#
+while [ $fthour -le $endhour ]; do
+	if [ -f sig.ft$fthour ]; then
+		phs=`expr $fthour - $intsig`
+		phe=$phs
+		phinc=$intsig
+		fhs=$phs
+		fhe=$phe
+		fhinc=$phinc
+		export phs phe phinc fhs fhe fhinc
+		#
+		pgbid=`$BATCHQUE /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb`
+		fgbid=`$BATCHQUE /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb`
+		echo "Postprocess is submitted at ft.$phs"
+		#
+		fthour=`expr $fthour + $intsig`
+		if [ $fthour -lt 10 ]; then
+			fthour=0$fthour
+		fi
+	else
+		sleep 3
+	fi
+done
+#
+while [ ! -s $log_name ]; do
+    sleep 3
+done
+#
+# For the last post
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/wait_que_job $fcstid $log_name $BATCHstatus || exit 8
+phs=$endhour
+phe=$phs
+phinc=$intsig
+fhs=$phs
+fhe=$phe
+fhine=$phinc
+#export phs phe phinc fhs fhe fhinc
+#
+pgbid=`$BATCHQUE /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb`
+fgbid=`$BATCHQUE /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb`
+#
+echo "Postprocess is submitted at ft.$phs"
+
+#
+# Check if pgb and fgb files exist
+#
+fthour=0
+while [ $fthour -le $endhour ]; do
+	phs=$fthour
+	phe=$phs
+	phinc=$intsig
+	fhs=$phs
+	fhe=$phe
+	fhinc=$phinc
+	if [ $fthour -lt 10 ]; then
+		fthour=0$fthour
+	fi
+#	export phs phe phinc fhs fhe fhinc
+	if [ ! -s pgb.ft$fthour ]; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb $phs $phe $phinc
+		echo "pgb is resubmitted at ft.$phs"
+	fi
+	if [ ! -s fgb.ft$fthour ]; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb $fhs $fhe $fhine
+		echo "fgb is resubmitted at ft.$phs"
+	fi
+	fthour=`expr $fthour + $intsig`
+done
+
+exit 0

@@ -1,0 +1,151 @@
+#!/bin/sh
+#
+#  Default location of initial, base field, sst, ice and snow files
+#  for different machines at different institutions.
+#  For coarse to fine regional downscaling, the coarse regional grid data directory
+#  name should be assigned for BASE_DATA_DIR 
+#
+if [ nml_linux_intel = ncep_ibmsp ] ; then
+  #
+  #  Amospheric initial condition
+  #
+  INITIAL_DATA_PLATFORM=
+  INITIAL_DATA_FTP=
+  INITIAL_DATA_DIR=/nfsuser/g03/wx52op/climodl_ini
+  #INITIAL_DATA_DIR=/nfsuser/g03/wx51bj/ncep/input
+  INPUT_RESOLUTION=t62k28
+  #
+  #  Base field analysis sigma files
+  #
+  BASE_DATA_PLATFORM=
+  BASE_DATA_FTP=
+  BASE_DATA_DIR=/nfsuser/g03/wx52op/climodl_ini
+  #BASE_DATA_DIR=/nfsuser/g03/wx51bj/ncep/input
+  BASE_RESOLUTION=t62k28
+  #
+  # sst/ice/snow
+  #
+  SST_PLATFORM=
+  SST_FTP=ftp
+  SST_DIR=/nfsuser/g03/wx52op/sfcanl/\$YYYY
+  SST_FILENAME=sst.grib
+	#
+  ICE_PLATFORM=
+  ICE_FTP=ftp
+  ICE_DIR=/nfsuser/g03/wx52op/sfcanl/\$YYYY
+  ICE_FILENAME=ice.grib
+	#
+  SNO_PLATFORM=
+  SNO_FTP=ftp
+  SNO_FILENAME=snow.grib
+  SNO_DIR=/nfsuser/g03/wx52op/sfcanl/\$YYYY
+  #
+elif [ nml_linux_intel = cmb_origin ] ; then
+  #
+  #  Atmospheric Initial condition
+  #
+  INITIAL_DATA_PLATFORM=ftp.ncep.noaa.gov
+  INITIAL_DATA_FTP=ftp
+  INITIAL_DATA_DIR=prc
+  INPUT_RESOLUTION=t62k28
+  #
+  #  Base field analysis sigma files
+  #
+  BASE_DATA_PLATFORM=ftp.ncep.noaa.gov
+  BASE_DATA_FTP=ftp
+  BASE_DATA_DIR=prc
+  BASE_RESOLUTION=t62k28
+  #
+  #  Atmospheric initial condition
+  #
+  SST_PLATFORM=ftp
+  SST_FTP=ftp
+  SST_DIR=sfcanl
+  SST_FILENAME=sst.grib
+  #
+  ICE_PLATFORM=ftp
+  ICE_FTP=ftp
+  ICE_DIR=sfcanl
+  ICE_FILENAME=ice.grib
+  #
+  SNO_PLATFORM=ftp
+  SNO_FTP=ftp
+  SNO_DIR=sfcanl
+  SNO_FILENAME=snow.grib      # very dangerous
+  #
+elif [ nml_linux_intel = navo_origin  -o \
+      nml_linux_intel = nersc_ibmsp  -o \
+      nml_linux_intel = nersc_t3e  -o \
+      nml_linux_intel = compas_linux  -o \
+      nml_linux_intel = sio_linux  -o \
+      nml_linux_intel = sio_dec  -o \
+      nml_linux_intel = nersc_j90 ] ; then
+  #
+  #  Atmospheric Initial condition
+  #
+  INITIAL_DATA_PLATFORM=bitbank.nersc.gov
+  INITIAL_DATA_FTP=ftp
+  INITIAL_DATA_DIR=rerunarch/$\YYYY\$MM/prod_v02.A.vsn01/anl
+  INPUT_RESOLUTION=t62k28
+  #
+  #  Base field analysis sigma files
+  #
+  BASE_DATA_PLATFORM=bitbank.nersc.gov
+  BASE_DATA_FTP=ftp
+  BASE_DATA_DIR=rerunarch/$\YYYY\$MM/prod_v02.A.vsn01/anl
+  BASE_RESOLUTION=t62k28
+  #
+  #  SST, SEA ICE AND SNOW
+  #
+  SST_PLATFORM=killeen.nersc.gov
+  SST_FTP=sftp
+  SST_DIR=/U0/ebis/sfcanl/\$YYYY
+  SST_FILENAME=sst.grib
+  #
+  ICE_PLATFORM=killeen.nersc.gov
+  ICE_FTP=sftp
+  ICE_DIR=/U0/ebis/sfcanl/\$YYYY
+  ICE_FILENAME=ice.grib
+  #
+  SNO_PLATFORM=killeen.nersc.gov
+  SNO_FTP=sftp
+  SNO_DIR=/U0/ebis/sfcanl/\$YYYY
+  SNO_FILENAME=snow.grib
+  #
+elif [ nml_linux_intel = sio_dec ] ; then
+  #
+  #  Amospheric initial condition
+  #
+  INITIAL_DATA_PLATFORM=
+  INITIAL_DATA_FTP=
+  INITIAL_DATA_DIR=/feu01/kana/r2/climodl_ini
+  INPUT_RESOLUTION=t62k28
+  #
+  #  Base field analysis sigma files
+  #
+  BASE_DATA_PLATFORM=
+  BASE_DATA_FTP=
+  BASE_DATA_DIR=/feu01/kana/r2/sigma
+  BASE_RESOLUTION=t62k28
+  #
+  # sst/ice/snow
+  #
+  SST_PLATFORM=
+  SST_FTP=sftp
+  SST_DIR=/feu01/kana/r2/sfcanl
+  SST_FILENAME=sst_${YYYYS}.grib
+  #
+  ICE_PLATFORM=
+  ICE_FTP=sftp
+  ICE_DIR=/feu01/kana/r2/sfcanl
+  ICE_FILENAME=ice_${YYYYS}.grib
+  #
+  SNO_PLATFORM=
+  SNO_FTP=sftp
+  ICE_DIR=/feu01/kana/r2/sfcanl
+  SNO_DIR=/feu01/kana/r2/sfcanl
+  SNO_FILENAME=snow_${YYYYS}.grib
+else
+  echo "Unknown HOST_NAME INSTITUTION combination"
+  echo " Warrning... directories will be setup in rsim"
+fi

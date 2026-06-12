@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+#  get R-2 sigma file and sfc files from nersc
+#
+if [ $# -ne 5 ] ; then
+	echo "$0: argument error"
+	exit 8
+fi
+EXECDIR=$1
+YYYY=`echo $2 | cut -d':' -f1`
+MM=`echo $2 | cut -d':' -f2`
+DD=`echo $2 | cut -d':' -f3`
+HH=`echo $2 | cut -d':' -f4`
+ARCHIVE_DIR=$3
+PLATFORM=$4
+FTP=$5
+#
+ARCHIVE_DIR=`eval echo $ARCHIVE_DIR`
+#
+if [ -s $EXECDIR/$YYYY$MM$DD$HH/sig.anl.ieee -a \
+      -s $EXECDIR/$YYYY$MM$DD$HH/sfc.anl.ieee ] ; then
+  echo sig.anl.ieee and sfc.anl.ieee file already exist
+  exit
+fi
+#
+#  ftp get sigma and sfc
+#
+cat >ftpdat.getsgsc <<EOF
+binary
+passive off
+lcd $EXECDIR/$YYYY$MM$DD$HH
+cd $ARCHIVE_DIR
+get sig.anl.$YYYY$MM$DD$HH.ieee sig.anl.ieee
+get sfc.anl.$YYYY$MM$DD$HH.ieee sfc.anl.ieee
+quit
+EOF
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpscr ftpdat.getsgsc \
+					ftpout.getsgsc $PLATFORM $FTP || exit 8

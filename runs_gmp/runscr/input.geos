@@ -1,0 +1,173 @@
+GEOS-CHEM SIMULATION v9-01-02: GEOS-5 NOx-Ox-HC-Aerosol simulation (43 tracers)
+------------------------+------------------------------------------------------
+%%% SIMULATION MENU %%% :
+Root data directory     : /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/../con_chm
+Use LINOZ strat chem?   : F
+Aerosol direct effect   :---
+ => Fixed AOD           : F
+ => Instantaneous AOD   : T
+Aerosol indirect effect : F
+------------------------+------------------------------------------------------
+%%% TRACER MENU %%%     :
+Type of simulation      : 10
+Number of Tracers       : 20
+Tracer Entries -------> : TR#   Name  g/mole   Tracer Members; () = emitted
+Tracer #1               :   1   SO2     64.0
+Tracer #2               :   2   SO4     96.0
+Tracer #3               :   3   SO4s    96.0
+Tracer #4               :   4   NH3     17.0
+Tracer #5               :   5   NH4     18.0
+Tracer #6               :   6   NIT     62.0
+Tracer #7               :   7   NITs    62.0
+Tracer #8               :   8   DMS     62.0
+Tracer #9               :   9   MSA     96.0
+Tracer #10              :  10   H2O2    34.0
+Tracer #11              :  11   BCPI    12.0
+Tracer #12              :  12   OCPI    12.0
+Tracer #13              :  13   BCPO    12.0
+Tracer #14              :  14   OCPO    12.0
+Tracer #15              :  15   DST1    29.0
+Tracer #16              :  16   DST2    29.0
+Tracer #17              :  17   DST3    29.0
+Tracer #18              :  18   DST4    29.0
+Tracer #19              :  19   SALA    36.0
+Tracer #20              :  20   SALC    36.0
+------------------------+------------------------------------------------------
+%%% CONVECTION MENU %%% :
+Turn on Cloud Conv?     : T
+Turn on PBL Mixing?     : T
+ => Use non-local PBL?  : F
+------------------------+------------------------------------------------------
+%%% EMISSIONS MENU %%%  :
+Turn on emissions?      : T
+Include anthro emiss?   : T
+ => Scale to (1985-2005): -1
+ => Use EMEP emissions? : T
+ => Use BRAVO emissions?: T
+ => Use EDGAR emissions?: T
+ => Use STREETS emiss?  : T
+ => Use CAC emissions?  : T
+ => Use NEI2005 emiss?  : T
+ => Use RETRO emiss?    : F
+Use EPA/NEI99 (anth+bf)?: F
+    w/ ICARTT modif.?   : F
+    w/ VISTAS NOx emis? : F
+Include biofuel emiss?  : T
+Include biogenic emiss? : T
+ => Use MEGAN inventory?: F
+ => Use PCEEA model?    : F
+ => Use MEGAN for MONO? : F
+ => Isoprene scaling    : 1
+Include biomass emiss?  : T
+ => Seasonal biomass?   : F
+ => Scaled to TOMSAI?   : F
+ => Use GFED2 biomass?  :---
+    => monthly GFED2?   : F
+    => 8-day GFED2?     : F
+    => 3-hr GFED2?      : F
+    => synoptic GFED2?  : F
+ => Use GFED3 biomass?  :---
+    => monthly GFED3?   : T
+    => 8-day GFED3?     : F
+    => 3-hr GFED3?      : F
+    => synoptic GFED3?  : F
+Individual NOx sources  :---
+ => Use aircraft NOx?   : F
+ => Use lightning NOx?  : F
+    => Spat-seas constr?: F
+ => Use soil NOx        : F
+ => Use fertilizer NOx  : F
+NOx scaling             : 1
+Use ship SO2 emissions? :---
+ => global EDGAR ?      : F
+ => global ICOADS ?     : F
+ => EMEP over EUROPE ?  : T
+ => ship SO2 Corbett ?  : F
+ => ship SO2 Arctas ?   : T
+Use COOKE BC/OC (N. Am.): F
+Use AVHRR-derived LAI?  : F
+Use MODIS-derived LAI?  : T
+------------------------+------------------------------------------------------
+%%% AEROSOL MENU %%%    :
+Online SULFATE AEROSOLS : T
+Online CRYST/AQ AEROSOLS: F
+Online CARBON  AEROSOLS : T
+Online 2dy ORG AEROSOLS : F
+Online DUST    AEROSOLS : T
+ => Use DEAD emissions? : T
+ => Use SHAO emissions? : F
+Online SEASALT AEROSOLS : T
+ -- SALA radius bin [um]: 0.1  0.5
+ -- SALC radius bin [um]: 0.5  4.0
+Online dicarb. chem.    : F
+------------------------+------------------------------------------------------
+%%% DEPOSITION MENU %%% :
+Turn on Dry Deposition? : T
+Turn on Wet Deposition? : T
+------------------------+------------------------------------------------------
+%%% CHEMISTRY MENU %%%  :
+Turn on Chemistry?      : T
+USE solver coded by KPP : F
+------------------------+------------------------------------------------------
+%%% OUTPUT MENU %%%     : 123456789.123456789.123456789.1--1=ZERO+2=BPCH
+Schedule output for JAN : 3000000000000000000000000000000
+Schedule output for FEB : 30000000000000000000000000000
+Schedule output for MAR : 3000000000000000000000000000000
+Schedule output for APR : 300000000000000000000000000000
+Schedule output for MAY : 3000000000000000000000000000000
+Schedule output for JUN : 300000000000000000000000000000
+Schedule output for JUL : 3000000000000000000000000000000
+Schedule output for AUG : 3000000000000000000000000000000
+Schedule output for SEP : 300000000000000000000000000000
+Schedule output for OCT : 3000000000000000000000000000000
+Schedule output for NOV : 300000000000000000000000000000
+Schedule output for DEC : 3000000000000000000000000000000
+------------------------+------------------------------------------------------
+%%% GAMAP MENU %%%      :
+diaginfo.dat path       : diaginfo.dat
+tracerinfo.dat path     : tracerinfo.dat
+------------------------+------------------------------------------------------
+%%% DIAGNOSTIC MENU %%% :
+Diagnostic Entries ---> :  L   Tracers to print out for each diagnostic
+ND05: Sulfate prod/loss : 28   all
+ND06: Dust aer source   :  1   all
+ND07: Carbon aer source : 28   all
+ND08: Seasalt aer source:  1   all
+ND13: Sulfur sources    : 28   all
+ND14: Cld conv mass flx : 27   all
+ND15: BL mix mass flx   : 28   all
+ND16: LS/Conv prec frac : 28   all
+ND17: Rainout fraction  : 28   all
+ND18: Washout fraction  : 28   all
+ND28: Biomass emissions :  1   all
+ND30: Land Map          :  1   all
+ND31: Surface pressure  : 29   all
+ND37: Updraft scav frac : 28   all
+ND38: Cld Conv scav loss: 28   all
+ND39: Wetdep scav loss  : 28   all
+ND41: Afternoon PBL ht  :  0   all
+ND44: Drydep flx/vel    :  1   all
+ND45: Tracer Conc's     : 28   all
+  ==> ND45 Time range   :       0 24
+ND47: 24-h avg trc conc :  0   all
+ND54: Time in t'sphere  :  0   all
+ND55: Tropopause height :  1   all
+ND57: Potential T       :  0   all
+ND62: Inst column maps  :  0   all
+ND66: DAO 3-D fields    : 28   all
+ND67: DAO 2-D fields    :  1   all
+ND68: Airmass/Boxheight : 28   all
+ND69: Surface area      :  1   all
+ND70: Debug output      :  0   all
+------------------------+------------------------------------------------------
+%%% UNIX CMDS MENU %%%  :
+Background symbol       : &
+Redirect symbol         :  >
+Unix remove command     : rm -f
+Unix pathname separator : /
+Unix wildcard character : *
+Unix unzip command      : gzip -dc
+Zip file suffix         : .gz
+------------------------+------------------------------------------------------
+END OF FILE             :
+------------------------+------------------------------------------------------

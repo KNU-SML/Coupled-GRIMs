@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+hx=$1
+EXECDIR=${EXECDIR:=`pwd`}
+#
+npost=1
+while [ $npost -ne 0 ]; do
+        sleep 10
+     if [ "sph" = rmp ]; then
+        hxrest=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/fhour ${EXECDIR}/r_sigit`
+     else
+        hxrest=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/fhour ${EXECDIR}/sigit`
+     fi
+        if [ $hx -eq $hxrest ]; then
+        npost=0
+        fi
+done
+if [ "sph" = rmp ]; then
+     echo "now r_sigit is updated to " $hx
+else
+     echo "now sigit is updated to " $hx
+fi
+sleep 10
+exit 0
+

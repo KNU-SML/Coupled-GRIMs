@@ -1,0 +1,123 @@
+#!/bin/sh
+set -x
+#
+#  Convert input file from original format to native format
+#
+#  $1 is input sigma file name
+#  $2 is input sfc file name
+#  $3 is output file format [ieee/ieee_dp/ieee_sgi/ascii]
+#
+#  output filename is $1.$3
+#
+#  The input file format is identified by the following identifier
+#
+#  cos      ... cos blocked cray binary (*.cos)
+#  ibm      ... cos blocked ibm binary (*.ibm)
+#  ieee     ... fortran ieee (*.ieee)
+#  ieee_dp  ... double precision fortran ieee (*.ieee_dp)
+#  ieee_sgi ... double prec. real, single prec. integer ieee (*.ieee_sgi)
+#  ascii    ... ascii (*.ascii)
+#  other    ... no conversion assumed (non of the above)
+#
+#  Note that the input file has a resolution of 62 and 28
+#
+# Conversion from various formats to various format
+#
+#  cos      ... cos blocked cray binary
+#  ibm      ... cos blocked ibm binary
+#  ieee     ... fortran ieee
+#  ieee_dp  ... double precision fortran ieee
+#  ieee_sgi ... double prec. real, single prec. integer ieee
+#  ascii    ... ascii
+#
+IN_SIG_FILE=$1
+IN_SFC_FILE=$2
+oformat=$3
+#
+PROG=cnvrt
+cnvrt=yes
+assgnfm=
+fm=`echo $IN_SIG_FILE | sed 's/.*\.//g'`
+if [ "$fm" = cos ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		cnvrt=no
+	else
+		@CPSLIBS_DIR@/etc/cray2ie3 $IN_SIG_FILE sig.ieee
+		@CPSLIBS_DIR@/etc/cray2ie3 $IN_SFC_FILE sfc.ieee
+		IN_SIG_FILE=sig.ieee
+		IN_SFC_FILE=sfc.ieee
+		echo 'ieee' >$PROG.parm
+	fi
+elif [ "$fm" = ibm ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		assgnfm="-Fcos -Nibm -Cascii"
+	else
+		@CPSLIBS_DIR@/etc/ibm2ie3 $IN_SIG_FILE sig.ieee
+		@CPSLIBS_DIR@/etc/ibm2ie3 $IN_SFC_FILE sfc.ieee
+		IN_SIG_FILE=sig.ieee
+		IN_SFC_FILE=sfc.ieee
+		echo 'ieee' >$PROG.parm
+	fi
+elif [ "$fm" = ieee ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		assgnfm="-Ff77 -Nieee -Cascii"
+	else
+		echo 'ieee' >$PROG.parm
+	fi
+elif [ "$fm" = ieee_dp ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		assgnfm="-Ff77 -Nieee_dp -Cascii"
+	else
+		echo 'ieee_dp' >$PROG.parm
+	fi
+elif [ "$fm" = ieee_sgi ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		assgnfm="-Ff77 -Nmips -Cascii"
+	else
+		echo 'ieee_sgi' >$PROG.parm
+	fi
+elif [ "$fm" = asc ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		assgnfm=
+		echo 'ascii' >$PROG.parm
+	else
+		echo 'ascii' >$PROG.parm
+	fi
+else
+#cnvrt=no
+                echo ' ' >$PROG.parm
+fi
+if [ $cnvrt = yes ] ; then
+	if [ linux_intel = cray -o linux_intel = t90 ] ; then
+		assign -R
+		assign -a $IN_SIG_FILE  $assgnfm   fort.11
+		assign -a $IN_SFC_FILE    $assgnfm   fort.12
+		assign -a $IN_SIG_FILE.$oformat       fort.51
+		assign -a $IN_SFC_FILE.$oformat       fort.52
+	else
+		rm -f fort.[0-9]* 2>/dev/null
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f fort.[0-9]* 2>/dev/null
+fi
+
+		ln -fs $IN_SIG_FILE           fort.11
+		ln -fs $IN_SFC_FILE             fort.12
+		ln -fs $IN_SIG_FILE.$oformat     fort.51
+		ln -fs $IN_SFC_FILE.$oformat     fort.52
+	fi
+	#
+	PROG=cnvrt
+	echo "$oformat" >>$PROG.parm
+	if [ ! -s $PROG.x ] ; then
+		ln -fs @MODEL_DIR@/bin/$PROG.x $PROG.x
+	fi
+	./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+	if [ $? -ne 0 ] ; then
+		exit 8
+	fi
+	rm -f fort.[0-9]*
+fi

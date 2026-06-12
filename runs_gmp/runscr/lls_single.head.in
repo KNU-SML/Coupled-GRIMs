@@ -1,0 +1,13 @@
+#!/bin/sh
+#@ job_type = serial
+#@ job_name = post
+#@ class = class.1-2
+#@ output = $(job_name).o$(jobid)
+#@ error = $(job_name).e$(jobid)
+#@ wall_clock_limit = 02:00:00
+#@ notification = never
+#@ notify_user = shong@yonsei.ac.kr
+#@ resources = ConsumableCpus(1) ConsumableMemory(3gb)
+#@ environment = COPY_ALL
+#@ queue
+export MEMORY_AFFINITY=MCM

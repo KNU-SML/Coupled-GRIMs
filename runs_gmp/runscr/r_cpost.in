@@ -1,0 +1,155 @@
+#!/bin/sh
+set -x
+#
+#  creates pgb, averaging and ftp archive script (cpost.sh) and 
+#  execute/submit. with this method, cpost.sh can run independently
+#  from any other job, allowing parallel processing with forecast.
+#  this script is written for seasonal prediction execution
+#
+#  $1 ... if 'batch' then r_cpost.sh runs as a separate process, else
+#         regular serial execution
+#  $2 ... directory where execution is taking place.  Since this job
+#         execute as a separate process, it needs to know where to
+#         get files.
+#  $3 ... year, month, day, hour, starting forecast hour, ending forecast
+#         hour, surface program execution interval, separated by ':'
+#  $4 ... forecast hour to the end, forecast hour for this segment,
+#         diagnostic file output interval, sigma file output interval,
+#         separated by ':'
+#  $5 ... archive directory of the target ftp
+#  $6 ... ftp ip address
+#  $7 ... ftp protocol
+#
+if [ $# -ne 5 -a $# -ne 7 ] ; then
+        echo $1
+        echo $2
+        echo $3
+        echo $4
+        echo $5
+        echo $6
+        echo $7
+        echo r_cpost argument error
+        exit 8
+fi
+#
+#  note that the following variables must be passed as environmental variables
+#  otherwise default values defined in this script will be used
+#
+#  LIST_OF_FILES
+#  FILES_TO_BE_KEPT
+#  FILES_TO_BE_AVERAGED
+#  FTP_R_SIGIT
+#  FTP_R_SIGITDT
+#  FTP_R_SFC
+#  FTP_R_FLX
+#  FTP_R_PGB
+#  FTP_R_SFCANL
+#  FTP_R_SFCOUT
+#  FTP_R_FCSTOUT
+#  FTP_R_EXTVARS
+#  VARIANCE
+#
+LIST_OF_FILES=${LIST_OF_FILES:='r_sig r_sfc r_flx r_pgb  r_fcstout r_extvars'}
+FTP_R_SIGIT=${FTP_R_SIGIT:='no'}
+FTP_R_SIGITDT=${FTP_R_SIGITDT:='no'}
+FTP_R_SFC=${FTP_R_SFC:='no'}
+FTP_R_FLX=${FTP_R_FLX:='no'}
+FTP_R_PGB=${FTP_R_PGB:='no'}
+FTP_R_FCSTOUT=${FTP_R_FCSTOUT:='no'}
+FTP_R_EXTVARS=${FTP_R_EXTVARS:='no'}
+RMAVRG=${RMAVRG:='yes'}
+VARIANCE=${VARIANCE:='no'}
+#
+BATCH=$1
+EXECSUBDIR=$2
+YYYY=`echo $3 | cut -d':' -f1`
+MM=`echo $3 | cut -d':' -f2`
+DD=`echo $3 | cut -d':' -f3`
+HH=`echo $3 | cut -d':' -f4`
+FHS=`echo $3 | cut -d':' -f5`
+FHE=`echo $3 | cut -d':' -f6`
+INTSFCX=`echo $3 | cut -d':' -f7`
+ENDHOUR=`echo $4 | cut -d':' -f1`
+INCHOUR=`echo $4 | cut -d':' -f2`
+INTPOST=`echo $4 | cut -d':' -f3`
+INTPOST=`echo $4 | cut -d':' -f4`
+FTPDIR=$5
+PLATFORM=$6
+FTP_PROTOCOL=$7
+#
+cat <<EOF >seddat_rcpost
+s?%EXECSUBDIR%?$EXECSUBDIR?g
+s?%YYYY%?$YYYY?g
+s?%MM%?$MM?g
+s?%DD%?$DD?g
+s?%HH%?$HH?g
+s?%YYYYS%?$YYYYS?g
+s?%MMS%?$MMS?g
+s?%DDS%?$DDS?g
+s?%HHS%?$HHS?g
+s?%YYYYE%?$YYYYE?g
+s?%MME%?$MME?g
+s?%DDE%?$DDE?g
+s?%HHE%?$HHE?g
+s?%FHS%?$FHS?g
+s?%FHE%?$FHE?g
+s?%INTSFCX%?$INTSFCX?g
+s?%ENDHOUR%?$ENDHOUR?g
+s?%INCHOUR%?$INCHOUR?g
+s?%INTPOST%?$INTPOST?g
+s?%INTPOST%?$INTPOST?g
+s?%PLATFORM%?$FTP_PLATFORM?g
+s?%FTPDIR%?$FTP_DIR?g
+s?%FTP_PROTOCOL%?$FTP_PROTOCOL?g
+s?%LIST_OF_FILES%?$LIST_OF_FILES?g
+s?%FILES_TO_BE_KEPT%?$FILES_TO_BE_KEPT?g
+s?%FILES_TO_BE_AVERAGED%?$FILES_TO_BE_AVERAGED?g
+s?%FTP_R_SIGIT%?$FTP_R_SIGIT?g
+s?%FTP_R_SIGITDT%?$FTP_R_SIGITDT?g
+s?%FTP_R_SFC%?$FTP_R_SFC?g
+s?%FTP_R_FLX%?$FTP_R_FLX?g
+s?%FTP_R_PGB%?$FTP_R_PGB?g
+s?%FTP_R_FCSTOUT%?$FTP_R_FCSTOUT?g
+s?%FTP_R_EXTVARS%?$FTP_R_EXTVARS?g
+s?%RMAVRG%?$RMAVRG?g
+s?%VARIANCE%?$VARIANCE?g
+EOF
+#
+#  finalize cpost.sh.  add header if necessary.
+#
+rm r_cpost.f$FHS-$FHE.sh 2>/dev/null
+if [ -s @RUNSCR_DIR@/hs-@HOST_NAME@.h ] ; then
+  sed -f seddat_rcpost @RUNSCR_DIR@/hs-@HOST_NAME@.h >r_cpost.f$FHS-$FHE.sh
+fi
+sed -f seddat_rcpost @RUNSCR_DIR@/r_cpost.is >>r_cpost.f$FHS-$FHE.sh
+chmod a+x r_cpost.f$FHS-$FHE.sh
+#
+if [ $BATCH = batch ] ; then
+	if [ -z "@MPISUBMIT@" ] ; then
+		nohup r_cpost.f$FHS-$FHE.sh >r_cpost.f$FHS-$FHE.out 2>&1 &
+	else
+		@MPISUBMIT@ r_cpost.f$FHS-$FHE.sh >r_cpost.f$FHS-$FHE.out 2>&1
+	fi
+else
+	r_cpost.f$FHS-$FHE.sh >r_cpost.f$FHS-$FHE.out 2>&1
+fi
+#
+# clean up r_cpost script and output
+#
+rc=0
+for filex in $FILES_TO_BE_KEPT
+do
+	if [ $filex = r_cpost ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	inc=`expr $FHE - $FHS`
+	if [ $inc -lt 0 ] ; then
+		inc=0
+	fi
+	FHM=`expr $FHS - $inc`
+	rm  r_post.f$FHM-$FHS.sh r_post.f$FHM-$FHS.out
+fi
+rm seddat_rcpost
+exit 0

@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+#  $1 ... hour for base field 
+#  $2 ... forecast hour of the base field corresponding to initial condition
+#  $3 ... year, month, day, hour separated by ':'
+#  $4 ... orography file name
+#  $5 ... full directory path to initial data archive
+#  $6 ... ip address of initial data archive site
+#  $7 ... communication protocol
+#
+if [ $# -ne 5 -a $# -ne 7 ] ; then
+  echo "Error in the argument of $0"
+  exit 8
+fi
+set -x
+#
+xc=$1
+fhadj=$2
+YYYY=`echo $3 | cut -d':' -f1`
+MM=`echo $3 | cut -d':' -f2`
+DD=`echo $3 | cut -d':' -f3`
+HH=`echo $3 | cut -d':' -f4`
+FNOROG=$4
+INITIAL_DATA_DIR=$5
+INITIAL_DATA_PLATFORM=$6
+INITIAL_DATA_FTP=$7
+#
+#   Regional mountain
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_mtn || exit 8
+#
+SFC_FILE_TYPE=${SFC_FILE_TYPE:=old}
+#
+initial_data_dir=`eval echo $INITIAL_DATA_DIR`
+#
+#
+if [ -z "$INITIAL_DATA_PLATFORM" ] ; then
+	#
+	if [ $C2RP = yes ]; then
+	#
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_sigsfc_chgdates $xc $fhadj $initial_data_dir || exit 8
+	#
+	else	
+	#
+	FILE_FORMAT=`ls $initial_data_dir/sig.anl.$YYYY$MM$DD$HH.* | \
+			sed 's/.*\.//g'`
+	cp $initial_data_dir/sig.anl.$YYYY$MM$DD$HH.$FILE_FORMAT \
+				sig.anl.$FILE_FORMAT
+	cp $initial_data_dir/sfc.anl.$YYYY$MM$DD$HH.$FILE_FORMAT \
+				sfc.anl.$FILE_FORMAT
+	#
+	#  Convert to native format
+	#
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/cnvrt sig.anl.$FILE_FORMAT sfc.anl.$FILE_FORMAT \
+						cnvrt_initial_sig cnvrt_initial_sfc || exit 8
+	#
+	if [ $C2RP = no ]; then
+	#
+	#  convert to 4-digit year if not
+	#
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/cnv4dig cnvrt_initial_sig cnvrt_initial_sfc \
+			sig.base.$YYYY$MM$DD$HH sfc.base.$YYYY$MM$DD$HH || exit 8
+	fi
+	fi	
+	#
+else
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_getss $xc $fhadj $YYYY:$MM:$DD:$HH \
+		sigsfc \
+		$initial_data_dir \
+		$INITIAL_DATA_PLATFORM $INITIAL_DATA_FTP || exit 8
+		FILE_FORMAT=ieee
+fi
+INPUT_RESOLUTION=t62k28
+#
+#  Initial data for rsm
+#
+ln -fs sig.base.$YYYY$MM$DD$HH sig.ft00
+ln -fs sfc.base.$YYYY$MM$DD$HH sfc.ft00
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_inpg $FNOROG || exit 8
+rm sig.ft00 sfc.ft00
+#

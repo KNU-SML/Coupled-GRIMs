@@ -1,0 +1,390 @@
+#!/bin/sh
+#
+if [ linux_intel = x1e ] ; then
+        . /opt/modules/modules/init/sh
+        module load open pbs PrgEnv
+fi
+#
+#XLFRTEOPTS="namelist=old"
+#export XLFRTEOPTS
+#
+#  This script template requires following edit variables to be defined
+#      %EXECSUBDIR% %YYYY% %MM% %DD% %HH% %FHE% %FHS% %INTSFCX% 
+#      %ENDHOUR% %INTFLX% %PLATFORM% %FTPDIR%
+#      %YYYYS% %MMS% %DDS% %HHS% %YYYYE% %MME% %DDE% %HHE%
+#      /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr'
+#      %FTP_SIG% %FTP_SFC% %FTP_ZNL% %FTP_FGB% %FTP_DIA% %FTP_KEN% 
+#      %FTP_PGB% %FTP_SGB% %FTP_FCSTOUT%
+#      %LIST_OF_FILES% %FILES_TO_BE_KEPT% %FILES_TO_BE_AVERAGED%
+#      %RMAVRG% %VARIANCE% %EXTVARS%
+#
+#    which should be defined in cpost.in
+#
+YYYYS=%YYYYS%
+MMS=%MMS%
+DDS=%DDS%
+HHS=%HHS%
+YYYYE=%YYYYE%
+MME=%MME%
+DDE=%DDE%
+HHE=%HHE%
+ENDHOUR=%ENDHOUR%
+EXTVARS=%EXTVARS%
+#
+#  obtain forecast hours for various ending dates
+#
+. /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/endfhrs
+#
+cd %EXECSUBDIR%
+if [ $? -ne 0 ] ; then
+  echo "`date` $0:cd to %EXECSUBDIR% failed" >> ERROR.out
+  exit 8
+fi
+#
+list_of_files='%LIST_OF_FILES%'
+files_to_be_kept='%FILES_TO_BE_KEPT%'
+files_to_be_averaged='%FILES_TO_BE_AVERAGED%'
+monavg=%INTAVG%
+#
+ftp_sig=%FTP_SIG%
+ftp_sfc=%FTP_SFC%
+ftp_znl=%FTP_ZNL%
+ftp_fgb=%FTP_FGB%
+ftp_dia=%FTP_DIA%
+ftp_ken=%FTP_KEN%
+ftp_pgb=%FTP_PGB%
+ftp_sgb=%FTP_SGB%
+ftp_fcstout=%FTP_FCSTOUT%
+ftp_extvars=%FTP_EXTVARS%
+ftp_cgs=%FTP_CGS%
+#
+fhsp=`expr %FHS% + %INTFLX%`
+#
+# pgb
+#
+fh=`expr $fhsp + 0`
+if [ $fh -lt 10 ] ; then
+   fhc=0$fh
+else
+   fhc=$fh
+fi
+while [ -s pgb.ft$fhc -a $fh -le %FHE% ] ; do
+   fh=`expr $fh + %INTFLX%`
+   fhc=$fh
+done
+fhstart=$fh
+if [ $fhstart -le %FHE% ] ; then
+   if [ yes = yes ] ; then
+      if [ %FHS% -eq 0 ]; then
+         /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb %FHS% %FHE% %INTFLX% || exit 8
+         /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb %FHS% %FHE% %INTFLX% || exit 8
+      else
+         /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb $fhstart %FHE% %INTFLX% || exit 8
+         /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb $fhstart %FHE% %INTFLX% || exit 8
+      fi
+   elif [ no = yes ] ; then
+      /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/catpgb
+   fi
+fi
+#
+# >>>>>>>>>> change the file name
+# 
+rcdia=0
+for fileavg in $files_to_be_averaged
+do
+   if [ $fileavg = dia -a -s dia.ft$fhc ] ; then
+      rcdia=1
+   fi
+done
+#
+if [ %FHS% -eq 0 ]; then
+   fdate=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s %YYYY%%MM%%DD%%HH% %FHS%`
+   cp pgb.ft%FHS% pgb.$fdate
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon pgb.$fdate $fdate  || exit 8
+   cp fgb.ft%FHS% fgb.$fdate
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon fgb.$fdate $fdate  || exit 8
+fi
+hr_str=$fhc
+hr_end=%FHE%
+hr_stp=$hr_str
+while [ $hr_stp -le $hr_end ] ; do
+   fdate=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s %YYYY%%MM%%DD%%HH% $hr_stp`
+   cp pgb.ft$hr_stp pgb.$fdate
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon pgb.$fdate $fdate  || exit 8
+   cp fgb.ft$hr_stp fgb.$fdate
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon fgb.$fdate $fdate  || exit 8
+   if [ $rcdia -eq 1 ] ; then
+      cp dia.ft$hr_stp dia.$fdate
+      /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon dia.$fdate $fdate  || exit 8
+   fi
+   hr_stp=`expr $hr_stp + %INTFLX%`
+done
+#
+#  Daily file archive
+#
+for file in $list_of_files
+do
+   ftp=\$ftp_$file
+   ftp=`eval echo $ftp`
+   if [ "$ftp" = yes ] ; then
+      intvl=%INTFLX%
+      if [ $file = sfc ] ; then
+         intvl=%INTFLX%
+      fi
+      h=`expr %FHS% + 0`
+      if [ $h -ne 0 ] ; then
+         hp=`expr %FHS% + $intvl`
+      else
+         hp=0
+      fi
+      if [ -n "%PLATFORM%" ] ; then
+         /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftparch $file $hp %FHE% $intvl %FTPDIR% %PLATFORM% %FTP_PROTOCOL% \
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc %YYYY%%MM%%DD%%HH%
+      fi
+   fi
+done
+#
+#  Delete used sigma files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+   if [ $filex = sig ] ; then
+      rc=1
+   fi
+done
+if [ $rc -eq 0 ] ; then
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile sig $fhsp %FHE% %INTSIG%
+fi
+#
+#  Delete used river files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+   if [ $filex = riv ] ; then
+      rc=1
+   fi
+done
+if [ $rc -eq 0 ] ; then
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile riv $fhsp %FHE% %INTSIG%
+fi
+#
+#  Delete used surface files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+   if [ $filex = sfc ] ; then
+      rc=1
+   fi
+done
+if [ $rc -eq 0 ] ; then
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile sfc $fhsp %FHE% %INTFLX%
+fi
+#
+#  Delete used flux files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+   if [ $filex = flx ] ; then
+      rc=1
+   fi
+done
+if [ $rc -eq 0 ] ; then
+   /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile flx $fhsp %FHE% %INTFLX%
+fi
+#
+#  Delete used extvars files
+#
+if [ $EXTVARS = yes ] ; then
+   rc=0
+   for filex in $files_to_be_kept
+   do
+      if [ $filex = extvars ] ; then
+         rc=1
+      fi
+   done
+   if [ $rc -eq 0 ] ; then
+      /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile extvars $fhsp %FHE% %INTSFCX%
+   fi
+fi
+#
+#  averaging
+#
+#   compute starting and ending forecast hour for monthly averaging
+#     (MFHOUR_nn)
+#
+c=1
+while [ $c -le $MCOUNT ] ; do
+   x=\$MFHOUR_$c
+   x=`eval echo $x`
+   echo MFHOUR_$c=$x
+   c=`expr $c + 1`
+done
+#
+# skip first month for averaging
+#
+if [ gmp = gsim ] ; then
+  c=1
+else
+  c=0
+fi
+#
+# if first month is less than 15 days, skip second month also
+#
+flen=`expr $MFHOUR_1 \/ 24`
+#yhb <<<<<<<<<< maxlen=15
+maxlen=5
+#
+if [ $flen -le $maxlen ] ; then
+   c=2
+fi                                                  
+while [ $c -lt $MCOUNT ] ; do
+   c=`expr $c + 1`
+   fte=\$MFHOUR_$c
+   fte=`eval echo $fte`
+   if [ $fte -gt %FHS% -a $fte -le %FHE% ] ; then
+      echo 'Performing averaging'
+      cm=`expr $c - 1`
+      if [ $cm -eq 0 ] ; then
+         fts=0
+      else
+         fts=\$MFHOUR_$cm
+         fts=`eval echo $fts`
+      fi
+      /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte %YYYY% %MM% %DD% %HH% $fts >incdte.out$$
+      read yyyy mm dd hh <incdte.out$$
+      rm incdte.out$$
+      #
+      echo 'Check existence of pgb and fgb files'
+      mmch=$mm
+      ddch=01
+      hhch=00
+      while [ $mmch -eq $mm ] ; do
+		if [ -s pgb.${yyyy}${mmch}${ddch}${hhch} -a -s fgb.${yyyy}${mmch}${ddch}${hhch} ] ; then
+			timech=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s ${yyyy}${mmch}${ddch}${hhch} %INTFLX%`
+			mmch=`echo $timech | cut -c5-6`
+			ddch=`echo $timech | cut -c7-8`
+			hhch=`echo $timech | cut -c9-10`
+		else
+			echo 'Output files for '${yyyy}${mmch}${ddch}${hhch}' do not exist.'
+			mmch=$mm
+			ddch=01
+			hhch=00
+			sleep 5
+		fi
+	  done
+      #
+      fh=`expr $fts + %INTSIG%`
+      #
+      for file in $files_to_be_averaged
+      do
+         #
+         intvl=%INTFLX%
+         if [ $file = pgb ] ; then
+            intvl=%INTFLX%
+         fi
+         #
+         if [ $monavg -eq 24 ]; then
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.avrg.grib $file.$yyyy$mm\%d2%h2 || exit 8
+         fi
+         if [ $monavg -eq 12 ]; then
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.avrg.grib $file.$yyyy$mm\%d2%h2 || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.h00.avrg.grib $file.$yyyy$mm\%d2\00 || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.h12.avrg.grib $file.$yyyy$mm\%d2\12 || exit 8
+         fi
+         if [ $monavg -eq 6 ]; then
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.avrg.grib $file.$yyyy$mm\%d2%h2 || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.h00.avrg.grib $file.$yyyy$mm\%d2\00 || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.h06.avrg.grib $file.$yyyy$mm\%d2\06 || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.h12.avrg.grib $file.$yyyy$mm\%d2\12 || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grmean -o $file.$yyyy$mm.h18.avrg.grib $file.$yyyy$mm\%d2\18 || exit 8
+         fi
+         #
+         if [ $file = pgb -a %VARIANCE% = yes ] ; then
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/variance $file $fh $fte $intvl \
+               $file.$yyyy$mm.variance.grib || exit 8
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon \
+               ./$file.$yyyy$mm.variance.grib \
+               $yyyy${mm}0100 || exit 8
+         fi
+         #
+         #  ftp
+         #
+         if [ -n "%PLATFORM%" ] ; then
+            #
+            if [ $monavg -eq 24 ]; then
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+            fi
+            if [ $monavg -eq 12 ]; then
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.h00.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.h12.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+            fi
+            if [ $monavg -eq 6 ]; then
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.h00.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.h06.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.h12.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.h18.avrg.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+            fi
+            #
+            if [ $file = pgb -a %VARIANCE% = yes ] ; then
+               /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftpavrg $file.$yyyy$mm.variance.grib \
+                  %RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+            fi
+         fi
+         #
+         #  Delete used individual files
+         #
+         rc=0
+         for filex in $files_to_be_kept
+         do
+            if [ $filex = $file ] ; then
+               rc=1
+            fi
+         done
+         if [ $rc -eq 0 ] ; then
+            /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile $file $fh $fte $intvl
+         fi
+      done
+   else
+      continue
+   fi
+done
+#
+#  extvars processing
+#
+if [ $EXTVARS = yes ] ; then
+   if [ %FHE% -eq $ENDHOUR ] ; then
+      if [ linux_intel = x1e ] ; then
+         inchour=$MFHOUR_1
+         dir=`pwd`
+         echo "#!/bin/sh                      " >  ./ex-$YYYYS$MMS$DDS$HHS.sh
+         echo "#                              " >> ./ex-$YYYYS$MMS$DDS$HHS.sh
+         echo ". /opt/modules/modules/init/sh " >> ./ex-$YYYYS$MMS$DDS$HHS.sh
+         echo "module load pbs PrgEnv         " >> ./ex-$YYYYS$MMS$DDS$HHS.sh
+         echo "cd $dir                        " >> ./ex-$YYYYS$MMS$DDS$HHS.sh
+         echo "/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/extvarsput $inchour %ENDHOUR% %INTFLX% extvars.grib \
+            %FTPDIR% %PLATFORM% %FTP_PROTOCOL% " >> ./ex-$YYYYS$MMS$DDS$HHS.sh
+         chmod +x ./ex-$YYYYS$MMS$DDS$HHS.sh
+         qsub -j eo -V -l mppe=4 ./ex-$YYYYS$MMS$DDS$HHS.sh || exit 8
+      else
+         inchour=00
+         /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/extvarsput $inchour %ENDHOUR% %INTFLX% extvars.grib \
+            %FTPDIR% %PLATFORM% %FTP_PROTOCOL% 
+      fi
+   fi
+fi
+

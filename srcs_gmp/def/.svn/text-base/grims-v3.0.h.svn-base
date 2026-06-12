@@ -1,0 +1,115 @@
+/* dynamics options */
+#define GRIMS        /* grims or wrf */
+#define REDUCE_GRID  /* reduced grid for sph  for _jcap_ > 42 */
+#define DIFFQ        /* horizontal diffusion of moisture */
+#define SPH_GFS_DIFFUSION /* enhanced horizontal diffusion with height */
+#undef HYBRID       /* vertical cordiate with hybrid sigma-pressure */
+#define MTN4MIN      /* use global 4 min mountain instead of 8 min */
+#undef REIGH_FRICTION /* enhanced diffusion in the upper stratosphere */
+#undef  NISLQ        /* semi-lagrangian advection for gases and water */
+#undef GTOPO30       /* use original gtopo 30 data for mountain in rmp */
+#undef SETMTNZERO    /* set orography to zero over ocean */
+#undef PSPLIT        /* process splitting time scheme for both gmp and rmp */
+#undef LFM           /* low-frequency model setup */
+#undef LFC           /* lsm forcing for smp */
+#undef DFI           /* digital filter initilization */
+#undef ONELOOP       /* single loop for dynamics and physics */
+#undef SKIPSFCMRG    /* surface merge logical flag */
+#undef CHGR_SMPL     /* change resolution option for gmp */
+
+#undef NONHYD        /* nonhydrostatic opton */
+#define CORIOLIS     /* Coriolis terms */
+#define RDAMPUX      /* rmp speed dependent diffusion to allow longer timestep */
+#define STDAMP       /* spectral tendency damping scheme for rsm */
+#define STDAMP3      /* area average log ps correction to be used with stdamp */
+#define STDAMP_VER   /* vertical weighted damping coefficient with stdamp */
+#undef STDAMP_P      /* spectral damping of perturbation tendency */
+#define LTB_RELAX    /* lateral boundary relaxation */
+#define TOP_RELAX    /* top-layer boundary relaxation */
+#undef VDIFF         /* gridpoint second-order vertical diffusion */
+#define _kvdif_ 75.  /* vertical diffusion coefficient (m2/s) */
+#undef RMPVECTORIZE  /* vectorize mpi rsm physics */
+#undef RCHGR_SMPL    /* change resolution option for rmp */
+#undef VERY_LARGE_DOMAIN /* rmp for large arrays model set up */
+#undef GMPDAMP       /* gmp damping with spectral nudging for wave > 2000 km */
+#define _gdamp_crlat_ 90 /* gmp damping critical latitude  < 90 */
+
+#undef DBG           /* debugging option */
+#undef NOPRINT       /* suppress print out */
+#undef MRG_POST      /* merge postprocessor into forecast code */
+#undef DG3           /* 3d diagnostic grib file */
+#undef DGP           /* diagnostic point binary output */
+
+/* physics options */
+#undef R2_PHYSICS    /* simulate reanalysis-2 physics */
+#define  LWRMDC      /* ming-dah chou long wave radiation */
+#undef  SWRMDC       /* ming-dah chou short wave radiation */
+#undef  RRTMGLW      /* RRTMG long wave radiation */      
+#undef  RRTMGSW      /* RRTMG short wave radiation */  
+#undef  CLDADJ       /* empirical cloudiness adjustment */
+#define vvadj        /* vertical velocity adjustment for low clouds */
+
+#define  Z0T         /* thermal roughness length */
+#define  VSGD        /* subgrid surface wind velocity scale */
+#define SFCMRG       /* surface merge flag of guess and climatology */
+#undef OSULSM1       /* osu lsm with homogeneous   vegatation and soil type */
+#undef OSULSM2       /* osu lsm with heterogeneous vegatation and soil type */
+#define  NOALSM1     /* noah land scheme */
+#undef  KIMHONG2010 /* kim and hong ocean surface layer model */
+#undef  HYDRO        /* residual free hydrology with osu2 */
+#undef  NOBSFLW      /* remove base flow from osu2 */
+#undef  NOAHYDRO     /* residual free hydrology with noah */
+#undef  USGS_SFC     /* usgs surface and vegetation data */
+#ifdef RMP
+#define  USGS_SFC
+#endif
+#undef VIC
+#undef  VICLSM1      /* vic single tile scheme */
+
+#define OMLWRF       /* ocean mixed layer coupling */
+#define RIVER        /* river flow model : half deg resolution */
+
+#define YSUPBL       /* ysu pbl scheme or mrf scheme */
+#undef MRFPBL       /* ysu pbl scheme or mrf scheme */
+#undef MAR2012_YSU  /* revised pr and mixing length scale as in wrf v3.4 */
+#undef JUN2012_YSU  /* bug fix in ws in stable pbl as in wrf 3.4.1 */
+
+#define _ngases_ 0   /* number of gase 1:o3 */
+#undef O3CHEM        /* kim jhoon's ozone chemistry */
+
+#define SAS          /* simplified arakawa-chubert cps */
+#undef SIGN_CORRECTION /* correction of acrtfct in sas */
+#undef UV_CMT        /* convective momentum transport in sas */
+#undef NCEP2010      /* han and pan sas changes in july 2010 */
+#undef DX_FACTOR_NSAS /* critical omega is optimized with respect to dx */
+#undef SAS_CCN       /* ccn number concentration in sas */
+#undef  RAS          /* relaxed arakawa-schubert ras cps */
+#undef  RASV2        /* ras with downdraft */
+#undef  CCMCNV       /* zhang-mcfarlane ccm cps */
+#undef  KF2          /* kain-fritsch kf2 cps */
+#undef  KUO          /* kuo cps */
+#undef  CPS_ENS      /* cps ensemble */
+
+#define  MRFSCV       /* tiedke shallow convection */
+#undef GRIMSCV      /* explicitly coupled shallow convection and pbl */
+#undef FEB2013_GRIMSCV /* revisions in cloud top and kz profile */
+#undef  CCMSCV       /* hack shallow convection */
+#undef  HANPANSCV    /* han and pan shallow convection */
+
+#define WSM1         /* prognostic qv mps */
+#undef  WSM2         /* prognostic qv qci mps */
+#undef  WSM3         /* prognostic qv qci qrs mps */
+#undef  WSM5         /* prognostic qv qc qr qi qs mps */
+#undef  WSM6         /* prognostic qv qc qr qi qs qg mps */
+#undef  WDM5         /* prognostic qv qc qr qi qs nccn nc nr mps */
+#undef  WDM6         /* prognostic qv qc qr qi qs qg nccn nc nr mps */
+
+#undef   NOGWD       /* no gravity wave drag */
+#define  KAGWD       /* kim-arakawa orography gravity wave drag */
+#define  GWDC	     /* Chun Baik convection gravity wave drag */
+
+#undef  DRY_SOIL     /* initial soil moisture at wilting point */
+#undef  WET_SOIL     /* initial soil moisture at saturation point */
+#undef  ANL_SOIL     /* soil moisture from a analysis */
+#undef  CLM_SOIL     /* soil moisture from a climatology */
+#undef  NO_DIURNAL   /* no diurnal cycle for radiation */

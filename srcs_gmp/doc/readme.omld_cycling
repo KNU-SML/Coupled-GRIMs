@@ -1,0 +1,589 @@
+Index: sfcl/sfc_cycle_driver.F90
+===================================================================
+--- sfcl/sfc_cycle_driver.F90	(revision 392)
++++ sfcl/sfc_cycle_driver.F90	(working copy)
+@@ -168,6 +168,8 @@
+    data fnt0(itv1)/'                     '/
+    data fnt0(isv2)/'                     '/
+    data fnt0(itv2)/'                     '/
++!
++   data fnt0(ioml)/'clim.omld.grib'/          ! ocean mixed layer depth
+ 
+ !
+ !  forecast sfc fields.  blank indicate time invariant or not available.
+@@ -233,6 +235,8 @@
+    data fnfc(isv2)/'                     '/ ! predicted
+    data fnfc(itv2)/'                     '/ ! predicted
+ !
++   data fnfc(ioml)/'clim.omld.grib'/        ! ocean mixed layer depth
++!
+    character(len=128)   ::  fngrb(numgrbs)
+    character(len=128)   ::  condir,bindir
+    real                 ::  fh
+Index: sfcl/sfc_check_file.F90
+===================================================================
+--- sfcl/sfc_check_file.F90	(revision 392)
++++ sfcl/sfc_check_file.F90	(working copy)
+@@ -513,6 +513,7 @@
+    is2g(jlst)=9999  ! time step since last snow fall
+    is2g(jlai)=ilai  ! leaf area index
+ #endif
++   is2g(joml)=ioml  ! ocean mixed layer depth
+ !
+    return
+    end subroutine file_check_index
+Index: sfcl/sfc_read_file_driver.F90
+===================================================================
+--- sfcl/sfc_read_file_driver.F90	(revision 392)
++++ sfcl/sfc_read_file_driver.F90	(working copy)
+@@ -113,7 +113,7 @@
+       if(mype.eq.master) then
+ #endif
+ 99    format(1h ,'fh, idate=',f10.1,2x,4(1x,i4))
+-      print *,'fixio field read in from unit=',nsfc
++      print *,'sfc field read in from unit=',nsfc
+       print 99,fh,idate
+ #ifdef MP
+       endif
+@@ -142,7 +142,7 @@
+ #ifdef MP
+       if(mype.eq.master) then
+ #endif
+-      print *,'fixio field write to unit=',nsfc
++      print *,'sfc field write to unit=',nsfc
+       print 99,fh,idate
+ #ifdef MP
+       endif
+@@ -175,7 +175,7 @@
+    if( mype.eq.master ) then
+ #endif
+ #ifndef NOPRINT
+-   print *,' fixio completed.'
++   print *,' sfc file io completed.'
+ #endif
+ #ifdef MP
+    endif
+Index: common/vargrb.F90
+===================================================================
+--- common/vargrb.F90	(revision 392)
++++ common/vargrb.F90	(working copy)
+@@ -8,7 +8,7 @@
+ 
+    implicit none
+ 
+-   integer, parameter   ::  numgrbs=53
++   integer, parameter   ::  numgrbs=54
+    integer, parameter   ::  kgrbmax=100
+    integer,save         ::  kgrb(numgrbs)
+    integer,save         ::  kpd(25,kgrbmax,numgrbs)
+@@ -80,6 +80,7 @@
+    integer,parameter    ::  itv1=51  ! soil temperature vic1
+    integer,parameter    ::  isv2=52  ! soil moisture vic2
+    integer,parameter    ::  itv2=53  ! soil temperature vic2
++   integer,parameter    ::  ioml=54  ! ocean mixed layer depth (m)
+ !
+ !  define various parameters for each field
+ !
+@@ -139,6 +140,7 @@
+    data kgrb(itv1)/5/  ! soil temperature vic1
+    data kgrb(isv2)/3/  ! soil moisture vic2
+    data kgrb(itv2)/5/  ! soil temperature vic2
++   data kgrb(ioml)/1/  ! ocean mixed layer depth
+ !
+ !  2.  grib header record that identifies the field (kpd)
+ !       number of soil-layers/field-types should not exceed kgrbmax
+@@ -293,6 +295,7 @@
+    data (kpd(igb,3,itv2),igb=1,25)/4*-1, 11, -1,10380,18*-1/ ! soilt vic2 3
+    data (kpd(igb,4,itv2),igb=1,25)/4*-1, 11, -1, 2601,18*-1/ ! soilt vic2 2.1
+    data (kpd(igb,5,itv2),igb=1,25)/4*-1, 11, -1,10381,18*-1/ ! soilt vic2 3.1
++   data (kpd(igb,1,ioml),igb=1,25)/4*-1,190, -1,   -1,18*-1/ ! ocean mixed layer
+ !
+ !  3. spacial interpolation type
+ !     inttyp=0  bilinear
+@@ -353,6 +356,7 @@
+    data inttyp(itv1)/0/  ! soil temperature vic1
+    data inttyp(isv2)/0/  ! soil moisture vic2
+    data inttyp(itv2)/0/  ! soil temperature vic2
++   data inttyp(ioml)/0/  ! ocean mixed layer depth
+ !
+ !  4. maxmum possible dimension size of the grib input file (including
+ !    climatology and analysis files (imdata,jmdata)
+@@ -411,6 +415,7 @@
+    data imdata(itv1),jmdata(itv1)/ 720, 280/ ! soil temperature vic1
+    data imdata(isv2),jmdata(isv2)/ 720, 280/ ! soil moisture vic2
+    data imdata(itv2),jmdata(itv2)/ 720, 280/ ! soil temperature vic2
++   data imdata(ioml),jmdata(ioml)/  360,180/ ! ocean mixed layer depth
+ !
+ !  5. flag whether to use land sea mask for interpolation
+ !      mask=0  .. do not use mask
+@@ -516,6 +521,9 @@
+    data mask(itv1)/0/ ! soil tempeature vic1
+    data mask(isv2)/0/ ! soil moisture vic2
+    data mask(itv2)/0/ ! soil tempeature vic2
++   data mask(ioml)/1/ ! ocean mixed layer depth
++   data limask(ioml)/.true./
++   data cvalin(ioml),condin(ioml)/0.0,'le'/
+ !
+ !  6. scaling of the result by multiplying scale
+ !
+@@ -577,6 +585,7 @@
+    data scale(itv1)/  1./ ! soil temperature vic1
+    data scale(isv2)/  1./ ! soil moisture vic2
+    data scale(itv2)/  1./ ! soil temperature vic2
++   data scale(ioml)/  1./ ! ocean mixed layer depth
+ !
+ !  7. flag for ouputting mask
+ !       lomask=.true.  .. output 1 or 0 mask
+@@ -645,6 +654,7 @@
+    data lomask(itv1)/.false./ ! soil temperature vic1
+    data lomask(isv2)/.false./ ! soil moisture vic2
+    data lomask(itv2)/.false./ ! soil temperature vic2
++   data lomask(ioml)/.false./ ! ocean mixed layer depth
+ !
+ !  8.  flag for using the grib field over different land surface
+ !      characteristics.
+@@ -765,6 +775,8 @@
+       .false.,.true.,.false.,.true.,.false./ ! soilt vic2
+    data (lflgrb(igb,itv2),igb=1,5)/                                            &
+       .false.,.true.,.false.,.true.,.false./ ! soilt vic2
++   data (lflgrb(igb,ioml),igb=1,5)/                                            &
++      .true.,.false.,.false.,.false.,.false./ ! ocean mixed layer depth
+ !
+ !  9.  full variable name (for print out purpose)
+ !
+@@ -822,6 +834,7 @@
+    data gvar(itv1)/'soltvic1'/
+    data gvar(isv2)/'solmvic2'/
+    data gvar(itv2)/'soltvic2'/
++   data gvar(ioml)/'omldepth'/
+ !
+ !  end definition of surface variable properties
+ 
+Index: common/varsfc.F90
+===================================================================
+--- common/varsfc.F90	(revision 392)
++++ common/varsfc.F90	(working copy)
+@@ -47,8 +47,8 @@
+ !
+ !  osulsm2
+ !
+-   integer, parameter   ::  numsfcs=16+lsoil_*2+lalbd_+2
+-   integer, parameter   ::  numsfcv=20
++   integer, parameter   ::  numsfcs=17+lsoil_*2+lalbd_+2
++   integer, parameter   ::  numsfcv=21
+    integer, parameter   ::  jtsf=     1       ! sst and land surface temperature
+    integer, parameter   ::  jsmc=jtsf+1       ! soil moisture
+    integer, parameter   ::  jsno=jsmc+lsoil_  ! snow depth
+@@ -69,13 +69,14 @@
+    integer, parameter   ::  just=jalf+2       ! fricational velocity
+    integer, parameter   ::  jffm=just+1       ! coefficient for momentun exchange
+    integer, parameter   ::  jffh=jffm+1       ! coefficient for heat exchange
++   integer, parameter   ::  joml=jffh+1       ! ocean mixed layer depth
+ #endif
+ #ifdef NOALSM1
+ !
+ !  noalsm1
+ !
+-   integer, parameter   ::  numsfcs=23+lsoil_*3+lalbd_+2
+-   integer, parameter   ::  numsfcv=28
++   integer, parameter   ::  numsfcs=24+lsoil_*3+lalbd_+2
++   integer, parameter   ::  numsfcv=29
+    integer, parameter   ::  jtsf=     1       ! sst and land surface temperature
+    integer, parameter   ::  jsmc=jtsf+1       ! soil moisture
+    integer, parameter   ::  jsno=jsmc+lsoil_  ! snow depth
+@@ -104,13 +105,14 @@
+    integer, parameter   ::  jsmx=jsmn+1       ! max vegetation cover for noah
+    integer, parameter   ::  jslo=jsmx+1       ! slope type for noah
+    integer, parameter   ::  jsna=jslo+1       ! snow albedo for noah
++   integer, parameter   ::  joml=jsna+1       ! ocean mixed layer depth
+ #endif
+ #ifdef VICLSM1
+ !
+ !  viclsm1
+ !
+-   integer, parameter   ::  numsfcs=32+lsoil_*14+nsoil_*8+lalbd_+2
+-   integer, parameter   ::  numsfcv=56
++   integer, parameter   ::  numsfcs=33+lsoil_*14+nsoil_*8+lalbd_+2
++   integer, parameter   ::  numsfcv=57
+    integer, parameter   ::  jtsf=     1       ! sst and land surface temperature
+    integer, parameter   ::  jsmc=jtsf+1       ! soil moisture
+    integer, parameter   ::  jsno=jsmc+lsoil_  ! snow depth
+@@ -167,15 +169,16 @@
+    integer, parameter   ::  jsfw=jtpk+1       ! surface snow water equivalent (mm h2o)
+    integer, parameter   ::  jpkw=jsfw+1       ! snow pack snow water equivalent (mm h2o)
+    integer, parameter   ::  jlst=jpkw+1       ! time step since last snow fall
++   integer, parameter   ::  joml=jlst+1       ! ocean mixed layer depth
+ #endif
+ #ifdef VICLSM2
+ !
+ !  viclsm2
+ !
+    integer, parameter   ::  kslmb=lsoil_*msub_, nslmb=nsoil_*msub_
+-   integer, parameter   ::  numsfcs=25+lsoil_*12+nsoil_*8+msub_*11+            & 
++   integer, parameter   ::  numsfcs=26+lsoil_*12+nsoil_*8+msub_*11+            & 
+                             kslmb*4+nslmb+lalbd_+2
+-   integer, parameter   ::  numsfcv=63
++   integer, parameter   ::  numsfcv=64
+    integer, parameter   ::  jtsf=     1       ! sst and land surface temperature
+    integer, parameter   ::  jsmc=jtsf+1       ! soil moisture
+    integer, parameter   ::  jsno=jsmc+lsoil_  ! snow depth
+@@ -239,6 +242,7 @@
+    integer, parameter   ::  jsfw=jtpk+msub_   ! surface snow water equivalent (mm h2o)
+    integer, parameter   ::  jpkw=jsfw+msub_   ! snow pack snow water equivalent (mm h2o)
+    integer, parameter   ::  jlst=jpkw+msub_   ! time step since last snow fall
++   integer, parameter   ::  joml=jlst+1       ! ocean mixed layer depth
+ #endif
+ !
+ !  2. number of layers
+@@ -289,6 +293,7 @@
+    data ksfc(just)/1/
+    data ksfc(jffm)/1/
+    data ksfc(jffh)/1/
++   data ksfc(joml)/1/
+ #endif
+ #ifdef NOALSM1
+ !
+@@ -322,6 +327,7 @@
+    data ksfc(jsmx)/1/
+    data ksfc(jslo)/1/
+    data ksfc(jsna)/1/
++   data ksfc(joml)/1/
+ #endif
+ #ifdef VICLSM1
+ !
+@@ -383,6 +389,7 @@
+    data ksfc(jsfw)/1/
+    data ksfc(jpkw)/1/
+    data ksfc(jlst)/1/
++   data ksfc(joml)/1/
+ #endif
+ #ifdef VICLSM2
+ !
+@@ -451,6 +458,7 @@
+    data ksfc(jsfw)/msub_/
+    data ksfc(jpkw)/msub_/
+    data ksfc(jlst)/msub_/
++   data ksfc(joml)/1/
+ #endif
+ !
+ !  define sfc file variables and their properties.
+@@ -699,6 +707,12 @@
+                0.,     0.,                                                     &
+                0.,     0.,                                                     &
+                0.,     0./
++   data ((vmaxmin(isf,jsf,joml),isf=1,2),jsf=1,5)     & ! ocena mld
++         / 5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0/
+ #endif
+ #ifdef NOALSM1
+ !
+@@ -892,6 +906,12 @@
+              1.00,   0.00,                                                     &
+              1.00,   0.00,                                                     &
+              1.00,   0.00/
++   data ((vmaxmin(isf,jsf,joml),isf=1,2),jsf=1,5)     & ! ocena mld
++         / 5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0/
+ #endif
+ #ifdef VICLSM1
+ !
+@@ -1244,6 +1264,12 @@
+             -1.00,  1.00,                                                      &
+             -1.00,  1.00,                                                      &
+             -1.00,  1.00/
++   data ((vmaxmin(isf,jsf,joml),isf=1,2),jsf=1,5)     & ! ocena mld
++         / 5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0/
+ #endif
+ #ifdef VICLSM2
+ !
+@@ -1638,6 +1664,12 @@
+             -1.00,  1.00,                                                      &
+             -1.00,  1.00,                                                      &
+             -1.00,  1.00/
++   data ((vmaxmin(isf,jsf,joml),isf=1,2),jsf=1,5)     & ! ocena mld
++         / 5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0,                                                     &
++           5000.0,    0.0/
+ #endif
+    end module varsfc
+ !
+Index: common/comsfc.F90
+===================================================================
+--- common/comsfc.F90	(revision 392)
++++ common/comsfc.F90	(working copy)
+@@ -25,6 +25,7 @@
+    real,allocatable,target,dimension(:,:,:)     :: sfcv
+    real,pointer,dimension(:,:)      ::  sfcfcs
+    real,pointer,dimension(:,:)      ::  z0cmt,tml,t0ml,hml,h0ml,huml,hvml,dtw1
++   real,pointer,dimension(:,:)      ::  hml0
+ #ifdef OSULSM1
+    real,pointer,dimension(:,:)      ::  tsea,snoweq,tg3,z0cm,cv,cvb,cvt,       &
+                                         slmsk,plantr,canopy,f10m
+@@ -79,9 +80,9 @@
+    integer                                      ::  LONF2S, LATG2S
+    integer                                      ::  ns
+    !
+-   ! note. numsfcs is smaller than allocated size by 1 because of z0cmt
++   ! note. numsfcs is smaller than allocated size by 8 because of z0cmt
+    !       additional 7 variables are added for ocean mixed layer, 
+-   !       tml, t0ml, hml, h0ml, huml, hvml 
++   !       tml, t0ml, hml, h0ml, huml, hvml   (hml0 is cycling)
+    !
+    allocate(sfcv(LONF2S,LATG2S,numsfcs+8))
+ !
+@@ -100,9 +101,10 @@
+    plantr=>sfcv(1:LONF2S,1:LATG2S,9+2*lsoil+lalbd)
+    canopy=>sfcv(1:LONF2S,1:LATG2S,10+2*lsoil+lalbd)
+    f10m  =>sfcv(1:LONF2S,1:LATG2S,11+2*lsoil+lalbd)
++!  hml0  =>sfcv(1:LONF2S,1:LATG2S,12+2*lsoil+lalbd)
+ #endif
+ !
+-#ifdef OSULSM2 /* numsfcs = 18+lsoil_*2+lalbd_ */
++#ifdef OSULSM2 /* numsfcs = 19+lsoil_*2+lalbd_ */
+    tsea  =>sfcv(1:LONF2S,1:LATG2S,1)
+    smc   =>sfcv(1:LONF2S,1:LATG2S,2:1+lsoil)
+    snoweq=>sfcv(1:LONF2S,1:LATG2S,2+  lsoil)
+@@ -123,9 +125,10 @@
+    uustar=>sfcv(1:LONF2S,1:LATG2S,16+2*lsoil+lalbd)
+    ffmm  =>sfcv(1:LONF2S,1:LATG2S,17+2*lsoil+lalbd)
+    ffhh  =>sfcv(1:LONF2S,1:LATG2S,18+2*lsoil+lalbd)
++   hml0  =>sfcv(1:LONF2S,1:LATG2S,19+2*lsoil+lalbd)
+ #endif
+ !
+-#ifdef NOALSM1 /* numsfcs = 25+lsoil_*3+lalbd_ */
++#ifdef NOALSM1 /* numsfcs = 26+lsoil_*3+lalbd_ */
+    tsea  =>sfcv(1:LONF2S,1:LATG2S,1)
+    smc   =>sfcv(1:LONF2S,1:LATG2S,2:1+lsoil)
+    snoweq=>sfcv(1:LONF2S,1:LATG2S,2+  lsoil)
+@@ -154,9 +157,10 @@
+    shdmax=>sfcv(1:LONF2S,1:LATG2S,23+3*lsoil+lalbd)
+    slope =>sfcv(1:LONF2S,1:LATG2S,24+3*lsoil+lalbd)
+    snoalb=>sfcv(1:LONF2S,1:LATG2S,25+3*lsoil+lalbd)
++   hml0  =>sfcv(1:LONF2S,1:LATG2S,26+3*lsoil+lalbd)
+ #endif
+ !
+-#ifdef VICLSM1  /* numsfcs=34+lsoil_*14+nsoil_*8+lalbd_ */
++#ifdef VICLSM1  /* numsfcs=35+lsoil_*14+nsoil_*8+lalbd_ */
+    tsea  =>sfcv(1:LONF2S,1:LATG2S,1)
+    smc   =>sfcv(1:LONF2S,1:LATG2S,2:1+lsoil)
+    snoweq=>sfcv(1:LONF2S,1:LATG2S,2+  lsoil)
+@@ -220,9 +224,10 @@
+    sfw   =>sfcv(1:LONF2S,1:LATG2S,ns+4)
+    pkw   =>sfcv(1:LONF2S,1:LATG2S,ns+5)
+    lstsn =>sfcv(1:LONF2S,1:LATG2S,ns+6)
++   hml0  =>sfcv(1:LONF2S,1:LATG2S,ns+7)
+ #endif
+ !
+-#ifdef VICLSM2 /* numsfcs = 27+lsoil*12+nsoil*8+msub*11+kslmb*4+nslmb+lalbd */
++#ifdef VICLSM2 /* numsfcs = 28+lsoil*12+nsoil*8+msub*11+kslmb*4+nslmb+lalbd */
+    tsea  =>sfcv(1:LONF2S,1:LATG2S,1)
+    smc   =>sfcv(1:LONF2S,1:LATG2S,2:1+lsoil)
+    snoweq=>sfcv(1:LONF2S,1:LATG2S,2+  lsoil)
+@@ -295,6 +300,7 @@
+    sfw   =>sfcv(1:LONF2S,1:LATG2S,ns+4*msub:ns+5*msub-1)
+    pkw   =>sfcv(1:LONF2S,1:LATG2S,ns+5*msub:ns+6*msub-1)
+    lstsn =>sfcv(1:LONF2S,1:LATG2S,ns+6*msub:ns+7*msub-1)
++   hml0  =>sfcv(1:LONF2S,1:LATG2S,ns+7*msub:ns+7*msub+1)
+ #endif
+    !
+    ! thermal roughness lengh and ocean mixed layer vairables
+Index: sfc0/noa1tovic1.F90
+===================================================================
+--- sfc0/noa1tovic1.F90	(revision 392)
++++ sfc0/noa1tovic1.F90	(working copy)
+@@ -283,6 +283,11 @@
+          end do
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/noa1tovic2.F90
+===================================================================
+--- sfc0/noa1tovic2.F90	(revision 392)
++++ sfc0/noa1tovic2.F90	(working copy)
+@@ -342,6 +342,11 @@
+          end do
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/vic1tovic2.F90
+===================================================================
+--- sfc0/vic1tovic2.F90	(revision 392)
++++ sfc0/vic1tovic2.F90	(working copy)
+@@ -594,6 +594,11 @@
+          enddo
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/osu1toosu2.F90
+===================================================================
+--- sfc0/osu1toosu2.F90	(revision 392)
++++ sfc0/osu1toosu2.F90	(working copy)
+@@ -177,6 +177,11 @@
+          enddo
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/osu1tonoa1.F90
+===================================================================
+--- sfc0/osu1tonoa1.F90	(revision 392)
++++ sfc0/osu1tonoa1.F90	(working copy)
+@@ -216,6 +216,11 @@
+          slope (i,j)=undef
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/osu2tonoa1.F90
+===================================================================
+--- sfc0/osu2tonoa1.F90	(revision 392)
++++ sfc0/osu2tonoa1.F90	(working copy)
+@@ -263,6 +263,11 @@
+          slope (i,j)=undef
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/osu1tovic1.F90
+===================================================================
+--- sfc0/osu1tovic1.F90	(revision 392)
++++ sfc0/osu1tovic1.F90	(working copy)
+@@ -293,6 +293,11 @@
+          end do
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: sfc0/osu2tovic1.F90
+===================================================================
+--- sfc0/osu2tovic1.F90	(revision 392)
++++ sfc0/osu2tovic1.F90	(working copy)
+@@ -299,6 +299,11 @@
+          enddo
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+    !
+ #endif
+    return
+Index: sfc0/osu1tovic2.F90
+===================================================================
+--- sfc0/osu1tovic2.F90	(revision 392)
++++ sfc0/osu1tovic2.F90	(working copy)
+@@ -338,6 +338,11 @@
+          enddo
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ #endif
+    return
+    end
+Index: sfc0/osu2tovic2.F90
+===================================================================
+--- sfc0/osu2tovic2.F90	(revision 392)
++++ sfc0/osu2tovic2.F90	(working copy)
+@@ -342,6 +342,11 @@
+          enddo
+       enddo
+    enddo
++   do j=1,jdim
++      do i=1,idim
++        hml0(i,j) = undef
++      enddo
++   enddo
+ !
+ #endif
+    return
+Index: fcst/gmp_start.F90
+===================================================================
+--- fcst/gmp_start.F90	(revision 392)
++++ fcst/gmp_start.F90	(working copy)
+@@ -376,10 +376,11 @@
+               sfcfcs,LONF2S,LATG2S,0)
+ #ifdef DBG
+    if ( iope ) then
+-      write(6,*) 'just after fixio'
++      write(6,*) 'just after sfc_read_file_driver'
+       call print_maxmin_six(tsea,lonf2_,latg2_,1,1,'tsea')
+       call print_maxmin_six(albedo,lonf2_,latg2_,1,1,'albedo')
+       call print_maxmin_six(slmsk,lonf2_,latg2_,1,1,'slmsk')
++      call print_maxmin_six(hml0,lonf2_,latg2_,1,1,'hml0')
+    endif
+ #endif
+ #endif /* ~NO_PHYSICS end */
+
+
+also 
+
+sfcfld in libs/lib/modelib/sfcfld.F should be changed
+
+   omld is added to be consistent with comsfc decleration
+
+   idsdef is added as kpds5 = 190
+
+libs/etc/grib1.kpds5.vsn21 has to define omld for grads plotting

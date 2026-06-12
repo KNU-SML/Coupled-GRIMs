@@ -1,0 +1,4 @@
+#!/bin/sh
+#PBS -l nodes=@NNODES@:ppn=@NPES_PER_NODE@
+#PBS -V
+##PBS -j eo

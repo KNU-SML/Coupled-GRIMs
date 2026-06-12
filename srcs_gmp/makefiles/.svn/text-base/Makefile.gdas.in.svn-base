@@ -1,0 +1,52 @@
+#
+#  Makefile to create executables for the NCEP forecast em.
+#
+#  'make gsm' to create global model executables.
+#  'make rsm' to create rsm executables
+#  'make gdas' to create gdas executables
+#
+#  'make clean_gsm' to clean up global model source codes compilation
+#  'make clean_rsm' to clean up rsm source codes compilation
+#  'make clean_gdas' to clean up gdas source codes compilation
+#  'make clean' to clean up all compilation related files and directories
+#
+#  Author:  Masao Kanamitsu
+#  
+#  Date: 9/16/1998
+#  Modified: 1/31/1999
+#
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CC = @CC@
+MKDIR = @MKDIR@
+CHMOD = @CHMOD@
+MAKE = @MAKE@
+#
+#  DIRECTORY STRUCTURE
+#
+#  ./src/[sfc][chgr][fcst][co2][mtn].../*.fp  Program files 
+#
+###################################################################
+#
+
+all : 
+	${CD} src ; ${MAKE} all  || exit 8
+	${CD} src ; ${MAKE} gdas || exit 8
+
+gdas : 
+	${CD} src ; ${MAKE} gdas || exit 8
+
+clean : 
+	${CD} src ; ${MAKE} clean
+	${CD} src ; ${MAKE} clean_gdas
+
+clean_gdas : 
+	${CD} src ; ${MAKE} clean_gdas
+
+dist_clean :
+	${CD} src ; ${MAKE} dist_clean_gdas
+	${CD} src ; ${MAKE} dist_clean
+	- ${RM} Makefile options* *.h configure.log cvar.env

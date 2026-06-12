@@ -1,0 +1,160 @@
+#!/bin/sh
+#
+#  post processing of prc or cases runs.  Interactively run this script
+#  to recover failed average job.
+#
+#  this script need to be executed in the directory where forecast
+#  files exist or just above it (with years as argumens).  
+#  for example, in $RUNDIR/a_000/1979010100 or 
+#  in $RUNDIR/a_000 with argument 1979010100
+#
+VARIANCE=${VARIANCE:='yes'}
+#
+CLEAN=no
+#
+MONLEN=7
+#
+cd=yes
+if [ $# -ne 0 ] ; then
+	yymmddhhs=$*
+else
+	ls -d 19???????? >/dev/null 2>/dev/null
+	if [ $? -eq 0 ] ; then
+		yymmddhhs=`ls -d 19????????`
+	else
+		pwd=`pwd`
+		yymmddhhs=`echo $pwd | sed 's?.*/??g'`
+		cd=no
+	fi
+fi 
+if [ -z "$yymmddhhs" ] ; then
+	echo in wrong directory
+	exit 8
+fi
+#
+#
+#
+for yymmddhh in $yymmddhhs
+do
+	if [ $cd = yes ] ; then
+		cd $yymmddhh || exit 8
+	fi
+	#
+	if [ -s fcst.parm ] ; then
+		INT=`grep 'INTSIG=' fcst.parm | cut -d '=' -f2 | sed 's/,//g'`
+	else
+		INT=24
+	fi
+	#
+	YYYYS=`echo $yymmddhh | cut -c1-4`
+	MMS=`echo $yymmddhh | cut -c5-6`
+	DDS=`echo $yymmddhh | cut -c7-8`
+	HHS=`echo $yymmddhh | cut -c9-10`
+
+	MME=`expr $MMS + $MONLEN`
+	if [ $MME -gt 12 ] ; then
+		MME=`expr $MME - 12`
+		YYYYE=`expr $YYYYS + 1`
+	else
+		YYYYE=$YYYYS
+	fi
+	if [ $MME -lt 10 ] ; then
+		MME=0$MME
+	fi
+	DDE=$DDS
+	HHE=$HHS
+	#
+	. @RUNSCR_DIR@/endfhrs
+	#
+	c=1
+	while [ $c -le $MCOUNT ] ; do
+		x=\$MFHOUR_$c
+		x=`eval echo $x`
+		echo MFHOUR_$c=$x
+		c=`expr $c + 1`
+	done
+	c=0
+	while [ $c -lt $MCOUNT ] ; do
+		c=`expr $c + 1`
+		fte=\$MFHOUR_$c
+		fte=`eval echo $fte`
+		cm=`expr $c - 1`
+		if [ $cm -eq 0 ] ; then
+			fts=0
+		else
+			fts=\$MFHOUR_$cm
+			fts=`eval echo $fts`
+		fi
+		nyyyymmddhh=`@ETC_DIR@/maketim $YYYYS$MMS$DDS$HHS -h $fts`
+		yyyy=`echo $nyyyymmddhh | cut -f1-4`
+		mm=`echo $nyyyymmddhh | cut -f5-6`
+		dd=`echo $nyyyymmddhh | cut -f7-8`
+		hh=`echo $nyyyymmddhh | cut -f9-10`
+		#
+		fh=$fts
+		while [ $fh -le $fte ] ; do
+			if [ -s sig.ft$fh ] ; then
+				@RUNSCR_DIR@/pgb $fh $fh $INT
+			fi
+			if [ -s pgb.ft$fh -a -s sig.ft$fh ] ; then
+				ls -l pgb.ft$fh
+				rm sig.ft$fh
+			fi
+			fh=`expr $fh + $INT`
+		done
+		#
+		# skip first month for averaging
+		#
+		if [ $c -eq 1 ] ; then
+			continue
+		fi
+		#
+		# if first month is less than 15 days, skip second month also
+		#
+		flen=`expr $MFHOUR_1 \/ 24`
+		maxlen=15
+		if [ $c -eq 2 -a $flen -le $maxlen ] ; then
+			continue
+		fi
+		#
+		fh=$fts
+		ftem=`expr $fte - $INT`
+		for file in pgb fgb
+		do
+		#
+			intvl=$INT
+			if [ $file = pgb ] ; then
+				intvl=$INT
+			fi
+			if [ ! -s $file.$yyyy$mm.avrg.grib ] ; then
+				@RUNSCR_DIR@/average $file $fh $ftem $intvl \
+															$file.$yyyy$mm.avrg.grib
+				if [ $? -eq 0 ] ; then
+					@ETC_DIR@/force_grib_date_mon \
+										./$file.$yyyy$mm.avrg.grib $yyyy${mm}0100 || exit 8
+				fi
+			fi
+			if [ "$VARIANCE" = yes -a ! -s $file.$YYYY$MM.variance.grib ] ; then
+				@RUNSCR_DIR@/variance $file $fh $ftem $intvl \
+															$file.$yyyy$mm.variance.grib
+				if [ $? -eq 0 ] ; then
+					@ETC_DIR@/force_grib_date_mon \
+										./$file.$yyyy$mm.variance.grib $yyyy${mm}0100 || exit 8
+				fi
+			fi
+			#
+			#  Delete used pgb or fgb files
+			#
+			if [ $CLEAN = yes ] ; then
+				if [ \( $file = pgb -a -s $file.$yyyy$mm.avrg.grib -a \
+								-s $file.$yyyy$mm.variance.grib \) \
+								-o \( $file = fgb -a -s $file.$yyyy$mm.avrg.grib \) ] ; then
+					@RUNSCR_DIR@/delfile $file $fh $ftem $intvl
+				fi
+			fi
+		done
+	done
+	if [ $cd = yes ] ; then
+		cd ..
+	fi
+done

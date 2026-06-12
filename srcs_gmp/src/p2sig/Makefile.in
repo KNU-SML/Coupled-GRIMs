@@ -1,0 +1,89 @@
+EXECUTABLE = change_resolution_pressure.x
+OBJ_P2S = \
+	exmoist.o                    chgrp_extrap_moisture.o   \
+	change_resolution_pressure.o chgrp_pressure2sigma.o    \
+	chgrp_sigma2sigma.o          chgrp_read_pressuregrib.o \
+	newsig2.o                    chgrp_sfc_pressure.o      \
+	chgrp_read_pressuregrib_2d.o
+OBJ_CHG = \
+	chgr_fourier_diff.o          chgr_comp_rms.o           \
+	chgr_sph_operator.o          chgr_sph_funct.o          \
+	chgr_new_sigma.o             chgr_div_coeff_lat.o      \
+	chgr_sum_coeff.o             chgr_sph_derivative.o     \
+	chgr_cubic_interp.o          sph_coeff_lat.o           \
+	sph_fft2grid.o               sph_comp_index.o          \
+	chgr_hybrid_setup.o
+OBJ_DFS = \
+	dfs_advection.o      dfs_divergence.o     dfs_wind_transform.o \
+	dfs_fft_transform.o  dfs_global_mean.o    dfs_sincos_lat.o     \
+	dfs_cut_alias.o      dfs_standard_temp.o  chgr_linear_interp.o
+
+OBJS = @OBJ_DFS@ ${OBJ_P2S} ${OBJ_CHG}
+
+SRC_P2S = ${OBJ_P2S:.o=.F90}
+SRC_CHG = ${OBJ_CHG:.o=.F90}
+SRC_DFS = ${OBJ_DFS:.o=.F90}
+SRCS = @SRC_DFS@ ${SRC_P2S} ${SRC_CHG}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77@
+FORT_FLAGS = @FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALL_DIR = @INSTALL_DIR@
+EXTRA_LIBS = @EXTRA_LIBS@
+EXTRA_LIBS_CHGR = @EXTRA_LIBS_CHGR@
+
+LIBS = ${INSTALL_DIR}/sfcl.a ${INSTALL_DIR}/common.a ${INSTALL_DIR}/share.a \
+	${LIB_DIR}/w3lib.a ${LIB_DIR}/modelib.a  ${EXTRA_LIBS_CHGR}
+
+${EXECUTABLE} : ${SRCS} ${OBJS} ${LIBS}
+	if [ @MACHINE@ = mac ] ; then \
+		ranlib -s ${LIBS} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS}
+	${CP} $@ ${INSTALL_DIR}/change_resolution_pressure.x
+
+${SRCS} :
+	if [ -f ../chgr/$@ ]; then \
+		ln -fs ../chgr/$@ $@; \
+	elif [ -f ../fcst/$@ ]; then \
+		ln -fs ../fcst/$@ $@; \
+	fi
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	sed 's/module_trans/&_reduce/;s/ *use *[0-z_]*/&_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TEMP.F90
+
+.F90.o :
+	sed 's/module_trans/&_reduce/;s/ *use *[0-z_]*/&_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TEMP.F90
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o @SRC_DFS@ ${SRC_CHG} ${EXECUTABLE} core \
+		${INSTALL_DIR}/${EXECUTABLE}
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -rf rii_files Makefile

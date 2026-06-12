@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+#  This script assumes that the input sigma file is the form r_sig.ftxx
+#  The output pressure file is the form pgb.ftxx
+#
+#  execute post proccessing.
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending   forecast hour
+#  $3 ... forecast output ncrement
+#
+if [ $# -ne 3 ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+fhs=$1
+fhe=$2
+fhinc=$3
+#
+PROG=rpgb
+cat >$PROG.parm <<EOF
+ &NAMRPGB
+ ICEN2=1,
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+/
+EOF
+if [ linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ] ; then
+	assign -R
+fi
+rm -f $PROG.x
+#
+if [ linux_intel = dec ]; then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+#if [ mpi = mpi -o mpi = hybrid ] ; then
+#	ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/${PROG}_par.x $PROG.x
+#else
+	ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/$PROG.x $PROG.x
+	ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp  fort.1
+#fi
+here_dir=`pwd`
+if [ nml_linux_intel = compas_linux ] ; then
+    sed -n "1,${FCST_NPES}p" $HOME/node_list >$here_dir/hostfile
+    sed 's/^/ssh /g' $here_dir/hostfile | sed 's/$/ "date"/g' >force_mount.sh
+    chmod a+x force_mount.sh
+    ./force_mount.sh
+    /opt/mpich/myrinet/pgi/bin/mpirun -nolocal -np ${FCST_NPES} -machinefile $here_dir/hostfile $here_dir/$PROG.x < $here_dir/$PROG.parm 1>$here_dir/r_pgbout.ft$fhs-$fhe 2>&1
+elif [ mpi = mpi -a  linux_intel = mac ] ; then
+	$FCSTENV -wd $here_dir ./$PROG.x <$PROG.parm 1>rpgbout.ft$fhs-$fhe 2>&1
+else
+	./$PROG.x <$PROG.parm 1>rpgbout.ft$fhs-$fhe 2>&1
+fi
+if [ $? -ne 0 ] ; then
+	echo "r_pgb failed" >>ERROR.out
+	exit 8
+fi
+#if [ mpi = mpi -o mpi = hybrid ] ; then
+#	ft=`expr $fhs + 0`
+#	fhe=`expr $fhe + 0`
+#	while [ $ft -le $fhe ] ; do
+#		fh=$ft
+#		if [ $ft -lt 10 ] ; then
+#			fh=0$ft
+#		fi
+#		cat r_pgb.ft${fh}_pe* >>r_pgb.ft$fh || exit 8
+#		rm r_pgb.ft${fh}_pe*
+#		ft=`expr $ft + $fhinc`
+#	done
+#fi
+rm -f fort.1
+exit 0

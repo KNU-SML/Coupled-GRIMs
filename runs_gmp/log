@@ -1,0 +1,476 @@
++ RUNNAME=
++ '[' '' = '' ']'
++ RUNNAME=g_test_time_node3_12
++ SDATE=1993010100
+++ expr 24 '*' 30
++ ENDHOUR=720
++ INCHOUR=720
++ INTSFCX=24
++ INTOMLX=24
++ INTSIG=12
++ INTSFC=12
++ INTFLX=12
++ INTRESTART=720
++ SWHR_GBL=1
++ LWHR_GBL=3
++ FCST_RESTART=yes
++ DEL_FLUX=yes
++ SIG_GRIB=no
+++ echo 1993010100
+++ cut -c1-4
++ SYEAR=1993
+++ echo 1993010100
+++ cut -c1-8
++ SYYYYMMDD=19930101
++ '[' -z g_test_time_node3_12 ']'
++ EXECDIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/g_test_time_node3_12
++ export EXECDIR
++ mkdir -p /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/g_test_time_node3_12
++ INITIAL_SIGMA=/data5/soo/couple/data/code/t62/sig.anl.1993010100.ieee
++ INITIAL_SFC=/data5/soo/couple/data/code/t62/sfc.anl.1993010100.ieee
++ INITIAL_SFC_FILE_TYPE=osu1
++ SST_ANL_T0=/data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
++ ICE_ANL_T0=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++ SNO_ANL_T0=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
++ SCV_ANL_T0=
++ iicegrb0=1
++ isnogrb0=0
++ isstgrb0=1
++ ism2grb0=0
++ SST_ANL=/data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
++ ICE_ANL=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++ SNO_ANL=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
++ SCV_ANL=
++ iicegrb=1
++ isnogrb=0
++ isstgrb=1
++ ism2grb=0
++ INPUT_RESOLUTION=t62k28
++ FCST_NPES=12
++ FCST_NCPUS=1
+++ grep EXPLICIT_CLOUDINESS /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/define.h
+++ awk '{print $1}'
+++ sed 's/\#//g'
++ CPSCLD=define
++ . /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/envset
+++ '[' mpi = thread -o mpi = hybrid ']'
+++ runscr=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr
+++ '[' mpi = mpi -o mpi = thread -o mpi = hybrid ']'
+++ '[' nml = nml -a linux = linux ']'
+++ FCSTENV='mpirun -machinefile $PBS_NODEFILE -np 12'
+++ BATCHQUE=qsub
+++ BATCHdepend='-W depend=afterok:'
+++ BATCHtype=pbs
+++ BATCHstatus=qstat
+++ '[' mpi = thread ']'
+++ '[' mpi = single ']'
+++ header1=pbs_mpi.head
+++ header2=pbs_single.head
+++ files='fcst r_fcst r_cpl_fcst fcst_omp'
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_mpi.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_fcst
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_mpi.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_fcst.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_fcst.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_fcst
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_cpl_fcst
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_mpi.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_cpl_fcst.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_cpl_fcst.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_cpl_fcst
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst_omp
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_mpi.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst_omp.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst_omp.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst_omp
+++ files='pgb fgb sgb post_omp post_all r_post_all grims_rt_post'
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/sgb
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/sgb.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/sgb.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/sgb
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_omp
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_omp.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_omp.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_omp
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_all
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_all.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_all.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/post_all
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_post_all
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_post_all.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_post_all.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_post_all
+++ for file in $files
+++ sed -n 's%@FCSTENV@%mpirun -machinefile $PBS_NODEFILE -np 12%g ; /end_of_header/,$p' /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/grims_rt_post
+++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pbs_single.head /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/grims_rt_post.a
+++ rm -f /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/grims_rt_post.a
+++ chmod a+x /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/grims_rt_post
+++ '[' linux_intel = ibmsp ']'
+++ '[' linux_intel = mac ']'
+++ echo ./gmp
+++ sed 's?.*/??g'
++ scrnam=gmp
++ cp ./gmp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/g_test_time_node3_12/0LOG.gmp
++ cp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/define.h /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/g_test_time_node3_12/0LOG.define.h
++ ls -l /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin
++ cd /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/g_test_time_node3_12
++ cat /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/./gmp
++ echo ==============
++ '[' 0 '!=' 1 ']'
++ '[' -s sigit -a -s sigitdt -a -s sfci -a yes = yes ']'
++ '[' '!' -s co2con ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/co2
++ CON_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con
++ MODEL_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp
++ BIN_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin
++ INSTALL_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin
++ co2ppmv=348
++ '[' linux_intel = x1e ']'
++ rm -f 'fort.[0-9]*'
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp fort.1
++ ln -fs co2con fort.66
++ ln -fs co2output fort.16
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/cns_348_490850.asc fort.61
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/cns_348_490670.asc fort.62
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/cns_348_670850.asc fort.63
++ INPUT=co2.parm
++ echo 348.
++ '[' linux_intel = es ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/co2.x
++ '[' 0 -ne 0 ']'
++ rm -f fort.1 fort.16 fort.61 fort.62 fort.63 fort.66
+++ date
++ echo 'co2con created on 2026. 04. 03. (금) 10:50:00 KST'
++ '[' '!' -s slmsk -o '!' -s oroggd -o '!' -s mtnvar ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/mtn
++ CON_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con
++ MODEL_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp
++ BIN_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin
++ INSTALL_DIR=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin
++ jcap=62
++ levs=28
++ mtnres=4
++ avg=top4m_avg.20i4.asc
++ var=top4m_var.20i4.asc
++ max=top4m_max.20i4.asc
++ slm=top4m_slm.80i1.asc
++ for file in $avg $var $max $slm
++ '[' '!' -s top4m_avg.20i4.asc ']'
++ cp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/top4m_avg.20i4.asc.Z .
++ gunzip -f top4m_avg.20i4.asc.Z
++ for file in $avg $var $max $slm
++ '[' '!' -s top4m_var.20i4.asc ']'
++ cp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/top4m_var.20i4.asc.Z .
++ gunzip -f top4m_var.20i4.asc.Z
++ for file in $avg $var $max $slm
++ '[' '!' -s top4m_max.20i4.asc ']'
++ cp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/top4m_max.20i4.asc.Z .
++ gunzip -f top4m_max.20i4.asc.Z
++ for file in $avg $var $max $slm
++ '[' '!' -s top4m_slm.80i1.asc ']'
++ cp /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/top4m_slm.80i1.asc.Z .
++ gunzip -f top4m_slm.80i1.asc.Z
++ '[' linux_intel = x1e ']'
++ rm -f 'fort.[0-9]*'
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp fort.1
++ ln -fs top4m_avg.20i4.asc fort.11
++ ln -fs top4m_var.20i4.asc fort.12
++ ln -fs top4m_max.20i4.asc fort.13
++ ln -fs top4m_slm.80i1.asc fort.14
++ ln -fs slmsk fort.51
++ ln -fs orogrd fort.52
++ ln -fs mtnvar fort.53
++ ln -fs orospc fort.54
++ ln -fs oroggd fort.55
++ ln -fs orospc.smth fort.61
++ ln -fs orogrd.smth fort.62
++ ln -fs oroviw.ieee fort.63
++ '[' linux_intel = dec ']'
++ '[' linux_intel = mac ']'
++ datasize=unlimited
++ stacksize=unlimited
++ '[' linux_intel '!=' nec ']'
++ ulimit -d unlimited
++ ulimit -s unlimited
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/mtn.x
++ '[' 0 -ne 0 ']'
++ rm -f fort.1 fort.11 fort.12 fort.13 fort.14 fort.51 fort.52 fort.53 fort.54 fort.55 fort.61 fort.62 fort.63
+++ date
++ echo 'mtn files created on 2026. 04. 03. (금) 10:50:04 KST'
+++ cat mtn.out
+++ grep im
+++ awk '{print $2}'
++ LONF=192
+++ cat mtn.out
+++ grep jm
+++ awk '{print $2}'
++ LATG=192
+++ echo 'scale=5;360 / 192'
+++ bc
++ dx=1.87500
++ '[' sph = dfs ']'
++ YREV=yrev
++ yi=-90.0
++ cat
++ h=00
+++ echo /data5/soo/couple/data/code/t62/sig.anl.1993010100.ieee
+++ sed 's/.*\.//g'
++ fmt=ieee
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/scnvrt gsm osu1 62:192:94:28 -1:-1:-1:-1:-1 ieee:bin /data5/soo/couple/data/code/t62/sig.anl.1993010100.ieee:/data5/soo/couple/data/code/t62/sfc.anl.1993010100.ieee cnvrt_initial_sig:cnvrt_initial_sfc
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/date cnvrt_initial_sig
++ read HH MM DD yyyy FH
++ rm date.1486917
++ echo 1993 01 01 00 00
+1993 01 01 00 00
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/chgr cnvrt_initial_sig cnvrt_initial_sfc sigit sfci osu1
++ '[' 5 -ne 5 ']'
++ in_sig=cnvrt_initial_sig
++ in_sfc=cnvrt_initial_sfc
++ out_sig=sigit
++ out_sfc=sfci
++ sfcftyp=osu1
++ issig=1
++ issfc=1
++ '[' cnvrt_initial_sig = dummy ']'
++ '[' cnvrt_initial_sfc = dummy ']'
++ fnsporog=orospc.smth
++ lrep=.TRUE.
++ ltrn=.TRUE.
++ lnew=.TRUE.
++ PROG=chgr
++ atm_unit=53
++ '[' linux_intel = x1e ']'
++ rm -f 'fort.[0-9]*'
++ '[' linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ']'
++ '[' 1 -eq 1 ']'
++ ln -fs cnvrt_initial_sig fort.11
++ ln -fs sigit fort.51
++ '[' 1 -eq 1 ']'
++ ln -fs cnvrt_initial_sfc fort.14
++ ln -fs sfci fort.52
++ ln -fs orospc.smth fort.12
++ ln -fs slmsk fort.13
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp fort.1
++ '[' sph = dfs ']'
++ '[' sph = dfs ']'
++ cat
++ '[' linux_intel = dec ']'
++ ulimit -s unlimited
++ rm -f chgr.x
++ ln -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/chgr.x chgr.x
++ ./chgr.x
++ '[' 0 -ne 0 ']'
++ '[' '!' -s cnvrt_initial_sfc ']'
++ rm -f fort.1 fort.11 fort.12 fort.13 fort.14 fort.51 fort.52
++ exit 0
+++ eval echo /data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
++++ echo /data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
++ SST_GRB_T0=/data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
+++ eval echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
++++ echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
++ SNO_GRB_T0=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
+++ eval echo
++++ echo
++ SCV_GRB_T0=
+++ eval echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++++ echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++ ICE_GRB_T0=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++ export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
++ export iicegrb0 isstgrb0 isnogrb0 ism2grb
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/sfc0 gsm sfci sfco osu1
++ '[' 4 -lt 4 ']'
++ GSM0RSM=gsm
++ FNIN=sfci
++ FNOUT=sfco
++ SFCFTYPIN=osu1
++ '[' 4 = 5 ']'
++ FH=0
++ PROG=sfc0
++ cat
++ '[' gsm = rmp ']'
++ '[' gsm = rmp ']'
++ cat
++ cat
+++ echo 1
++ '[' 1 -eq 1 ']'
++ echo ' lfgrb(1,4)=f'
++ echo ' lfgrb(2,4)=f'
++ echo ' lfgrb(3,4)=t'
++ echo ' lfgrb(4,4)=f'
++ echo ' lfgrb(5,4)=f'
+++ echo 0
++ '[' 0 -eq 1 ']'
++ echo ' lfgrb(1,6)=F'
++ echo ' lfgrb(2,6)=F'
++ echo ' lfgrb(3,6)=F'
++ echo ' lfgrb(4,6)=F'
++ echo ' lfgrb(5,6)=F'
+++ echo 1
++ '[' 1 -eq 1 ']'
++ echo ' lfgrb(1,7)=T'
++ echo ' lfgrb(2,7)=F'
++ echo ' lfgrb(3,7)=F'
++ echo ' lfgrb(4,7)=F'
++ echo ' lfgrb(5,7)=F'
+++ echo 0
++ '[' 0 -eq 1 ']'
++ echo ' lfgrb(1,11)=F'
++ echo ' lfgrb(2,11)=F'
++ echo ' lfgrb(3,11)=F'
++ echo ' lfgrb(4,11)=F'
++ echo ' lfgrb(5,11)=F'
++ echo /
++ '[' linux_intel = dec ']'
++ ulimit -s unlimited
++ '[' 0 -ne 0 ']'
++ rm -rf sfc0.x
++ ln -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/sfc0.x sfc0.x
++ '[' linux_intel = x1e ']'
++ '[' linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ']'
++ rm -f 'fort.[0-9]*'
++ ln -fs sfc0.parm fort.95
++ ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp fort.1
++ ./sfc0.x
++ '[' 0 -ne 0 ']'
++ cp sfco sfci
++ cp sigit sigitdt
++ cp sigit sig.ft00
++ cp sfci sfc.ft00
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/date sigit
++ read HH MM DD yyyy FH
++ rm date.1486917
++ echo 1993 01 01 00 00
+1993 01 01 00 00
++ '[' yes = yes ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb 00 00 12
+2026. 04. 03. (금) 10:50:11 KST /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb: pgb is completely ended
++ xc=0
++ '[' 00 -lt 720 ']'
+++ expr 00 + 720
++ hx=720
++ '[' 720 -gt 720 ']'
++ '[' 720 -lt 10 ']'
+++ eval echo /data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
++++ echo /data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
++ SST_GRB=/data0/sst/oisst/oisst_v2/grib/oisstv2.1993.daily
+++ eval echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
++++ echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
++ SNO_GRB=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.snow.r2.1979-1998.grib
+++ eval echo
++++ echo
++ SCV_GRB=
+++ eval echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++++ echo /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++ ICE_GRB=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/clim.ice.r2.1979-1998.grib
++ export SST_GRB SNO_GRB SCV_GRB ICE_GRB iicegrb isstgrb isnogrb ism2grb
++ export SWHR_GBL LWHR_GBL
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcstparm 720 720 24:24 12:12:12:720
++ INCHOUR=720
++ ENDHOUR=720
+++ echo 24:24
+++ cut -d: -f1
++ INTSFCX=24
+++ echo 24:24
+++ cut -d: -f2
++ INTOMLX=24
+++ echo 12:12:12:720
+++ cut -d: -f1
++ INTSIG=12
+++ echo 12:12:12:720
+++ cut -d: -f2
++ INTSFC=12
+++ echo 12:12:12:720
+++ cut -d: -f3
++ INTFLX=12
+++ echo 12:12:12:720
+++ cut -d: -f4
++ INTRESTART=720
++ SWHR_GBL=1
++ LWHR_GBL=3
++ INTPFIX=24
++ namfile=fcst.parm
++ '[' sph = dfs ']'
++ echo
++ cat
+++ echo 1
++ '[' 1 -eq 1 ']'
++ echo ' lfgrb(1,4)=f'
++ echo ' lfgrb(2,4)=f'
++ echo ' lfgrb(3,4)=t'
++ echo ' lfgrb(4,4)=f'
++ echo ' lfgrb(5,4)=f'
+++ echo 0
++ '[' 0 -eq 1 ']'
++ echo ' lfgrb(1,6)=F'
++ echo ' lfgrb(2,6)=F'
++ echo ' lfgrb(3,6)=F'
++ echo ' lfgrb(4,6)=F'
++ echo ' lfgrb(5,6)=F'
+++ echo 1
++ '[' 1 -eq 1 ']'
++ echo ' lfgrb(1,7)=T'
++ echo ' lfgrb(2,7)=F'
++ echo ' lfgrb(3,7)=F'
++ echo ' lfgrb(4,7)=F'
++ echo ' lfgrb(5,7)=F'
+++ echo 0
++ '[' 0 -eq 1 ']'
++ echo ' lfgrb(1,11)=F'
++ echo ' lfgrb(2,11)=F'
++ echo ' lfgrb(3,11)=F'
++ echo ' lfgrb(4,11)=F'
++ echo ' lfgrb(5,11)=F'
++ echo /
++ '[' qsub = qsub ']'
+++ qsub /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fcst
++ fcstid=125891.guns
+++ echo 125891.guns
+++ cut -d. -f1
++ log_name=fcst.e125891
++ '[' 0 '!=' 1 ']'
++ '[' yes = yes ']'
++ phs=0
++ phe=720
++ phinc=12
++ fhs=0
++ fhe=720
++ fhinc=12
++ export phs phe phinc fhs fhe fhinc
++ '[' qsub '!=' '' ']'
++ '[' qsub = llsubmit ']'
++ '[' qsub = bsub ']'
+++ qsub -W depend=afterok:125891.guns /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb
++ pgbid=125892.guns
+++ qsub -W depend=afterok:125891.guns /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/fgb
++ fgbid=125893.guns
++ '[' no = yes ']'
++ '[' yes = yes ']'
++ '[' qsub '!=' '' ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/wait_que_job 125893.guns fcst.e125891 qstat
++ '[' -s fgb.ft720 ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile flx 0 720 12
++ '[' qsub '!=' '' ']'
++ /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/wait_que_job 125892.guns fcst.e125891 qstat
++ cp sfc.ft720 sfci
++ '[' define = define ']'
++ cp cpscld.ft720 cpscldi
+cp: cannot stat 'cpscld.ft720': 그런 파일이나 디렉터리가 없습니다
++ exit 8

@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# reset the date of r_sig and r_sfc files with forecast hour to zero and
+# rename these files with the new dates  
+# 
+set -x
+#
+xcx=`expr $1 + 0`
+fhadj=`expr $1 + 0`
+data_dir=$2
+if [ $xcx -lt 10 ];then xcx=0$xcx;fi
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/date $data_dir/r_sig.ft$xcx >date.out || exit 8
+read orighh origmm origdd origyy origfh <date.out
+#
+#  Reset date
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte \
+	$origyy $origmm $origdd $orighh $origfh >incdte.out$$ || exit 8
+read yyyy mm dd hh <incdte.out$$
+rm incdte.out$$
+xcx1=`expr $xcx + 0`
+if [ $xcx1 -eq $fhadj ]; then
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_chgdates $yyyy:$mm:$dd:$hh:0 \
+		$data_dir/r_sig.ft$xcx:$data_dir/r_sfc.ft$xcx \
+		sig.base.$yyyy$mm$dd$hh:sfc.base.$yyyy$mm$dd$hh || exit 8
+	#
+else
+	#
+	if [ linux_intel = dec ] ; then
+	     echo "" > dummy_file
+	fi
+	#
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_chgdates $yyyy:$mm:$dd:$hh:0 \
+		$data_dir/r_sig.ft$xcx:dummy_file \
+		sig.base.$yyyy$mm$dd$hh:dummy_file || exit 8
+fi
+##

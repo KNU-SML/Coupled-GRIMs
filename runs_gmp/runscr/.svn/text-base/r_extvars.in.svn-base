@@ -1,0 +1,253 @@
+#!/bin/sh
+#
+# extract
+#
+if [ $# -ne 4 ] ; then
+        echo "`date` $0: argument error" >>ERROR.out
+        exit 8
+fi
+f00=$1
+fhs=$2
+fhe=$3
+fhinc=$4
+#
+set -x
+wgrb=@LIBS_DIR@/etc/wgrib
+fh=$fhs
+while [ $fh -le $fhe ] ; do
+	fhr=`expr $fh + 0`
+	if [ $fhr -lt 10 ] ; then
+		fhr=0$fhr
+	fi
+	pgbfile=r_pgb.ft$fhr
+	flxfile=r_pgb.ft$fhr
+
+	extfile=r_ext.ft$fhr
+
+	if [ ! -s $pgbfile ] ; then
+		echo $pgbfile missing
+		exit 8
+	fi
+	if [ $fhr != 00 -a ! -s $flxfile ] ; then
+		echo $flxfile missing
+		exit 8
+	fi
+
+	$wgrb $pgbfile | grep ":HGT:kpds5=7:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -o $extfile
+
+	$wgrb $pgbfile | grep ":HGT:kpds5=7:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":HGT:kpds5=7:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VVEL:kpds5=39:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VVEL:kpds5=39:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VVEL:kpds5=39:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":RH:kpds5=52:kpds6=100:kpds7=850:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":RH:kpds5=52:kpds6=100:kpds7=500:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":RH:kpds5=52:kpds6=100:kpds7=200:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":PRESsfc:kpds5=1:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":PWAT:kpds5=54:kpds6=200:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":HGTsfc:kpds5=7:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":PRMSL:kpds5=2:kpds6=102:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":POT:kpds5=13:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VVEL:kpds5=39:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":RH:kpds5=52:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SPFH:kpds5=51:kpds6=107:kpds7=9950:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UFLX:kpds5=124:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VFLX:kpds5=125:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SHTFL:kpds5=122:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":LHTFL:kpds5=121:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SOILW:kpds5=144:kpds6=112:kpds7=10:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SOILW:kpds5=144:kpds6=112:kpds7=2760:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=112:kpds7=10:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=112:kpds7=2760:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":WEASD:kpds5=65:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":DLWRF:kpds5=205:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":ULWRF:kpds5=212:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":ULWRF:kpds5=212:kpds6=8:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":USWRF:kpds5=211:kpds6=8:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":USWRF:kpds5=211:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":DSWRF:kpds5=204:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":PRATE:kpds5=59:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":CPRAT:kpds5=214:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":GFLUX:kpds5=155:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":LAND:kpds5=81:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":ICEC:kpds5=91:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":UGRD:kpds5=33:kpds6=105:kpds7=10:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VGRD:kpds5=34:kpds6=105:kpds7=10:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMP:kpds5=11:kpds6=105:kpds7=2:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SPFH:kpds5=51:kpds6=105:kpds7=2:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMAX:kpds5=15:kpds6=105:kpds7=2:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":TMIN:kpds5=16:kpds6=105:kpds7=2:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SFCR:kpds5=119:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SFCRT:kpds5=118:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":RUNOF:kpds5=90:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":ALBDO:kpds5=84:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SRWEQ:kpds5=64:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SNOEV:kpds5=230:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":SNOHF:kpds5=229:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":CNWAT:kpds5=223:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":VEG:kpds5=87:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":XPRATE:kpds5=180:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":BGRUN:kpds5=234:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":PRES:kpds5=1:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":QSFLX:kpds5=185:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+	$wgrb $pgbfile | grep ":QLFLX:kpds5=186:kpds6=1:kpds7=0:" | \
+	$wgrb $pgbfile -i -grib -append -o $extfile
+
+    fdate=`@ETC_DIR@/validate.s $f00 $fh`
+    @ETC_DIR@/gribinterp_date $extfile $extfile.tmp $fdate
+    mv $extfile.tmp $extfile
+
+	fh=`expr $fh + $fhinc`
+done
+
+exit

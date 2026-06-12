@@ -1,0 +1,118 @@
+#!/bin/sh
+#
+#  Initial start for cases and prc.
+#
+#  $1 ... cases or prc
+#  $2 ... year, month, day, hour separated by ':'
+#  $3 ... execution directory full path
+#  $4 ... spectral orography
+#  $5 ... full directory path to initial data archive
+#  $6 ... ip address of initial data archive site
+#  $7 ... ftp protocol
+#
+if [ $# -ne 5 -a $# -ne 7 ] ; then
+	echo "Error in the argument of $0"
+	exit 8
+fi
+set -x
+#
+YYYY=`echo $2 | cut -d':' -f1`
+MM=`echo $2 | cut -d':' -f2`
+DD=`echo $2 | cut -d':' -f3`
+HH=`echo $2 | cut -d':' -f4`
+EXECDIR=$3
+FNSPOROG=$4
+INITIAL_DATA_DIR=$5
+INITIAL_DATA_PLATFORM=$6
+FTP=$7
+#
+SFC_FILE_TYPE=${SFC_FILE_TYPE:=old}
+#
+mkdir -p $EXECDIR/$YYYY$MM$DD$HH 2>/dev/null
+#
+initial_data_dir=`eval echo $INITIAL_DATA_DIR`
+#
+if [ $1 = cases ] ; then
+	#
+	if [ -z "$INITIAL_DATA_PLATFORM" ] ; then
+		FILE_FORMAT=`ls $initial_data_dir/sig.anl.$YYYY$MM$DD$HH.* | \
+									sed 's/.*\.//g'`
+		cp $initial_data_dir/sig.anl.$YYYY$MM$DD$HH.$FILE_FORMAT \
+							$EXECDIR/$YYYY$MM$DD$HH/sig.anl.$FILE_FORMAT
+		cp $initial_data_dir/sfc.anl.$YYYY$MM$DD$HH.$FILE_FORMAT \
+							$EXECDIR/$YYYY$MM$DD$HH/sfc.anl.$FILE_FORMAT
+	else
+		@RUNSCR_DIR@/getrsgsc $EXECDIR $YYYY:$MM:$DD:$HH \
+			$initial_data_dir \
+			$INITIAL_DATA_PLATFORM $FTP || exit 8
+		FILE_FORMAT=ieee
+	fi
+	INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+elif [ $1 = prc ] ; then
+	#
+	# Try ibmsp archive first
+	#
+	jayarchdir=/nfsuser/g03/wx51js/przinitc/$YYYY$MM
+	if [ -s $jayarchdir/sanl.t${HH}z.$YYYY$MM$DD -a \
+				-s $jayarchdir/sfcanl.t${HH}z.$YYYY$MM$DD ] ; then
+		cp $jayarchdir/sanl.t${HH}z.$YYYY$MM$DD \
+					$EXECDIR/$YYYY$MM$DD$HH/sig.anl.ieee
+		cp $jayarchdir/sfcanl.t${HH}z.$YYYY$MM$DD \
+						$EXECDIR/$YYYY$MM$DD$HH/sfc.anl.ieee
+		FILE_FORMAT=ieee
+		INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+	else
+		@RUNSCR_DIR@/getopini $EXECDIR $YYYY:$MM:$DD:$HH \
+				$INITIAL_DATA_PLATFORM \
+				$initial_data_dir || exit 8
+		FILE_FORMAT=ibm
+		INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+	fi
+	export INPUT_RESOLUTION
+else
+	echo "Unknown argument $1"
+	exit 8
+fi
+#
+# Conversion from original format to native format
+#
+@RUNSCR_DIR@/cnvrt \
+		$EXECDIR/$YYYY$MM$DD$HH/sig.anl.$FILE_FORMAT \
+		$EXECDIR/$YYYY$MM$DD$HH/sfc.anl.$FILE_FORMAT \
+		cnvrt_initial_sig cnvrt_initial_sfc || exit 8
+#
+# Change resolution
+#
+@RUNSCR_DIR@/chgr $FNSPOROG \
+									cnvrt_initial_sig cnvrt_initial_sfc \
+									model_initial_sig model_initial_sfc || exit 8
+#
+#  convert to 4-digit year if not
+#
+@RUNSCR_DIR@/cnv4dig model_initial_sig model_initial_sfc \
+											sigit sfci $SFC_FILE_TYPE || exit 8
+#
+set -e
+cp sigit sigitdt
+cp sigit sig.ft00
+cp sfci  sfc.ft00
+set +e
+#
+@LIB_DIR@/date sigit >date.out || exit 8
+read HHsig MMsig DDsig YYYYsig FHsig <date.out
+if [ $YYYYsig != $YYYY -o $MMsig != $MM -o $DDsig != $DD -o \
+			$HHsig != $HH -o $FHsig != 0 ] ; then
+	echo 'dates on sigma file and script does not match'
+	echo YYYYsig=$YYYYsig MMsig=$MMsig DDsig=$DDsig HHsig=$HHsig FHsig=$FHsig
+	echo YYYY=$YYYY MM=$MM DD=$DD HH=$HH FH=$FH
+	exit 8
+fi
+rm date.out
+#
+#  pgb of the initial
+#
+@RUNSCR_DIR@/pgb 00 00 24 || exit 8
+#
+#  extraction of variables
+#
+@RUNSCR_DIR@/extvars 00 00 24 || exit 8

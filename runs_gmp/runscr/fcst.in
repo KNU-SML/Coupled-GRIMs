@@ -1,0 +1,143 @@
+#!/bin/bash
+#------------------------------------------------------------------end_of_header
+set -ax
+#
+if [ @SYSTEM@ = linux_pgi ]; then
+export NO_STOP_MESSAGE=1
+fi
+#export MPIEXEC_TIMEOUT=15   # to prevent qdel error
+#
+#  execute forecast.
+#
+#  $1 ... FCSTENV required for mpi runs on origin (this should be the
+#         last argument since it can be blank.
+#         Note that script referrs $1 as $* since it is a string of
+#         characters separated by blanks so that it takes all the arguments
+#         as one.
+#
+if [ "$EXECDIR" != "" ]; then
+	cd $EXECDIR
+fi
+#
+PROG=fcst
+#
+# SWRMDC
+#
+if [ "@SWRMDC@" = "yes" ]; then
+	mon=01
+	while [ $mon -le 12 ]; do
+		@FTASS@ @CON_DIR@/global_aeropac3a.m${mon}.txt .
+		mon=`expr $mon + 1`
+		if [ $mon -lt 10 ]; then
+			mon=0$mon
+		fi
+	done
+fi
+
+#
+#  Execute forecast
+#
+if [ @SYSTEM@ = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+fi
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@     @FTNID@1
+@FTASS@ $EXECDIR/co2con                  @FTNID@15
+@FTASS@ $EXECDIR/mtnvar                  @FTNID@24
+@FTASS@ @CON_DIR@/o3prod.clim.asc        @FTNID@28
+@FTASS@ @CON_DIR@/o3loss.clim.asc        @FTNID@29
+@FTASS@ @CON_DIR@/flwdirGSWP2.hlf.asc    @FTNID@41
+@FTASS@ @CON_DIR@/tune.t42l18.amip.ewmrg @FTNID@43
+@FTASS@ @CON_DIR@/gcmo3.asc              @FTNID@48
+@FTASS@ @CON_DIR@/RRTMG_LW_DATA_DBL      RRTMG_LW_DATA
+@FTASS@ @CON_DIR@/RRTMG_SW_DATA_DBL      RRTMG_SW_DATA
+if [ "@BARO_TEST@" = 1 ]; then
+	# input sigma
+    @FTASS@ @CON_DIR@/verlev.asc         @FTNID@11
+	# output
+    @FTASS@ fcst.bin  				     @FTNID@333
+	fh=00
+else
+	fh=`@ETC_DIR@/fhour sigit`
+fi
+if [ @SYSTEM@ = x1e ]; then
+	assign -D stderr              		@FTNID@6
+	#buffer unit is 4096-byte blocks.
+	@FTASS@ fcstout.ft$fh -b 1          @FTNID@6
+fi
+
+rm -f $PROG.x
+if [ ! -s @BIN_DIR@/fcst.x ] ; then
+	echo @BIN_DIR@/fcst.x does not exist
+	exit 8
+fi
+@FTASS@ @BIN_DIR@/fcst.x $PROG.x
+ #soojin_couple
+#for nemo run
+@FTASS@ /rhome/soo/NEMO/couple/couple_ice/nemo-4.2.2/tests/test_CPL_OASIS/BLD/bin/nemo.exe ./nemo
+@FTASS@ /rhome/soo/NEMO/couple/couple_ice/nemo-4.2.2/tests/test_CPL_OASIS/EXP00/namelist_cfg .
+@FTASS@ /rhome/soo/NEMO/couple/couple_ice/nemo-4.2.2/tests/test_CPL_OASIS/EXP00/namelist_ref .
+@FTASS@ /rhome/soo/NEMO/couple/couple_ice/nemo-4.2.2/tests/test_CPL_OASIS/EXP00/namelist_ice_cfg .
+@FTASS@ /rhome/soo/NEMO/couple/couple_ice/nemo-4.2.2/tests/test_CPL_OASIS/EXP00/namelist_ice_ref .
+#################################################################################
+#for couple
+@FTASS@ @RUNS_DIR@/data_oasis3_mct/v4.2.2/grid_mask_ORCA1/modify/grids_t62.nc ./grids.nc
+@FTASS@ @RUNS_DIR@/data_oasis3_mct/v4.2.2/grid_mask_ORCA1/modify/masks_t62.nc ./masks.nc
+@FTASS@ @RUNS_DIR@/data_oasis3_mct/v4.2.2/namcouple_t62 ./namcouple
+@FTASS@ @RUNS_DIR@/data_oasis3_mct/v4.2.2/weights_*.nc .
+########soojin
+
+if [ @SYSTEM@ = dec ] ; then
+	datasize=1048576
+	stacksize=3276800
+else
+	datasize=unlimited
+	stacksize=unlimited
+fi
+ulimit -c $datasize
+ulimit -s $stacksize
+here_dir=`pwd`
+if [ @HOST_NAME@ = compas_linux -a @MARCH@ != single -a @MARCH@ != thread ] ; then
+    sed -n "1,@FCST_NPES@p" $HOME/node_list >$here_dir/hostfile
+    sed 's/^/ssh /g' $here_dir/hostfile | sed 's/$/ "date"/g' >force_mount.sh
+    chmod a+x force_mount.sh
+    ./force_mount.sh
+	@FTASS@ $PROG.parm                       @FTNID@95
+    /opt/mpich/myrinet/pgi/bin/mpirun -nolocal -np @FCST_NPES@ -machinefile $here_dir/hostfile $here_dir/$PROG.x 1>$here_dir/${PROG}out.ft$hx 2>&1
+else
+   @FTASS@ $PROG.parm                       @FTNID@95
+#soojin_couple
+#   @FCSTENV@ ./$PROG.x 1>fcstout.ft$fh 2>&1
+ mpirun -machinefile $PBS_NODEFILE -bootstrap ssh -np @FCST_NPES@ ./$PROG.x : -np 1 ./nemo
+fi
+#
+stat=$?
+if [ $stat -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+grep 'NaN' fcstout.ft$fh
+if [ $? -eq 0 ]; then
+	echo "The run has NaN crushed !!!" >> ERROR.out
+	exit 8
+fi
+grep ' nan ' fcstout.ft$fh
+if [ $? -eq 0 ]; then
+	echo "The run has nan crushed !!!" >> ERROR.out
+	exit 8
+fi
+grep '<WARNING>:' fcstout.ft$fh >>ERROR.out
+rm -f @FTNID@[0-9]* filenv.$$ >/dev/null
+if [ @SYSTEM@ = x1e ]; then
+	rm -f $FILENV
+fi
+#
+echo "`date` $0: fcst is completely ended"
+exit 0

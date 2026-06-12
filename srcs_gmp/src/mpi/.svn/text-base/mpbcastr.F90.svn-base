@@ -1,0 +1,52 @@
+#include <define.h>
+   subroutine mpbcastr(a,len)
+!-------------------------------------------------------------------------------
+!
+! subprogram documentation block
+!
+! subprogram:    mpbcastr
+!            
+! abstract: broadcast real array to all pes
+!
+! program history log:
+!    99-06-27  henry juang    finish entire test for gsm
+!
+! usage:   mpbcastr(a,len)
+!
+!    input argument lists:
+!   a   - real (len) array from master pe 
+!   len   - integer length of array a
+!
+!    output argument list:
+!   a   - real (len) array from master pe 
+! 
+! subprograms called:
+!   mpi_bcast   - to broadcast to all pe in the comm
+!
+!-------------------------------------------------------------------------------
+   use commpi, only : mpi_comm_world, MPI_REAL, mype, master
+!-------------------------------------------------------------------------------
+   implicit none
+!-------------------------------------------------------------------------------
+   integer           ::  len,i, ierr
+   real              ::  a(len)
+   real(_mpi_real_),allocatable::tmpa(:)
+!
+   allocate(tmpa(len))
+!
+   if( mype.eq.master ) then
+     do i = 1,len
+       tmpa(i) = a(i)
+     enddo
+   endif
+!
+   call mpi_bcast(tmpa,len,MPI_REAL,0,mpi_comm_world,ierr)
+!
+   do i=1,len
+      a(i) = tmpa(i)
+   enddo
+   deallocate(tmpa)
+!
+   return
+   end subroutine mpbcastr
+!-------------------------------------------------------------------------------

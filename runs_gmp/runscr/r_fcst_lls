@@ -1,0 +1,125 @@
+#!/bin/sh
+#@ job_type = parallel
+#@ class = class.2-32
+#@ resources = ConsumableCpus(1) ConsumableMemory(2000mb)
+#@ wall_clock_limit = 24:00:00
+#@ output = $(jobid).out
+#@ error = $(output)
+#@ notification = never
+#@ notify_user = ecchang@yonsei.ac.kr
+#@ network.MPI = sn_all,shared,US
+#@ rset = RSET_MCM_AFFINITY
+#@ mcm_affinity_options = mcm_mem_req mcm_distribute mcm_sni_none
+#@ total_tasks = 12
+#@ environment = $EXECDIR; $h; $hx; $inchour; $prthour; $FCSTENV; $FCST_NPES
+#@ queue
+export LANG=en_US
+export MP_SHARED_MEMORY=yes
+export MP_SINGLE_THREAD=yes
+export MEMORY_AFFINITY=MCM
+#
+set -x
+#
+#  execute forecast.
+#
+#  $1 ... FCSTENV required for mpi runs on origin (this should be the
+#         last argument since it can be blank.
+#         Note that script referrs $1 as $* since it is a string of
+#         characters separated by blanks so that it takes all the arguments
+#         as one.
+#
+if [ "$EXECDIR" != "" ]; then
+    cd $EXECDIR
+fi
+#
+#  execute forecast.
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending   forecast hour
+#  $3 ... base field interval (hour)
+#  $4 ... regional field output interval (hour)
+#
+PROG=rfcst
+#
+#  Execute forecast
+#
+h=${h:=$1}
+hx=${hx:=$2}
+inchour=${inchour:=$3}
+prthour=${prthour:=$4}
+if [ "$prthour" = "" ] ; then
+    echo "`date` $0: argument error" >>ERROR.out
+    exit 8
+fi
+#
+fh=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/fhour r_sigit`
+#
+# SWRMDC
+#
+swrmdc=`fgrep SWRMDC /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/define.h | fgrep -v undef | fgrep define | wc -l`
+if [ $swrmdc -eq 1 ]; then
+    mon=01
+    while [ $mon -le 12 ]; do
+        ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/global_aeropac3a.m${mon}.txt .
+        mon=`expr $mon + 1`
+        if [ $mon -lt 10 ]; then
+            mon=0$mon
+        fi
+    done
+fi
+#
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f fort.[0-9]* 2>/dev/null
+fi
+
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/co2con                           fort.15
+ln -fs r_mtnvar                                   fort.24
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/o3prod.clim.asc                  fort.28
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/o3loss.clim.asc                  fort.29
+ln -fs r_sigit                                    fort.30
+ln -fs r_sigitdt                                  fort.31
+ln -fs r_sfci                                     fort.32
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/tune.t42l18.amip.ewmrg           fort.43
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/gcmo3.asc                        fort.48
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/albaer.snl                       fort.49
+#
+rm -f $PROG.x
+if [ mpi = mpi -o mpi = hybrid ] ; then
+	ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/${PROG}_t62k28_n${FCST_NPES}.x $PROG.x
+else
+	ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/$PROG.x $PROG.x
+fi
+#
+here_dir=`pwd`
+if [ nml_linux_intel = compas_linux -a mpi != single -a mpi != thread ] ; then
+    sed -n "1,${FCST_NPES}p" $HOME/node_list >$here_dir/hostfile
+	ln -fs $PROG.parm fort.95
+    /opt/mpich/myrinet/pgi/bin/mpirun -nolocal -np ${FCST_NPES} -machinefile $here_dir/hostfile $here_dir/$PROG.x 1>$here_dir/r_fcstout.ft$hx 2>&1
+elif [  mpi = mpi -a  linux_intel = mac  ] ; then
+	ln -fs $PROG.parm fort.95
+	$FCSTENV -wd $here_dir ./$PROG.x 1>r_fcstout.ft$hx 2>&1
+else
+	ln -fs $PROG.parm fort.95
+	$FCSTENV ./$PROG.x 1>r_fcstout.ft$hx 2>&1
+fi
+if [ $? -ne 0 ] ; then
+	echo "r_fcst failed" >>ERROR.out
+	exit 8
+fi
+grep 'NaN' r_fcstout.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep ' nan ' r_fcstout.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep '<WARNING>:' r_fcstout.ft$hx >>ERROR.out
+#
+exit 0

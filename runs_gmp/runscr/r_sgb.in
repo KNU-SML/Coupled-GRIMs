@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+#  This script assumes that the input sigma file is the form r_sig.ftxx
+#  The output sigma file is the form r_sgb.ftxx (format: grib file)
+#
+#  execute post proccessing.
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending   forecast hour
+#  $3 ... forecast output increment
+#
+if [ $# -lt 3 ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	exit 8
+fi
+fhs=$1
+fhe=$2
+fhinc=$3
+#
+PROG=rsgb
+cat >$PROG.parm <<EOF
+ &NAMRSGB
+ ICEN2=1,
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+/
+EOF
+
+ideal=`fgrep IDEAL @SRCS_DIR@/define.h | fgrep -v '#undef' | fgrep '#define' | wc -l`
+if [ $ideal -ge 1 ]; then
+cat rinpg.parm >>$PROG.parm
+fi
+
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+fi
+rm -f $PROG.x
+#
+if [ @SYSTEM@ = dec ]; then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+@FTASS@ @BIN_DIR@/$PROG.x $PROG.x
+@FTASS@ @RUNS_DIR@/namelist.@SCRIPT@  fort.1
+#
+here_dir=`pwd`
+if [ @HOST_NAME@ = compas_linux ] ; then
+    sed -n "1,${FCST_NPES}p" $HOME/node_list >$here_dir/hostfile
+    sed 's/^/ssh /g' $here_dir/hostfile | sed 's/$/ "date"/g' >force_mount.sh
+    chmod a+x force_mount.sh
+    ./force_mount.sh
+    /opt/mpich/myrinet/pgi/bin/mpirun -nolocal -np ${FCST_NPES} -machinefile $here_dir/hostfile $here_dir/$PROG.x < $here_dir/$PROG.parm 1>$here_dir/r_sgbout.ft$fhs-$fhe 2>&1
+elif [ @MARCH@ = mpi -a  @SYSTEM@ = mac ] ; then
+	$FCSTENV -wd $here_dir ./$PROG.x <$PROG.parm 1>rsgbout.ft$fhs-$fhe 2>&1
+else
+	./$PROG.x <$PROG.parm 1>rsgbout.ft$fhs-$fhe 2>&1
+fi
+if [ $? -ne 0 ] ; then
+	echo "r_sgb failed" >>ERROR.out
+	exit 8
+fi
+rm -f fort.1
+exit 0

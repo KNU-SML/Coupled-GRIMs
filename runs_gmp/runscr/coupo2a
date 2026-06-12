@@ -1,0 +1,86 @@
+#!/bin/sh
+#
+set -ax
+#
+########################################################################
+# produce SSTs for GFS components
+# (1) interpolate MOM3 SSTs to 1x1 grid
+# (2) merge MOM3 SSTs, observed climatology (1982-2001), and
+#     initial SST anomalies decaying at a time scale of 90 days.
+# input : sstMOM3$cplvdate.gr
+# output: sstgrb.$VDATE
+########################################################################
+
+##start_date=$1
+##ihrfcst=$2
+##cpldate=$3             ;# date of current coupling episode
+##fcpl=$4                ;# coupling frequency in hours
+##soSST=$5               ;#
+
+start_date=${start_date:=$1}
+ihrfcst=${ihrfcst:=$2}
+cpldate=${cpldate:=$3}
+fcpl=${fcpl:=$4}
+soSST=${soSST:=$5}
+FCSTENV=${FCSTENV:=$6}
+
+cd ${EXECDIR}
+
+#=========================================================
+
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f u:[0-9]* 2>/dev/null
+fi
+
+validate=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s
+coupO2Aexec=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/gom_coupo2a.x
+
+cp $coupO2Aexec .
+
+cplvdate=`$validate $cpldate $fcpl` ;# date of next coupling episode
+if [ -f sst1x1fcst$cplvdate.gr ]; then
+ rm sst1x1fcst$cplvdate.gr
+fi
+if [ -f sst1x1fcst$cplvdate.grb ]; then
+ rm sst1x1fcst$cplvdate.grb
+fi
+
+yycur=`echo $cpldate | cut -c1-4`   ;#start year of this job
+mmcur=`echo $cpldate | cut -c5-6`
+ddcur=`echo $cpldate | cut -c7-8`
+
+yynxt=`echo $cplvdate | cut -c1-4`   ;#start year of this job
+mmnxt=`echo $cplvdate | cut -c5-6`
+ddnxt=`echo $cplvdate | cut -c7-8`
+
+yyini=`echo $start_date | cut -c1-4`   ;#start year of this job
+mmini=`echo $start_date | cut -c5-6`
+ddini=`echo $start_date | cut -c7-8`
+
+iddf=`expr $ihrfcst \/ 24 `  ;#number of forecast days
+
+# scSST: grib file of daily 1X1 SST climatology
+scSST=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_gop/gom_sst1x1grbclim19822001.grib
+
+#soSST: grib file containing initial SST field
+soSST=/storage1/CMIP_DATA/sst/sstgrb.fnl.$start_date
+
+echo " &dateini iyrini=$yyini,imoini=$mmini,idayini=$ddini,iddf=$iddf /">sstparm
+echo " &datecur iyrcur=$yycur,imocur=$mmcur,idaycur=$ddcur /">>sstparm
+echo " &datenxt iyrnxt=$yynxt,imonxt=$mmnxt,idaynxt=$ddnxt /">>sstparm
+echo " &files scSST='$scSST',soSST='$soSST' /">>sstparm
+
+# merge fcst and observed SSTs
+#ln -s $coupO2Aexec coupO2Aexec.x
+
+##  aprun $coupO2Aexec <sstparm 1> coupo2a_out.$cpldate 2>&1
+
+  ./gom_coupo2a.x <sstparm 1>coupo2a_out.ft$cpldate 2>&1
+
+#export err=$?;$DATA/err_chk
+
+exit 0

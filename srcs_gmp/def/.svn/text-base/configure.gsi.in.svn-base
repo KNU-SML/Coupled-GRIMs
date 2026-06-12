@@ -1,0 +1,120 @@
+
+SHELL           	=       /bin/sh
+
+# Listing of options that are usually independent of machine type.
+# When necessary, these are over-ridden by each architecture.
+
+#### Architecture specific settings ####
+
+# Settings for Linux x86_64, PGI compiler  (dmpar,optimize)#
+LDFLAGS        =  -Wl,-noinhibit-exec 
+
+COREDIR        =  @MODEL_DIR@
+INC_DIR        =  @MODEL_DIR@/src/gsi_include
+BYTE_ORDER     =  LITTLE_ENDIAN
+SFC            =  @F77@
+SF90           =  @F77@ -Mfree
+SCC            =  @GSILIB_CC@
+INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR)
+FFLAGS_i4r4    =  -i4 -r4
+FFLAGS_i4r8    =  -i4 -r8
+FFLAGS_DEFAULT =  @GSILIB_FORT_FLAGS@
+#FFLAGS_DEFAULT =  -Kieee -pc 64 
+FFLAGS         =  -fast $(FFLAGS_DEFAULT) -DLANGUAGE_FORTRAN -DsysLinux $(INC_FLAGS) $(LDFLAGS) -DLINUX -DPGI
+# Library build flags
+FFLAGS_BACIO   =  $(FFLAGS_DEFAULT)
+ARFLAGS_BACIO  =
+FFLAGS_BUFR    =  @FFLAGS_BUFR@ $(FFLAGS_i4r8)
+#FFLAGS_BUFR    =  $(FFLAGS_DEFAULT) $(FFLAGS_i4r8)
+CFLAGS_BUFR    =  @CFLAGS_BUFR@
+FFLAGS_CLOUD   =  $(FFLAGS_DEFAULT)
+FFLAGS_CRTM    =  $(FFLAGS_DEFAULT)
+#FFLAGS_CRTM    =  -fast $(FFLAGS_DEFAULT)
+LFLAGS_CRTM    =
+FFLAGS_GFSIO   =  $(FFLAGS_DEFAULT) $(FFLAGS_i4r4)
+ARFLAGS_GFSIO  =
+FFLAGS_SFCIO   =  $(FFLAGS_DEFAULT) $(FFLAGS_i4r4)
+FFLAGS_SIGIO   =  $(FFLAGS_DEFAULT) $(FFLAGS_i4r4)
+ARFLAGS_SIGIO  =
+FFLAGS_SP      =  $(FFLAGS_DEFAULT) $(FFLAGS_i4r8)
+FFLAGS_W3      =  $(FFLAGS_DEFAULT) $(FFLAGS_i4r8) 
+INC_FLAGS_W3   =  -module ../sigio
+#
+CPP            =  @CPP@
+CPP_FLAGS      =  -C -P -D$(BYTE_ORDER) -DWRF -DLINUX -DPGI
+CPP_F90FLAGS   =  -traditional-cpp -lang-fortran
+
+DM_FC          =  @F77_FCST@ -f90=@F77@
+DM_F90         =  @F77_FCST@ -Mfree -f90=@F77@
+DM_CC          =  mpicc 
+
+FC             =  $(DM_FC)
+F90            =  $(DM_F90)
+CC             =  $(DM_CC)
+
+CFLAGS         =  @CFLAGS@
+CFLAGS2        =  @CFLAGS2@
+
+
+MYLIBsys       =  -llapack -lblas
+NETCDF_PATH    =  -rpath,@NETCDF_DIR@/lib
+
+###########################################################
+#
+#	Macros, these should be generic for all machines
+
+LN		=  ln -sf
+MAKE		=  make -i -r
+RM		=  /bin/rm -f
+CP		=  /bin/cp
+AR		=  ar 
+MKDIR           =  /bin/mkdir -p
+CPP             =  cpp
+
+WRF_DIR         =  @WRF_DIR@
+
+WRF_INCLUDE     =  -I$(WRF_DIR)/frame
+
+WRF_LIB         =    $(WRF_DIR)/frame/module_internal_header_util.o \
+                     $(WRF_DIR)/frame/pack_utils.o \
+                     $(WRF_DIR)/frame/module_machine.o \
+                     $(WRF_DIR)/main/libwrflib.a \
+                     -L$(WRF_DIR)/external/io_int -lwrfio_int \
+                     -L$(WRF_DIR)/external/io_netcdf -lwrfio_nf
+
+
+WRF_LIB2        =  
+NETCDFPATH      =  @NETCDF_DIR@
+NETCDFLIBS      =  -lnetcdff -lnetcdf $(NETCDF_PATH)
+SED_FTN         =  $(WRF_DIR)/tools/standard.exe
+
+
+
+.IGNORE:
+.SUFFIXES: .c .f .F .F90 .f90 .o
+
+#	There is probably no reason to modify these rules
+
+.c.o:
+	$(RM) $@
+	$(CC) $(CFLAGS2) -c $<	
+
+.f.o:
+	$(RM) $@ $*.mod
+	$(FC) $(FFLAGS) -c $< 
+
+.F.o:
+	$(RM) $@ $*.mod
+	$(CPP) $(CPP_FLAGS) $< > $*.f90
+	$(F90) $(FFLAGS) -c $*.f90 
+	$(RM) $*.f90
+
+.F90.o:
+	$(RM) $@ $*.mod
+	$(CPP) $(CPP_FLAGS) $< > $*.f90
+	$(F90) $(FFLAGS) -c $*.f90 
+	$(RM) $*.f90
+
+.f90.o:
+	$(RM) $@ $*.mod
+	$(F90) $(FFLAGS) -c $< 

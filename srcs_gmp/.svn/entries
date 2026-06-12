@@ -1,0 +1,77 @@
+10
+
+dir
+105
+svn://210.106.80.229/srcs_gmp
+svn://210.106.80.229
+
+
+
+2016-03-15T00:46:43.752980Z
+79
+chang
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+db88e1fd-7dbe-4d7a-a659-517b3bc94321
+
+makefiles
+dir
+
+doc
+dir
+
+configure-src
+file
+
+
+
+
+2023-09-11T04:39:55.644498Z
+e44d7c9e22329c3609d4ea2d4d9f5444
+2016-03-15T00:46:43.752980Z
+79
+chang
+has-props
+
+
+svn:special
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+19
+
+src
+dir
+
+env
+dir
+
+def
+dir
+

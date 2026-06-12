@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+#  variance calculation
+#
+# $1 is the grib file specification (currently has to be pgb)
+# $2 is starting forecast hour (at least 2-digit)
+# $3 is ending forecast hour (at least 2-digit)
+# $4 is forecast hour interval
+# $5 is output file name
+#
+file=$1
+fhs=$2
+fhe=$3
+intvl=$4
+outgrib=$5
+#
+if [ $file != pgb ] ; then
+	echo "variance of $file not allowed"
+	exit 8
+fi
+echo "/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grib1.kpds5.vsn21" >grvar.$file.$fhs-$fhe.parm
+echo "/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grib1.kpds6.vsn21" >>grvar.$file.$fhs-$fhe.parm
+echo "0" >>grvar.$file.$fhs-$fhe.parm
+echo "$outgrib" >>grvar.$file.$fhs-$fhe.parm
+rm temp.parm.$$ 2>/dev/null
+fh=$fhs
+count=1
+while [ $fh -le $fhe ] ; do
+	fhr=$fh
+	if [ $fh -lt 10 ] ; then
+		fhr=0$fh
+	fi
+	if [ ! -s $file.ft$fhr ] ; then
+		echo "$file.ft$fhr does not exist. variance for fhr=$fhs-$fhe terminating."
+		exit 8
+	fi
+	echo $file.ft$fhr >>temp.parm.$$
+	fh=`expr $fh + $intvl`
+	count=`expr $count + 1`
+done
+count=`expr $count - 1`
+echo "$count" >>grvar.$file.$fhs-$fhe.parm
+cat temp.parm.$$ >>grvar.$file.$fhs-$fhe.parm
+echo "-2" >>grvar.$file.$fhs-$fhe.parm
+echo "$fhe" >>grvar.$file.$fhs-$fhe.parm
+rm temp.parm.$$
+#
+if [ linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ] ; then
+	assign -R
+fi
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/grvar.x <grvar.$file.$fhs-$fhe.parm \
+	>grvar.$file.$fhs-$fhe.out2 2>grvar.$file.$fhs-$fhe.err
+if [ $? -ne 0 ] ; then
+	echo `date` - grvar for  $file $fhs-$fhe execution failed
+	echo "`date` $0: grvar of $file $fhs-$fhe failed." >>ERROR.out
+	exit 8
+fi
+rm grvar.$file.$fhs-$fhe.out2
+rm grvar.$file.$fhs-$fhe.err
+#
+exit 0

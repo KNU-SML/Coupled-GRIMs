@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+#  creates base file name to be used by rsm
+#  from the initial dates and forecast hour in the file
+#  and links the given file
+#
+file=$1
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/date $file >date.out$$ || exit 8
+read hh_basefnam mm_basefnam dd_basefnam yyyy_basefnam fh_basefnam <date.out$$
+rm date.out$$
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte $yyyy_basefnam $mm_basefnam $dd_basefnam $hh_basefnam $fh_basefnam >incdte.out$$
+read vyyyy_basefnam vmm_basefnam vdd_basefnam vhh_basefnam <incdte.out$$
+rm incdte.out$$
+nfile=base.$vyyyy_basefnam$vmm_basefnam$vdd_basefnam$vhh_basefnam
+rm -f $nfile
+ln -fs $file $nfile
+

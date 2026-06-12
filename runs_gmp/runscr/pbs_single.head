@@ -1,0 +1,4 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=1
+#PBS -V
+##PBS -j eo

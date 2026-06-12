@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+#  get operational sigma, sfc, sst, snow and ice files from cray5
+#
+EXECDIR=$1
+YYYY=`echo $2 | cut -d':' -f1`
+MM=`echo $2 | cut -d':' -f2`
+DD=`echo $2 | cut -d':' -f3`
+HH=`echo $2 | cut -d':' -f4`
+DIR=$3
+PLATFORM=$4
+#
+if [ -s $EXECDIR/$YYYY$MM$DD$HH/sig.anl.ibm -a \
+      -s $EXECDIR/$YYYY$MM$DD$HH/sfc.anl.ibm ] ; then
+  echo sig.anl.ibm and sfc.anl.ibm file already exist
+  exit
+fi
+#
+PLATFORM=asp
+DIR=/com/fnl/prod/fnl.$YYYY$MM$DD
+#
+#  ftp get all files
+#
+cat >ftpdat.getopini <<EOF
+binary
+passive off
+lcd $EXECDIR/$YYYY$MM$DD$HH
+cd $DIR
+get gdas1.t${HH}z.sanl  sig.anl.ibm
+get gdas1.t${HH}z.sfcanl sfc.anl.ibm
+get gdas1.t${HH}z.sstgrb sst.grib
+get gdas1.t${HH}z.snogrb sno.grib
+get gdas1.t${HH}z.engicegrb ice.grib
+quit
+EOF
+@RUNSCR_DIR@/ftpscr ftpdat.getopini \
+					ftpout.getopini $PLATFORM ftp || exit 8

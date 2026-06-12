@@ -1,0 +1,250 @@
+#!/bin/sh
+#
+#XLFRTEOPTS="namelist=old"
+#export XLFRTEOPTS
+#
+R_EXTVARS=yes
+#
+#  This pscript template requires following edit variables to be defined
+#      %EXECSUBDIR% %YYYY% %MM% %DD% %HH% %H% %HX%
+#      %YYYYS% %MMS% %FHLEN% %INTPOST% %ENDHOUR%
+#      %FTPADDR% %FTP_PROTOCOL% %FTPDIR% 
+#      %FTP_R_SIGIT% %FTP_R_SIGITDT% %FTP_R_SFC% %FTP_R_FLX%  
+#      %FTP_R_PGB% %FTP_R_FCSTOUT% %FTP_R_DIA%
+#      %LIST_OF_FILES% %FILES_TO_BE_KEPT% %FILES_TO_BE_AVERAGED%
+#      %RMAVRG% %VARIANCE%
+#
+#  which should be defined in r_post.in
+#
+set -x
+cd %EXECSUBDIR%
+if [ $? -ne 0 ] ; then
+  echo "`date` $0: cd to %EXECSUBDIR% failed" >>ERROR.out
+fi
+#
+list_of_files='%LIST_OF_FILES%'
+files_to_be_kept='%FILES_TO_BE_KEPT%'
+files_to_be_averaged='%FILES_TO_BE_AVERAGED%'
+#
+ftp_r_sigit=%FTP_R_SIGIT%
+ftp_r_sigitdt=%FTP_R_SIGITDT%
+ftp_r_sig=%FTP_R_SIG%
+ftp_r_sfc=%FTP_R_SFC%
+ftp_r_flx=%FTP_R_FLX%
+ftp_r_pgb=%FTP_R_PGB%
+ftp_r_fcstout=%FTP_R_FCSTOUT%
+ftp_r_ext=%FTP_R_EXT%
+ftp_r_dia=%FTP_R_DIA%
+#
+variance=%VARIANCE%
+variance=no
+#
+HXX=`expr %H% + %INTPOST%`
+#
+# r_pgb
+#
+#-----------------------------------------------------------------
+#
+# change the filename from r_pgb.ft%2 to r_pgb.$fdate
+#
+#-----------------------------------------------------------------
+if [ %H% -eq 0 ]; then
+     /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_pgb %H% %H% %INTPOST% || exit 8
+fi
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_pgb $HXX %HX% %INTPOST% || exit 8
+#
+#-----------------------------------------------------------------
+#  r_extvars
+#
+if [ $R_EXTVARS = yes ] ; then
+	fh=`expr %H% + 0`
+
+	if [ $fh -lt 10 ] ; then
+	  	fhc=0$fh
+	else
+		fhc=$fh
+	fi
+
+	fhstart=$fh
+
+        if [ $fhstart -gt 0 ] ;then
+        fhstart=`expr $fhstart + %INTPOST%`
+        fi
+
+	if [ $fhstart -le %HX% ] ; then
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/r_extvars %YYYY%%MM%%DD%%HH% \
+                $fhstart %HX% %INTPOST% || exit 8
+	fi
+      
+
+        fhour=$fhstart  
+        maxhour=%HX%
+        while [ $fhour -le $maxhour ]; do
+           fdate=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s %YYYY%%MM%%DD%%HH% $fhour`
+           if [ $fhour -lt 10 ]; then
+              XX=0$fhour
+           else
+              XX=$fhour
+           fi
+           cp r_ext.ft$XX r_ext.$fdate
+           cp r_pgb.ft$XX r_pgb.$fdate
+           /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon r_ext.$fdate $fdate
+           /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon r_pgb.$fdate $fdate
+           fhour=`expr $fhour + %INTPOST%`
+        done
+fi
+#-----------------------------------------------------------------
+#
+# change the filename from r_ext.ft%2 to r_ext.$fdate
+#
+#-----------------------------------------------------------------
+#if [ %H% -eq 0 ]; then
+#  fdate=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s %YYYY%%MM%%DD%%HH% %H%`
+#  if [ %H% -le 10 ]; then
+#    H00=0%H%
+#  fi
+#  cp r_ext.ft$H00 r_ext.$fdate || exit
+#  /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon r_ext.$fdate $fdate
+#fi
+#
+#fdate=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/validate.s %YYYY%%MM%%DD%%HH% $HXX`
+#cp r_ext.ft$HXX r_ext.$fdate || exit
+#/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon r_ext.$fdate $fdate
+#-----------------------------------------------------------------
+#
+#  Daily file archive
+#
+for file in $list_of_files
+do
+	FILE=`echo $file | tr '[A-Z]' '[a-z]'`
+	ftp=\$ftp_$FILE
+	ftp=`eval echo $ftp`
+	if [ $ftp = yes ] ; then
+		if [ %H% -ne 0 ] ; then
+			hp=`expr %H% + %INTPOST%`
+		else
+			hp=0
+		fi
+		if [ -n "%FTPADDR%" ] ; then
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/ftparch $file $hp %HX% %INTPOST% %FTPDIR% %FTPADDR% %FTP_PROTOCOL% || exit 8
+			#
+			#  Delete ftp'ed files
+			#
+			rc=0
+			for filex in $files_to_be_averaged
+			do
+				if [ $filex = $file ] ; then 
+					rc=1
+				fi
+			done
+			rd=0
+			for filex in $files_to_be_kept
+			do
+				if [ $filex = $file ] ; then 
+					rd=1
+				fi
+			done
+			if [ $rc -eq 0 -a $rd -eq 0 ] ; then
+				/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile \
+					$file \
+					$hp %HX% %INTPOST% || exit 8
+			fi
+		fi
+	fi
+done
+#
+# averaging
+#
+#  find when to compute averages
+#
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte %YYYY% %MM% %DD% %HH% %HX% >incdte.out$$ || exit 8
+read yyyyp mmp ddp hhp <incdte.out$$
+/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/incdte %YYYY% %MM% %DD% %HH% %H% >incdte.out$$ || exit 8
+read yyyy mm dd hh <incdte.out$$
+rm incdte.out$$
+#
+if [ \( `expr $mmp + 0` -gt `expr $mm + 0` -o $yyyyp -gt $yyyy \) -o \
+			\( `expr %HX% + 0` -ge `expr %ENDHOUR% + 0` \) ] ; then
+	#
+	#  the following script returns $start_forecast_hour and $end_forecast_hour
+	#
+	if [ $yyyy = %YYYYS% -a `expr $mm + 0` -eq `expr %MMS% + 0` ] ; then
+		start_forecast_hour=0
+	else
+		start_forecast_hour=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/inchour %YYYY% %MM% %DD% %HH% \
+             $yyyy $mm 01 00 | sed 's/ *//g'`
+	fi
+	if [ `expr $mmp + 0` -gt `expr $mm + 0` -o $yyyyp -gt $yyyy ] ; then
+		end_forecast_hour=`/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/inchour %YYYY% %MM% %DD% %HH% \
+							$yyyyp $mmp 01 00 | sed 's/ *//g'`
+	else
+		end_forecast_hour=%ENDHOUR%
+	fi
+	if [ $end_forecast_hour -gt %ENDHOUR% ] ; then
+		end_forecast_hour=%ENDHOUR%
+	fi
+	start_forecast_hour=`expr $start_forecast_hour + %INTPOST%`
+	#
+	# average and variance
+	#
+	for file in $files_to_be_averaged
+	do
+#----------------------------------------------------------------
+#
+#   Changes by Kang, H.-S. 
+#   average for diurnal cycle 
+#
+#----------------------------------------------------------------
+	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/average \
+	$file \
+	$start_forecast_hour \
+	$end_forecast_hour %INTPOST% \
+	$file.$yyyy${mm} || exit 8
+
+       	/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/gribinterp_date \
+            ./$file.$yyyy${mm} ./$file.$yyyy${mm}.avrg \
+            $yyyy${mm}0100 || exit 8
+
+
+    	avg_start_hour=$start_forecast_hour
+    	maxcount=`expr 24 \/ %INTPOST%`
+    	count=1
+
+    	while [ $count -le $maxcount ]; do
+        avgh=`expr $avg_start_hour \% 24`
+        if [ $avgh -lt 10 ] ; then
+          HHA=0$avgh
+        else
+          HHA=$avgh
+        fi
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/average \
+			$file \
+			$avg_start_hour \
+			$end_forecast_hour 24 \
+			$file.$yyyy${mm}_${HHA}H.avrg.grib || exit 8
+       		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/gribinterp_date \
+            ./$file.$yyyy${mm}_${HHA}H.avrg.grib ./$file.$yyyy${mm}_${HHA}H.grib \
+            $yyyy${mm}01${HHA} || exit 8
+            rm -f ./$file.$yyyy${mm}_${HHA}H.avrg.grib
+            count=`expr $count + 1`
+            avg_start_hour=`expr $avg_start_hour + %INTPOST%`
+    	done
+#----------------------------------------------------------------
+		#
+		#  Delete files used for averaging
+		#
+		rc=0
+		for filex in $files_to_be_kept
+		do
+			if [ $filex = $file ] ; then 
+				rc=1
+			fi
+		done
+		if [ $rc -eq 0 ] ; then
+			/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile \
+				$file \
+				$start_forecast_hour \
+				$end_forecast_hour %INTPOST% || exit 8
+		fi
+	done
+fi

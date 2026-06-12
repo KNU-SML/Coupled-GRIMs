@@ -1,0 +1,66 @@
+Levitus One-degree Annual Climatology (1994) - DAMEE # 4
+0      JOB    : Processing job type (see below).
+0      INPFRMT: Type of input file(s) format: [0] NetCDF
+0      IOTYPE : Type of output floating-point data: [0] single, [1] double.
+T      LFSOUT : Switch to process free-surface, T/F.
+F      LM2OUT : Switch to process 2D momentum, T/F.
+T      LM3OUT : Switch to process 3D momentum, T/F.
+T      LTOUT  : Switch to process tracers, T/F.
+2      NT     : Number of tracers (usually 2, temperature and salinity).
+@ROMS_LEVS@     NL: Number of terrain-following S-coordinate levels in output file
+@ROMS_INI_NLI@     NLI    : Number of terrain-following S-coordinate levels in input file
+0      ZTYPE  : Vertical grid transformation type (see below).
+@ROMS_INI_THETA_S@    THETA_S: S-coordinate surface control parameter, [0 < theta_s < 20].
+@ROMS_INI_THETA_B@    THETA_B: S-coordinate bottom  control parameter, [0 < theta_b < 1].
+@ROMS_INI_TCLINE@    TCLINE : S-coordinate surface/bottom stretching width (m).
+1      VINTRP : Vertical interpolation: [0] linear, [1] cubic splines.
+@ROMS_INI_TSTART@      TSTART : Start day to process.
+@ROMS_INI_TEND@      TEND   : End day to process.
+0      TCYCLE : Time length (days) of climatology cycle.
+-1     TINIT  : Time (days) assigned as initialization (<0 default, read day)
+@ROMS_INI_SMTHINP@      SMTHINP: Smooth input:  [0] no, [1] Bleck's filter, [2] Shapiro filter
+0      SMTHOUT: Smooth output: [0] no, [1] Bleck's filter, [2] Shapiro filter
+1      NSAPPL : Number of applications of smoothing filter.
+2      NFILES : Number of input fields files.
+init.nc
+grid.nc
+init.in.nc 
+init.grd.in.nc
+!
+!=======================================================================
+!  Copyright (c) 2000 Rutgers University.                            ===
+!================================================== Hernan G. Arango ===
+!
+
+ ***   JOB:  Processing job type:
+
+             [0] Process initial tracer conditions: Read in and
+                 interpolate tracer fields to SCRUM grid.  Set
+                 free-surface, 2D and 3D momentum variables to zero. 
+
+
+ ***   ZTYPE:   Vertical grid transformation
+
+                [0]  S-coordinate transformation.
+
+                Currently, we support only ZGRID=0.
+
+ ***   TCYCLE:  Time length (days) of climatolgy cycle.  This value is
+                only used when JOB=1.  This value is assigned to the
+                attribute "cycle_length" of the climatology time 
+                variables.  SCRUM uses this value to interpolate between
+                time records.  For instance, if the climatology fields
+                are monthly averages, TCYCLE=30 days.  This indicates
+                a year length of 360 days when cycling through several
+                annual climatology cycles.
+
+ ***   Above FILENAMES:
+
+          1st line:  Ouput NetCDF file name.
+          2nd line:  input GRID NetCDF file name corresponding to the output file
+          3rd line:  input fields NetCDF file 
+          4-th line: input  GRID NetCDF file name corresponding to the input file
+               .
+               .
+               .
+

@@ -1,0 +1,79 @@
+#!/bin/sh
+#
+#  creates surface program execution scripts and execute/submit
+#
+set -x
+if [ $# -ne 9 ] ; then
+	echo $0: Argument error
+	echo '$1'=$1 
+	echo '$2'=$2 
+	echo '$3'=$3 
+	echo '$4'=$4 
+	echo '$5'=$5 
+	echo '$6'=$6 
+	echo '$7'=$7 
+	echo '$8'=$8 
+	echo '$9'=$9 
+	exit 8
+fi
+BATCH=no-batch
+EXECSUBDIR=$1
+YYYY=`echo $2 | cut -d':' -f1`
+MM=`echo $2 | cut -d':' -f2`
+DD=`echo $2 | cut -d':' -f3`
+HH=`echo $2 | cut -d':' -f4`
+FHS=`echo $2 | cut -d':' -f5`
+FHE=`echo $2 | cut -d':' -f6`
+INTSFCX=`echo $2 | cut -d':' -f7`
+FNOROG=$3
+SSTCLIM=$4
+SSTANL=$5
+ICEANL=$6
+SNOANL=$7
+SNOCLIM=$8
+ICECLIM=$9
+#
+SSTCLIM=`eval echo $SSTCLIM`
+SNOCLIM=`eval echo $SNOCLIM`
+ICECLIM=`eval echo $ICECLIM`
+SSTANL=`eval echo $SSTANL`
+ICEANL=`eval echo $ICEANL`
+SNOANL=`eval echo $SNOANL`
+#
+cat <<EOF >seddat_sfc
+s?%EXECSUBDIR%?$EXECSUBDIR?g
+s?%YYYY%?$YYYY?g
+s?%MM%?$MM?g
+s?%DD%?$DD?g
+s?%HH%?$HH?g
+s?%FHS%?$FHS?g
+s?%FHE%?$FHE?g
+s?%INTSFCX%?$INTSFCX?g
+s?%FNOROG%?$FNOROG?g
+s?%SSTCLIM%?$SSTCLIM?g
+s?%SNOCLIM%?$SNOCLIM?g
+s?%ICECLIM%?$ICECLIM?g
+s?%SSTANL%?$SSTANL?g
+s?%ICEANL%?$ICEANL?g
+s?%SNOANL%?$SNOANL?g
+EOF
+#
+rm sfc.sh 2>/dev/null
+if [ -s @RUNSCR_DIR@/hs-@HOST_NAME@.h ] ; then
+        sed -f seddat_sfc @RUNSCR_DIR@/hs-@HOST_NAME@.h >sfc.sh
+fi
+#
+sed -f seddat_sfc @RUNSCR_DIR@/sfc.is >>sfc.sh
+chmod a+x sfc.sh
+#
+if [ $BATCH = batch ] ; then
+	if [ -z "@MPISUBMIT@" ] ; then
+		@MPISUBMIT@ sfc.sh &
+	else
+		@MPISUBMIT@ sfc.sh || exit 8
+	fi
+else
+	sfc.sh || exit 8
+fi
+rm seddat_sfc sfc.sh.in
+exit 0

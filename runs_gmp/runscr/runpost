@@ -1,0 +1,90 @@
+#!/bin/sh
+#
+#  post processing of amip.  Interactively run this script
+#  to recover failed average job.
+#
+#  this script needs to be executed in the directory where forecast
+#  files exist or just above it where year directory exist. 
+#  for example, in $RUNDIR/a_000/1979 or 
+#  in $RUNDIR/a_000 with argument 1979.
+#
+VARIANCE=${VARIANCE:='no'}
+#
+CLEAN=no
+#
+cd=yes
+if [ $# -ne 0 ] ; then
+	years=$*
+else
+  ls -d 19* >/dev/null 2>/dev/null
+  if [ $? -eq 0 ] ; then
+    years=`ls -d 19*`
+	else
+		pwd=`pwd`
+		years=`echo $pwd | sed 's?.*/??g'`
+		cd=no
+	fi
+fi 
+if [ -z "$years" ] ; then
+	echo in wrong directory
+	exit 8
+fi
+for YYYY in $years
+do
+	if [ $cd = yes ] ; then
+		cd $YYYY || exit 8
+	fi
+	if [ -s fcst.parm ] ; then
+		INT=`grep 'INTSIG=' fcst.parm | cut -d '=' -f2 | sed 's/,//g'`
+	else
+		INT=24
+	fi
+	for MM in 01 02 03 04 05 06 07 08 09 10 11 12
+	do
+		#
+		/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/getavfh $YYYY $MM >out.$$
+		read fhs fhe <out.$$
+		#
+		fh=$fhs
+		while [ $fh -le $fhe ] ; do
+			if [ -s sig.ft$fh ] ; then
+				/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/pgb $fh $fh $INT
+			fi
+			if [ -s pgb.ft$fh -a -s sig.ft$fh ] ; then
+				ls -l pgb.ft$fh
+				rm sig.ft$fh
+			fi
+			fh=`expr $fh + $INT`
+		done
+		#
+		for file in pgb flx
+		do
+			if [ ! -s $file.$YYYY$MM.avrg.grib ] ; then
+				/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/average $file $fhs $fhe $INT \
+															$file.$YYYY$MM.avrg.grib
+				if [ $? -eq 0 ] ; then
+					/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon \
+										./$file.$YYYY$MM.avrg.grib $YYYY${MM}0100 || exit 8
+				fi
+			fi
+			if [ $file = pgb -a "$VARIANCE" = yes -a \
+							! -s $file.$YYYY$MM.variance.grib ] ; then
+				/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/variance $file $fhs $fhe $INT $file.$YYYY$MM.variance.grib
+				if [ $? -eq 0 ] ; then
+					/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/etc/force_grib_date_mon \
+										./$file.$YYYY$MM.variance.grib $YYYY${MM}0100 || exit 8
+				fi
+			fi
+			if [ $CLEAN = yes ] ; then
+				if [ \( $file = pgb -a -s $file.$YYYY$MM.avrg.grib -a \
+								-s $file.$YYYY$MM.variance.grib \) \
+								-o \( $file = flx -a -s $file.$YYYY$MM.avrg.grib \) ] ; then
+					/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/runscr/delfile $file $fhs $fhe $INT
+				fi
+			fi
+		done
+	done
+	if [ $cd = yes ] ; then
+		cd ..
+	fi
+done

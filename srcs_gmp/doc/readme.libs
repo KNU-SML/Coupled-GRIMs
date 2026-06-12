@@ -1,0 +1,5 @@
+compile option for machines
+#
+for dec
+remove -omp from rmtn
+add -fpe2 to cnvrt

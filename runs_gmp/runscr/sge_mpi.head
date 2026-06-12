@@ -1,0 +1,7 @@
+#!/bin/sh
+#$ -V
+#$ -cwd
+#$ -pe mpi_12cpu 12
+#$ -q normal 
+#$ -R yes
+#$ -l h_rt=06:00:00

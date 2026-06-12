@@ -1,0 +1,44 @@
+EXE = mpiset.x
+OBJS =	dimset.o equdiv.o equlw12.o mainset.o
+
+MACHINE = ${MACSYS}
+SHELL = /bin/sh
+AR = ar
+CP = cp
+RM = rm
+CD = cd
+CHMOD = chmod
+
+CC = cc
+CPP = cpp
+F77 = f90
+FORT_FLAGS = -r8 -O2 -OPT:Olimit=2400
+LOAD_FLAGS = -r8 -O2 -OPT:Olimit=2400
+INCLUDE_DIR = 
+LIB_DIR = 
+INSTALL_DIR = ../../bin
+EXTRA_LIBS = 
+
+${EXE} : ${OBJS}
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS}
+	${CP} $@ ${INSTALL_DIR}
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+
+.F.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o core* $@.x
+
+dist_clean :
+	- ${RM} -f *.f *.o *.x core Makefile

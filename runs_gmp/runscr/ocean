@@ -1,0 +1,267 @@
+#!/bin/sh
+#
+set -ax
+#
+########################################################################
+#  This script runs the MOM_3 ocean model  for the number of days      #
+#  specified in the namelist "namelist.control".  In the coupled       #
+#  this is set to be equal to one day.                                 #
+########################################################################
+
+## VDATE=$1                         ;# current forecast (model) time
+## mom3rt=$2                        ;# restoring time scale (days)
+## fcsthour=$3                      ;# fcsthour
+## npes=$4                          ;# npes
+
+VDATE=${VDATE:=$1}
+mom3rt=${mom3rt:=$2}
+fcsthour=${fcsthour:=$3}
+npes=${npes:=$4}
+
+#if [ linux_intel = linux ] ; then
+NPROC=`cat $PBS_NODEFILE | wc -l`
+#fi
+
+#  Set environment.
+
+momexe=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/gom_ocean_mom3_1x1.x
+PARMgom=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/gom_parm
+FIXgom=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con_gop
+mppnccombine=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/gom_mppnccombine.x
+skim_sst=/rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/gom_skim_sst.x
+
+echo VDATE = $VDATE beginning MOM3 `date`
+
+# ======================================================================
+#   copy executable and namelists
+# ======================================================================
+
+cp $PARMgom/gom_namelist.blmix   namelist.blmix
+cp $PARMgom/gom_namelist.contrl  namelist.contrl
+cp $PARMgom/gom_namelist.diagn   namelist.diagn
+cp $PARMgom/gom_namelist.ictime  namelist.ictime
+cp $PARMgom/gom_namelist.io      namelist.io
+cp $PARMgom/gom_namelist.isopyc  namelist.isopyc
+cp $PARMgom/gom_namelist.kppmix  namelist.kppmix
+cp $PARMgom/gom_namelist.mbcin   namelist.mbcin
+cp $PARMgom/gom_namelist.mixing  namelist.mixing
+cp $PARMgom/gom_namelist.ppmix   namelist.ppmix
+cp $PARMgom/gom_namelist.riglid  namelist.riglid
+cp $PARMgom/gom_namelist.smagnl  namelist.smagnl
+cp $PARMgom/gom_namelist.svd     namelist.svd
+cp $PARMgom/gom_namelist.tsteps  namelist.tsteps
+
+
+# modify parameters in namelist.mixing
+cat >namelist.mixing  << NAMELIST
+      &mixing am=2.e7, ah=2.e6, ambi=1.e22, ahbi=1.e21,
+              kappa_m=25.0, kappa_h=1.0, aidif=1.0,
+              nmix=17, eb=.true.,  ncon=1, cdbot=1.2e-3,
+              acor=0.0, dampts(1)=${mom3rt}.0,dampts(2)=${mom3rt}.0,smooth=0.05,
+              filter_reflat_s=-81.0,filter_reflat_n=79.0,
+      /
+NAMELIST
+
+# set ; ocean initial type
+
+  if [ $fcsthour -eq 0 ]; then
+
+cat >namelist.contrl << NAMELIST
+      &contrl init=.true., initpt=.false.,
+              runlen=1, rununits='days',
+              restrt=.true.,segtim=1.0,
+      /
+NAMELIST
+
+Iyyyy=$(echo $VDATE | cut -c-4)
+Imm=$(echo $VDATE | cut -c5-6)
+Idd=$(echo $VDATE | cut -c7-8)
+Ihh=$(echo $VDATE | cut -c9-10)
+
+cat >namelist.ictime << NAMELIST
+      &ictime eqyear=.false., eqmon=.false., refinit=.false., refrun=.true.,
+              year0=$Iyyyy, month0=$Imm, day0=$Idd, hour0=$Ihh, min0=0, sec0=0,
+      /
+NAMELIST
+
+
+#    if    [ $Imm -eq 01 ]; then
+#      Cmm=dec      
+#    elif  [ $Imm -eq 02 ]; then
+#      Cmm=jan      
+#    elif  [ $Imm -eq 03 ]; then
+#      Cmm=feb      
+#    elif  [ $Imm -eq 04 ]; then
+#      Cmm=mar      
+#    elif  [ $Imm -eq 05 ]; then
+#      Cmm=apr      
+#    elif  [ $Imm -eq 06 ]; then
+#      Cmm=may      
+#    elif  [ $Imm -eq 07 ]; then
+#      Cmm=jun      
+#    elif  [ $Imm -eq 08 ]; then
+#      Cmm=jul      
+#    elif  [ $Imm -eq 09 ]; then
+#      Cmm=aug      
+#    elif  [ $Imm -eq 10 ]; then
+#      Cmm=sep      
+#    elif  [ $Imm -eq 11 ]; then
+#      Cmm=oct      
+#    elif  [ $Imm -eq 12 ]; then
+#      Cmm=nov      
+#    fi
+# 
+#    cp $mom_ic_dir/$Cmm.temp.mom temp.mom.ic 
+#    cp $mom_ic_dir/$Cmm.salt.mom salt.mom.ic 
+#    cp /san_home/users/suhee/mom3/EXP/TEST_CASE/IC_godas/temp.mom.in temp.mom.ic
+#    cp /san_home/users/suhee/mom3/EXP/TEST_CASE/IC_godas/salt.mom.in salt.mom.ic
+#    cp /san_home/users/suhee/mom3/EXP/TEST_CASE/IC_godas/ugrd.mom.in ugrd.mom.ic
+#    cp /san_home/users/suhee/mom3/EXP/TEST_CASE/IC_godas/vgrd.mom.in vgrd.mom.ic
+
+  fi
+
+# end ; ocean initial type
+# ======================================================================
+# Bring in the data
+# ======================================================================
+
+# Get the initial ocean condition (restart)
+#
+# Note: The model will assume the date stamp in the restart file is
+# correct and will begin the integration referencing that date. The
+# output files will be set accordingly from the date read in from the
+# restart file. T restart file date stamp can be reset using the
+# utility "convert_restart".
+
+#suhee if [ ! -s restart.dta ] ; then
+#suhee  echo 'restart.dta of mom3 is not available.'
+#suhee  exit 1
+#suhee fi
+
+#
+# Retrieve model setup files
+#
+cp $FIXgom/gom_sponge.mom.ieee  sponge.mom
+cp $FIXgom/gom_scripps.top.ieee  scripps.top
+cp $FIXgom/gom_ls.ieee  ls.dat
+cp $FIXgom/gom_kmt.asc  kmt.dta
+cp $FIXgom/gom_ht.ieee  ht.dta
+cp $FIXgom/gom_sss.mom.ieee  sss.mom
+cp $FIXgom/gom_sst.mom.ieee  sst.mom
+#
+# Check for the atmospheric  forcing file
+#
+if [ ! -s flxMOM3.gr ] ; then
+   echo flxMOM3.gr does not exist
+   exit 1
+fi
+
+
+echo VDATE = $VDATE before MOM3 run `date`
+
+# ======================================================================
+# Run the model
+# ======================================================================
+
+echo '==>Running MOM3 ...'
+
+
+cp $momexe momexe.x
+
+echo " dir `pwd` "
+
+if [ linux_intel = x1e ] ; then
+        rm -f filenv.*
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+fi
+
+#
+if [ linux_intel = linux ] ; then
+  mpirun -machinefile $PBS_NODEFILE -np $NPROC ./momexe.x 1>mom3_$VDATE.out 2>&1
+else
+  mpirun -machinefile $PBS_NODEFILE -np $NPROC ./momexe.x 1>mom3_$VDATE.out 2>&1
+fi
+
+# ==============================================================
+# Do post-processing and save data to the ARCHIVE.
+# (appending date suffix to filenames for identification)
+# ==============================================================
+#
+#diag_suffix=`line < date.suffix.diag`
+diag_suffix=`head -1 date.suffix.diag`
+diag_suffix=$(echo $diag_suffix | sed s'/^_*//')
+#
+# the restart_suffix is the date tag for the restart file
+#
+#restart_suffix=`line < date.suffix.rest`
+restart_suffix=`head -1 date.suffix.rest`
+restart_suffix=$(echo $restart_suffix | sed s'/^_*//')
+
+#
+# gather the daily time_mean data from each processor into one file
+# each file in file_list is from an individual processor
+#
+count=`ls -l time_mean.$diag_suffix.dta.nc* | wc -l`
+num=0
+
+while [ $num -lt $count ];do
+file_list[$num]="time_mean.$diag_suffix.dta.nc.000$num"
+num=`expr $num + 1`
+done
+
+if [ $count -gt 0 ]; then
+  diag_name=time_mean.$diag_suffix.nc
+  if [ $count -gt 1 ]; then
+    $mppnccombine $diag_name ${file_list[*]}
+  else
+    mv ${file_list[0]} $diag_name
+  fi
+fi
+#
+# write out the SST from file $diag_name in to  sstMOM3.gr for atmosphere
+#
+if [ -s sstMOM3.gr ] ; then
+   rm  sstMOM3.gr
+fi
+#
+echo VDATE = $VDATE after MOM3 daily gathering `date`
+
+input_file=$diag_name
+
+echo " &input input_file='$diag_name', / ">namelist.skim
+
+ln -fs  $skim_sst skim_sst.x
+
+#  mpirun -machinefile $PBS_NODEFILE -np $NPROC ./skim_sst.x $diag_name 1>sst_$VDATE.out 2>&1
+  ./skim_sst.x $diag_name 1>sst_$VDATE.out 2>&1
+
+
+rc=$?
+if [ $rc -ne 0 ] ; then
+ exit 1
+fi
+
+echo VDATE = $VDATE after MOM3 skim_sst `date`
+
+  mkdir -p mom3_data
+  cp sstMOM3.gr ./mom3_data/sstMOM3${diag_suffix}.gr
+  mv sstMOM3.gr sstMOM3${diag_suffix}.gr
+  cp restart.$restart_suffix.dta restart.dta
+  
+echo VDATE = $VDATE after ending MOM3 `date`
+
+rm -f $FILENV
+rm -f u:[0-9]* filenv.$$ >/dev/null
+rm -f *.ud sponges document.dta namelist.skim
+
+#
+#if [[ $VERBOSE = YES ]] ; then
+#   echo $(date) EXITING $0 with return code $err >&2
+#fi
+
+rm -f u:[0-9]*
+
+exit 0
+

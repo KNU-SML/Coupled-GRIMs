@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# cat extvars files and ftp
+#
+#  This script assumes that the input extvars files are named as:
+#    extvars.ft?? where '??' is forecast hour of at least 2 digit
+#
+# grib file average calculation
+#
+# $1 is starting forecast hour (at least 2-digit)
+# $2 is ending forecast hour (at least 2-digit)
+# $3 is forecast hour interval
+# $4 is output file name
+# $5 ftp directory
+# $6 ftp ip address
+# $7 ftp protocol
+#
+#  This script assumes that the input grib files are named as:
+#    extvars.ft?? where '??' is forecast hour of at least 2 digit
+#
+if [ $# -ne 4 -a $# -ne 7 ] ; then
+  echo "`date` $0: argument error" >>ERROR.out
+  exit 8
+fi
+fhs=$1
+fhe=$2
+intvl=$3
+outextvars=$4
+ftpdir=$5
+platform=$6
+ftp=$7
+#
+REMOVE_EXTVARS=${REMOVE_EXTVARS:=yes}
+REMOVE_FTPED=${REMOVE_FTPED:=yes}
+#
+rm -f $outextvars
+#
+fh=$fhs
+count=1
+while [ $fh -le $fhe ] ; do
+	fhr=$fh
+	if [ $fh -lt 10 ] ; then
+		fhr=0$fh
+	fi
+	if [ ! -s extvars.ft$fhr ] ; then
+		echo "extvars for fhr=$fhr missing"
+		@RUNSCR_DIR@/extvars $fhr $fhr 24
+		if [ $? -ne 0 ] ; then
+			rm -f $outextvars
+			exit 8
+		fi
+	fi
+	cat extvars.ft$fhr >>$outextvars	
+	fh=`expr $fh + $intvl`
+done
+#
+# delete individual extvars file
+#
+if [ $REMOVE_EXTVARS = yes ] ; then
+	fh=$fhs
+	count=1
+	while [ $fh -le $fhe ] ; do
+		fhr=$fh
+		if [ $fh -lt 10 ] ; then
+			fhr=0$fh
+		fi
+		rm -f extvars.ft$fhr
+		fh=`expr $fh + $intvl`
+	done
+fi
+#
+# ftp 
+#
+if [ -n "$ftpdir" -a -n "$platform" ] ; then
+	@RUNSCR_DIR@/ftpavrg $outextvars $REMOVE_FTPED $ftpdir $platform $ftp
+fi

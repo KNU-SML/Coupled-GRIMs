@@ -1,0 +1,7 @@
+#!/bin/sh
+#$ -V
+#$ -cwd
+#$ -pe mpi_1cpu 1
+#$ -q normal
+#$ -R yes
+#$ -l h_rt=02:00:00

@@ -1,0 +1,62 @@
+EXECUTABLE = fgb.x
+OBJ_FGB = post_fgb_main.o post_fgb_solver.o
+OBJ_ETC = file_make_grib.o
+
+OBJS = ${OBJ_FGB} ${OBJ_ETC}
+
+SRCS = ${OBJS:.o=.F90}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @F77@
+FORT_FLAGS = @FORT_FLAGS@
+LOAD_FLAGS = @LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIB_DIR@
+INSTALL_DIR = @INSTALL_DIR@
+INSTALLDLIB = @INSTALLDLIB@
+EXTRA_LIBS = @EXTRA_LIBS@
+EXP_PARENT = ..
+
+LIBS = ${INSTALLDLIB}/share.a ${LIB_DIR}/w3lib.a ${LIB_DIR}/modelib.a
+
+${EXECUTABLE} : ${SRCS} ${OBJS} ${LIBS}
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS}
+	${CP} $@ ${INSTALL_DIR}
+
+${SRCS} :
+	ln -s ${EXP_PARENT}/fcst/$@ $@
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f90 .F90
+
+.F90.f90 :
+	sed 's/ *use *[0-z_]*/&_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TEMP.F90
+
+.F90.o :
+	sed 's/ *use *[0-z_]*/&_ser/;s/use constant_ser/use constant/g;/define.h/{G;s/$$/#undef MP/;}' $*.F90 > TEMP.F90
+	${CPP} -P ${INCLUDE_DIR} TEMP.F90 >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f90 ; rm $*.i TEMP.F90
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+.f90.o :
+	${F77} ${FORT_FLAGS} -c $*.f90
+
+clean :
+	- ${RM} -f *.f90 *.o ${EXECUTABLE} core
+	- find ./ -type l -exec rm -f {} \;
+
+dist_clean :
+	make clean
+	- ${RM} -rf rii_files Makefile

@@ -1,0 +1,216 @@
+#!/bin/sh
+#
+# thread or hybrid options
+#
+if [ @MARCH@ = thread -o @MARCH@ = hybrid ] ; then
+	OMP_NUM_THREADS=@NTHREADS@
+	export OMP_NUM_THREADS
+	if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 ] ; then
+		NCPUS=@NTHREADS@
+		export NCPUS
+	fi
+	if [ @SYSTEM@ = sgi -o @SYSTEM@ = origin ] ; then
+		MP_SET_NUMTHREADS=@NTHREADS@
+		export MP_SET_NUMTHREADS
+	fi
+	if [ @SYSTEM@ = dec ] ; then
+		MP_STACK_SIZE=500000000
+        export MP_STACK_SIZE
+	fi
+    if [ @SYSTEM@ = ibmsp ] ; then
+		XLSMPOPTS="stack=256000000"
+		export XLSMPOPTS
+    fi
+    if [ @SYSTEM@ = linux_pgi ] ; then
+		#MP_STACKZ=200M; export MP_STACKZ
+		MPSTKZ=200M; export MPSTKZ
+		PGI_TERM=trace; export PGI_TERM
+    fi
+#    if [ @SYSTEM@ = linux_intel ] ; then
+#		#KMP_STACKSIZE=100M; export KMP_STACKSIZE
+#    fi
+    if [ @SYSTEM@ = x1e ] ; then
+		X1_STACK_SIZE=0x180000000; export X1_STACK_SIZE
+		OMP_THREAD_STACK_SIZE=500000000; export OMP_THREAD_STACK_SIZE
+    fi
+fi
+#
+runscr=@RUNSCR_DIR@
+#
+# Environmental variables for mpi mode
+#
+if [ @MARCH@ = mpi -o @MARCH@ = thread -o @MARCH@ = hybrid ]; then
+
+if [ @INSTITUTION@ = nml -a @SYSTEM2@ = linux ] ; then
+   FCSTENV='mpirun -machinefile $PBS_NODEFILE -np @FCST_NPES@'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbs'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = kisti -a @SYSTEM2@ = linux ]; then
+   if [ \( "$MPI" = "" -a "$MPINAME" = "openmpi" \) -o "$MPI" = "openmpi" ]; then
+     #openmpi 
+     FCSTENV='mpirun -mca btl self,openib -mca plm_rsh_num_concurrent 400 -mca oob_tcp_listen_mode listen_thread -mca plm_rsh_tree_spawn 1 -np $NSLOTS'
+   else
+     #mvapich, mvapich2
+     FCSTENV='mpirun_rsh -hostfile $TMPDIR/machines -np $NSLOTS'
+   fi
+   BATCHQUE='qsub'
+   BATCHdepend='-hold_jid '
+   BATCHtype='sge'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = kisti -a @SYSTEM@ = ibmsp ]; then
+   FCSTENV='poe'
+   BATCHQUE='llsubmit'
+   BATCHdepend=''
+   BATCHtype='lls'
+   BATCHstatus='llq'
+elif [ @INSTITUTION@ = kaf -a @SYSTEM2@ = linux ]; then
+   FCSTENV='mpiexec_mpt -v -np @FCST_NPES@'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbspro'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = haenam -a @SYSTEM2@ = linux ]; then
+   FCSTENV='aprun -n @FCST_NPES@'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='haenam'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = kiaps -a @SYSTEM2@ = linux ]; then
+   if [ `echo $MPI_RUN | grep mpich2   | wc -l` -eq 1 ]; then      # gaon1 mpich2
+     FCSTENV='mpirun -np @FCST_NPES@ -f $PBS_NODEFILE'
+   else
+     FCSTENV='mpirun -machinefile $PBS_NODEFILE -np @FCST_NPES@'
+   fi
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbspro'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = kiapsrt -a @SYSTEM2@ = linux ]; then
+   if [ `echo $MPI_RUN | grep mpich2   | wc -l` -eq 1 ]; then      # gaon1 mpich2
+     FCSTENV='mpirun -np @FCST_NPES@ -f $PBS_NODEFILE'
+   else
+     FCSTENV='mpirun -machinefile $PBS_NODEFILE -np @FCST_NPES@'
+   fi
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='kiapsrt'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = apcc -a @SYSTEM2@ = linux ]; then
+   FCSTENV='mpirun -machinefile $PBS_NODEFILE -np @FCST_NPES@'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbs'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = ncar -a @SYSTEM2@ = linux ]; then
+   FCSTENV='mpirun.lsf'
+   BATCHQUE='bsub'
+   BATCHdepend='-w'
+   BATCHtype='bsub'
+   BATCHstatus='bjobs'
+elif [ @INSTITUTION@ = noaa -a @SYSTEM2@ = linux ]; then
+   FCSTENV='mpiexec_mpt -v -np @FCST_NPES@'
+#   BATCHQUE='qsub -l vmem=3GB'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbsnoaa'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = kesti -a @SYSTEM2@ = linux ] ; then
+   FCSTENV='mpirun -machinefile $PBS_NODEFILE -np @FCST_NPES@'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbs'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = snu -a @SYSTEM2@ = linux ] ; then
+   FCSTENV='mpirun -machinefile $PBS_NODEFILE -np @FCST_NPES@'
+   BATCHQUE='qsub'
+   BATCHdepend='-W depend=afterok:'
+   BATCHtype='pbs'
+   BATCHstatus='qstat'
+elif [ @INSTITUTION@ = kma -a @SYSTEM@ = x1e ]; then
+   FCSTENV='@RUNENV@ -n @FCST_NPES@ -N @NPES_PER_NODE@ -d @NCPUS@ -m exclusive'
+   BATCHQUE=''
+   BATCHdepend=''
+   BATCHtype='dec'
+elif [ @SYSTEM@ = mac ]; then
+   FCSTENV='mpirun -wd $here_dir'
+   BATCHQUE=''
+   BATCHdepend=''
+   BATCHtype='mac'
+elif [ @SYSTEM@ = dec ]; then
+   FCSTENV='dmpirun -np @NPES@'
+   BATCHQUE=''
+   BATCHdepend=''
+   BATCHtype='dec'
+   ulimit -d 4232635
+   ulimit -s 1024000
+else
+   FCSTENV='mpirun -machinefile ~/mpd.hosts -np @FCST_NPES@'
+   BATCHQUE=''
+   BATCHdepend=''
+   BATCHtype='dec'
+fi
+
+else  # for single run
+   FCSTENV=''
+   BATCHQUE=''
+   BATCHdepend=''
+   BATCHtype='dec'
+fi
+if [ @MARCH@ = thread ]; then
+   FCSTENV=''
+fi
+#
+# Make fcst, pgb, fgb scripts with FCSTENV and header
+#
+   if [ @MARCH@ = single ]; then
+     header1=${BATCHtype}_single.head
+   else
+     header1=${BATCHtype}_mpi.head
+   fi
+   header2=${BATCHtype}_single.head
+   #
+   # parallel or serial
+   #
+   files="fcst r_fcst r_cpl_fcst fcst_omp"
+   for file in $files; do
+     sed -n "s%@FCSTENV@%${FCSTENV}%g ; /end_of_header/,\$p" \
+             $runscr/$file > $runscr/$file.a
+     cat $runscr/$header1 $runscr/$file.a > $runscr/$file
+     rm -f $runscr/$file.a
+     chmod a+x $runscr/$file
+   done
+   #
+   # serial
+   #
+   files="pgb fgb sgb post_omp post_all r_post_all grims_rt_post"
+   for file in $files; do
+     sed -n "s%@FCSTENV@%${FCSTENV}%g ; /end_of_header/,\$p" \
+             $runscr/$file > $runscr/$file.a
+     cat $runscr/$header2 $runscr/$file.a > $runscr/$file
+     rm -f $runscr/$file.a
+     chmod a+x $runscr/$file
+   done
+#
+#  namelist convention for ibmsp
+#
+if [ @SYSTEM@ = ibmsp ] ; then
+	PARTHDS=@NTHREADS@
+	XLSMPOPTS="parthds=${PARTHDS}"
+	export XLSMPOPTS
+#	XLFRTEOPTS="namelist=old"
+#	export XLFRTEOPTS
+	MP_SHARED_MEMORY=yes
+	export MP_SHARED_MEMORY
+	SPINLOOPTIME=5000
+	export SPINLOOPTIME
+	ulimit -d unlimited
+	ulimit -s unlimited
+fi
+if [ @SYSTEM@ = mac ] ; then
+#   export XLFRTEOPTS="namelist=old"  # (SCC no longer needed  01/07/05)
+    if [ @MARCH@ = mpi ] ; then
+       lamboot -v $HOME/lamhosts      # activate lam MPI universe on Mac
+    fi
+fi

@@ -1,0 +1,102 @@
+#!/bin/sh
+set -x
+#
+if [ $# -ne 5 ] ; then
+	echo $0:  argument error
+	exit 8
+fi
+#
+# Change resolution
+#
+# $1 is input sigma file
+# $2 is input sfc file
+# $3 is output sigma file
+# $4 is output sfc file
+# $5 is input sfc file type (osu1 osu2 noa1 vic1)
+#
+#
+in_sig=$1
+in_sfc=$2
+out_sig=$3
+out_sfc=$4
+sfcftyp=$5
+#
+issig=1
+issfc=1
+if [ $in_sig = "dummy" ]; then
+   issig=0
+fi
+if [ $in_sfc = "dummy" ]; then
+   issfc=0
+fi
+#
+fnsporog=orospc.smth
+lrep='.TRUE.'
+ltrn='.TRUE.'
+lnew='.TRUE.'
+#
+PROG=chgr
+atm_unit=53
+#
+if [ linux_intel = x1e ] ; then
+        FILENV=filenv.$$
+        export FILENV
+        assign -R
+else
+        rm -f fort.[0-9]* 2>/dev/null
+fi 
+if [ linux_intel = cray -o linux_intel = t90 -o linux_intel = t3e ] ; then
+	assign -R
+fi
+if [ $issig -eq 1 ]; then
+   ln -fs $in_sig                    fort.11
+   ln -fs $out_sig                   fort.51
+fi
+if [ $issfc -eq 1 ]; then
+   ln -fs $in_sfc                    fort.14
+   ln -fs $out_sfc                   fort.52
+fi
+ln -fs $fnsporog                     fort.12
+ln -fs slmsk                         fort.13
+ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/namelist.gmp  fort.1
+if [ "sph" = dfs ]; then
+    ln -fs /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/libs_gmp/con/standard_atm.asc       fort.${atm_unit} || exit 8
+fi
+
+if [ sph = dfs ]; then
+	cat >${PROG}.parm <<EOF
+   &NAMCHGR
+ 	NIN=11,NOU=51,LTRN=$ltrn,LNEW=$lnew,LREP=$lrep,
+ 	SFCFTYP='$sfcftyp',IUNIT=${atm_unit},
+   ISSIG=$issig, ISSFC=$issfc,
+	/
+EOF
+else
+	cat >${PROG}.parm <<EOF
+   &NAMCHGR
+ 	NIN=11,NOU=51,LTRN=$ltrn,LNEW=$lnew,LREP=$lrep,
+ 	SFCFTYP='$sfcftyp',
+   ISSIG=$issig, ISSFC=$issfc,
+	/
+EOF
+fi
+#
+if [ linux_intel = dec ];then
+   ulimit -s 1024000
+else
+   ulimit -s unlimited
+fi
+#
+rm -f $PROG.x
+ln -s /rhome/soo/NEMO/couple/couple_ice/gmp_v3.2/runs_gmp/../srcs_gmp/bin/${PROG}.x $PROG.x
+ ./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: execution failed." >>ERROR.out
+  exit 8
+fi
+if [ ! -s $in_sfc ] ; then
+	rm $out_sfc
+fi
+#
+rm -f fort.[0-9]*
+exit 0

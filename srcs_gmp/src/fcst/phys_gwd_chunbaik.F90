@@ -1,0 +1,1314 @@
+! GWDC options
+#undef CB2002
+#define CLD_FACT
+#ifndef CB2002
+#define CB98
+#define CLD_FACT
+#endif
+#define MAX_HEAT
+#ifndef MAX_HEAT
+#define AVE_HEAT
+#endif
+#undef GWDC_DBG
+#undef GWDC_TEST
+#define WNDLMT
+#ifdef WNDLMT
+#define UWND
+#define VWND
+#endif
+#undef CRITICAL
+#include <define.h>
+!------------------------------------------------------------------------------- 
+   subroutine phys_gwd_chunbaik(ims2, imx2, kmx,                               &
+                     u, v, t,                                                  &
+                     prsi, prsl,                                               &
+#if defined SAS || defined KSAS
+                     dct, fcu, fcd,                                            &
+#else
+#ifdef CCMCNV
+                     hrate, netflux,                                           &
+#endif
+#endif
+                     rcl, deltim, ktop, kbot,                                  &
+                     tauctx,taucty,                                            &
+#ifdef DG3
+                     dudt1, dvdt1,                                             &
+!                    tautop,                                                   &
+!                    cldtoplev, cldepthlev,                                    &
+!                    cldfactlev,                                               &
+!                    maxheat, aveheat,                                         &
+#endif
+#ifdef RMP
+                     rdelx,rdely,                                              &
+#endif
+                     lat)
+!------------------------------------------------------------------------------- 
+!
+! program history log:
+!   1998-01-01  hye-young chun         development
+!   2000-01-01  song-you hong          physcis options
+!   2007-01-01  jong-heon jeon         implementation
+!   2009-10-01  jung-eun kim           f90 format with standard physics modules
+!   2010-07-01  myung-seo koo          dimension allocatable with namelist input
+!
+!------------------------------------------------------------------------------- 
+   use paramodel, only  :  ILOTS,lonf_,latg_,levs_
+   use constant, only   :  g_,rd_,rv_,cp_,pi_
+!------------------------------------------------------------------------------- 
+! input & output data
+!------------------------------------------------------------------------------- 
+   real             ::  u(imx2,kmx), v(imx2,kmx), t(imx2,kmx), psfc(imx2)
+   real             ::  prsi(imx2,kmx+1), prsl(imx2,kmx)
+#if defined SAS || defined KSAS
+   real             ::  dct(imx2,kmx), fcu(imx2,kmx), fcd(imx2,kmx)
+#else
+#ifdef CCMCNV
+   real             ::  hrate(imx2,kmx), netflux(imx2,kmx)
+!       real            ::  upflux(imx2,kmx), dwflux(imx2,kmx)
+#endif
+#endif
+#ifdef DG3
+   real             ::  dudt1(imx2,kmx), dvdt1(imx2,kmx)
+   real             ::  tautop(imx2,kmx)
+   real             ::  cldtoplev(imx2,kmx), cldepthlev(imx2,kmx)
+   real             ::  cldfactlev(imx2,kmx)
+   real             ::  maxheat(imx2,kmx), aveheat(imx2,kmx)
+#endif
+   real             ::  xlat(imx2)
+   real             ::  rcl, deltim
+   integer          ::  lat
+   integer          ::  ktop(imx2), kbot(imx2)
+!-------------------------------------------------------------------------------
+!-- si :: p/sfc at base of layer (from 1 to km+1)
+!-- sl :: p/sfc at middle if (from 1 to km)
+!-- dct :: deep convective heating rate [k/s]
+!-- fu,fv :: zonal & meridional wind tendency(du/dt, dv/dt) [m/s^2]
+!-- fcu,fcd :: upward & downward mass flux to callculate
+!              net mass flux('mflux') [kg/m^2/s]
+!-- rcl :: reciprocal of square cos(lat) (1/cos(lat)^2)
+!-- deltim :: delta time (dt) [s]
+!-------------------------------------------------------------------------------
+!
+! local workspace
+!
+   integer          ::  i,k,kk(ILOTS)
+!
+!   index change!!!
+!      plond    -->   ILOTS
+!      plev     -->   levs_   :: mid lev. idx
+!      plevp    -->   levs_+1 :: base lev. idx 
+!
+   integer          ::  kcldtop(ILOTS), kcldbot(ILOTS)
+   integer          ::  cldepth_lev(ILOTS)
+!
+   real             ::  cldbar(ILOTS), mcbar(ILOTS), dpsum(ILOTS)
+   real             ::  dpmid(ILOTS,levs_), dpint(ILOTS,levs_+1)
+   real             ::  pint(ILOTS,levs_+1), pmid(ILOTS,levs_)
+   real             ::  ugwdc(ILOTS,levs_), vgwdc(ILOTS,levs_),                &
+                        utgwc(ILOTS,levs_), vtgwc(ILOTS,levs_)
+   real             ::  tauct(ILOTS), tauctx(ILOTS), taucty(ILOTS),            & 
+                        qmax(ILOTS)
+   real             ::  taugwci(ILOTS,levs_+1), taugwcxi(ILOTS,levs_+1),       &
+                         taugwcyi(ILOTS,levs_+1)
+   real             ::  bruni(ILOTS,levs_+1),rhoi(ILOTS,levs_+1)
+   real             ::  brunm(ILOTS,levs_), rhom(ILOTS,levs_)
+   real             ::  ti(ILOTS,levs_+1)
+   real             ::  basicum(ILOTS,levs_), basicui(ILOTS,levs_+1)
+   real             ::  riloc(ILOTS,levs_+1), rimin(ILOTS,levs_+1)
+   real             ::  zmdt(ILOTS,levs_)
+   real             ::  zmdt_sum(ILOTS), zmdt_ave(ILOTS)
+   real             ::  plnint(ILOTS,levs_+1), plnmid(ILOTS,levs_)
+!
+   real             ::  dt2
+   real             ::  cldepth(ILOTS)
+   real             ::  todct(ILOTS,levs_)
+!
+   real             ::  dlnpinv_int, dlnpint_mid
+   real             ::  inter1_int(ILOTS,levs_), inter2_int(ILOTS,levs_)
+   real             ::  inter1_mid(ILOTS,levs_), inter2_mid(ILOTS,levs_)
+!
+   logical          ::  gwdflg(ILOTS),flg
+!
+   real             ::  ucltop(ILOTS), vcltop(ILOTS)
+   real             ::  windcltop(ILOTS), shear(ILOTS)
+   real             ::  cosphi(ILOTS), sinphi(ILOTS), c1, c2
+   real             ::  dlength
+   real             ::  nonlinct(ILOTS), nonlins(ILOTS), taus(ILOTS)
+   real             ::  nonlin(ILOTS)
+!
+   real             ::  sum1(ILOTS)
+   real             ::  cld_factor(ILOTS)
+   real             ::  n2, dtdp, maxtend
+   real             ::  umomentum(ILOTS), vmomentum(ILOTS)
+   real             ::  crit1(ILOTS), crit2(ILOTS)
+   real             ::  rcs, erad, delx, dely, cpinv
+#ifdef RMP
+   real             ::  rdelx, rdely
+#endif
+   real             ::  wind(ILOTS), innerp(ILOTS), cosine(ILOTS)
+!    
+   real             ::  mflux(ILOTS,levs_) 
+!
+   real             ::  lati, dmomen1, dmomen2
+!
+   real             ::  u1(ILOTS,levs_), v1(ILOTS,levs_)
+   real             ::  utend(ILOTS,levs_), vtend(ILOTS,levs_)
+   real             ::  du1, multi, fact1, fact2, dmomentum
+#ifdef CB2002
+   real             ::  ks(ILOTS),brunq(ILOTS),brunq2(ILOTS)
+   real             ::  a1(ILOTS),a2(ILOTS)
+   real             ::  tmp0,nfact
+   real,parameter   ::  tmp0 = 273.
+#endif
+   real,parameter   ::  brunmin=1.e-24
+   real,parameter   ::  n2min=1.0e-8,lmt=0.5
+   real,parameter   ::  cldtop_lmt=5.e4
+   real,parameter   ::  cldepth_cr=8.e4
+   real,parameter   ::  hrate_cr=1.e-28
+!-------------------------------------------------------------------------------
+!-- n2 :: Brunt-Vaisala frequency
+!-- n2min :: minimum value of Brunt-Vaisala frequency
+!-- mflux :: net mass flux 
+!-- inter1_int, inter2_int :: interpolaiton factor to transfort a midlev. value
+!-- inter1_mid, inter2_mid :: interpolaiton factor to transfort a baselev. value
+!-- todct :: 2*dct
+!-- dt2 :: 2*deltim
+!-- fu,fv :: wind tendency (du/dt, dv/dt)
+!-- cldepth_cr :: maximum value of cumulus cloud depth [pa]
+!-- cpinv :: 1./cp
+!-- ks :: 1./deltx
+!-- brunq :: the buoyancy freq. evaluated at the level of the max. diabatic heating rate
+!-------------------------------------------------------------------------------
+!-- definition of local x,y loop index
+!
+   im = ims2
+   km = kmx
+   kmp= kmx+1
+!  
+   do i = 1,im
+     kk(i) = 0
+   enddo
+!
+   du1       = 0.
+   multi     = 0.
+   fact1     = 0.
+   fact2     = 0.
+   dmomentum = 0.
+   dmomen1   = 0.
+   dmomen2   = 0.
+   dt2       = 2.*deltim
+!
+!-- c1, c2 :: constant value to calculate a wave stress in each level
+!-- c1 :: GRIMS ==>     (CCM3 ==> 1.41, YONU GCM ==> 3.694)
+!
+#ifdef CB2002
+   c1= 0. 
+   c2= 0.
+   nfact= 0.
+#else
+#ifdef CB98
+   c1 =  1.41
+   c2 = -0.38
+#endif
+#endif
+   cpinv = 1./cp_
+!
+!--  initialization 
+!
+   flg = .false.
+   do i = 1,im
+     gwdflg(i) = .true.
+   enddo
+!
+   do k = 1,km
+     do i = 1,im
+       u1(i,k) = u(i,k)
+       v1(i,k) = v(i,k)
+     enddo
+   enddo
+   do i = 1,im
+     tauct(i)      = 0.
+     tauctx(i)     = 0.
+     taucty(i)     = 0.
+   enddo
+   do k = 1,km
+     do i = 1,im
+       utend(i,k) = 0.
+       vtend(i,k) = 0.
+     enddo
+   enddo
+!
+#ifdef DG3
+   do k = 1,km
+     do i = 1,im
+       dudt1(i,k)        = 0.
+       dvdt1(i,k)        = 0.
+       tautop(i,k)       = 0.
+       zmdt(i,k)         = 0.
+       cldtoplev(i,k)    = 0.
+       cldepthlev(i,k)   = 0.
+       cldfactlev(i,k)   = 0.
+       maxheat(i,k)      = 0.
+       aveheat(i,k)      = 0.
+     enddo
+   enddo
+#endif
+!
+!-- convert surface pressure to [pa] from [kpa] 
+!
+   do k = 1,kmp
+     if (k .ne. kmp) then
+       do i = 1,im
+         pint(i,k) = 1000. * prsi(i,k)
+         pmid(i,k) = 1000. * prsl(i,k)
+       enddo
+     else
+       do i = 1,im
+         pint(i,kmp) = max(1000. * prsi(i,kmp),1.) ! min at 1 Pa
+       enddo
+     endif
+   enddo
+!
+!--  cloud depth : not [m]!! but [Pa]!!
+!
+   do i = 1,im
+     kcldtop(i) = ktop(i)
+     kcldbot(i) = kbot(i)
+     kk(i)      = kcldtop(i)
+     cldepth(i) = 1
+     cldepth_lev(i) = 1
+   enddo
+!
+!--  determine the gwdc logical flag
+!
+   do i = 1,im
+     if ((kcldtop(i).le.kcldbot(i)).or.(kcldtop(i).eq.0).or.                   &
+       (kcldtop(i).eq.km)) then
+       gwdflg(i) = .false.
+     else
+       cldepth(i) = pmid(i,kbot(i)) - pmid(i,ktop(i))
+       cldepth_lev(i) = ktop(i) - kbot(i)
+     endif
+   enddo
+!
+! -- return if there is no convection point
+!
+   do i = 1,im
+     if(gwdflg(i)) flg = .true.
+   enddo
+   if(.not.flg) return
+!
+#ifdef DG3
+   do k = 1,km
+     do i = 1,im
+       if (gwdflg(i)) then
+         cldtoplev(i,k)  = abs(pmid(i,kk(i)))
+         cldepthlev(i,k) = abs(pmid(i,kcldbot(i)) - pmid(i,kk(i)))
+       else
+         cldtoplev(i,k)  = 0.
+         cldepthlev(i,k) = 0.
+       endif
+     enddo
+   enddo
+#endif
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         plnmid(i,k) = 0.
+         dpmid(i,k)  = 0.
+       endif
+     enddo
+   enddo
+   do k = 1,km+1
+     do i = 1,im
+       if(gwdflg(i)) then
+         plnint(i,k) = 0.
+         dpint(i,k)  = 0.
+       endif
+     enddo
+   enddo
+!     
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         utgwc(i,k) = 0.
+         vtgwc(i,k) = 0.
+         ugwdc(i,k) = 0.
+         vgwdc(i,k) = 0.
+         brunm(i,k) = 0.
+         rhom(i,k)  = 0.
+         basicum(i,k) = 0.
+         inter1_int(i,k) = 0.
+         inter1_mid(i,k) = 0.
+         inter2_int(i,k) = 0.
+         inter2_mid(i,k) = 0.
+       endif
+     enddo
+   enddo
+!
+   do k = 1,kmp
+     do i = 1,im
+       if(gwdflg(i)) then
+         taugwci(i,k)  = 0.
+         taugwcxi(i,k) = 0.
+         taugwcyi(i,k) = 0.
+         bruni(i,k)    = 0.
+         rhoi(i,k)     = 0.
+         ti(i,k)       = 0.
+         basicui(i,k)  = 0.
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       qmax(i)       = 0.
+       mcbar(i)      = 0.
+       dpsum(i)      = 0.
+       cldbar(i)     = 0.
+       zmdt_sum(i)   = 0.
+       zmdt_ave(i)   = 0.
+#ifdef CB2002
+       brunq(i)      = 0.
+       brunq2(i)     = 1.
+       ks(i)         = 1.
+       a1(i)         = 0.
+       a2(i)         = 0.
+#endif         
+     endif
+   enddo
+!
+   do k = 1,kmp
+     do i= 1,im
+       if(gwdflg(i)) then
+         riloc(i,k)    = 0.
+         rimin(i,k)    = 0.
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if (gwdflg(i)) then
+       windcltop(i)  = 0.
+       ucltop(i)     = 0.
+       vcltop(i)     = 0.
+       shear(i)      = 0.
+       cosphi(i)     = 0.
+       sinphi(i)     = 0.
+       sum1(i)       = 0.
+       nonlin(i)     = 0.
+       nonlinct(i)   = 0.
+       nonlins(i)    = 0.
+       taus(i)       = 0.
+       umomentum(i)  = 0.
+       vmomentum(i)  = 0.
+       cld_factor(i) = 1.
+       wind(i)       = 0.
+       innerp(i)     = 0.
+       crit1(i)    = 0.
+       crit2(i)    = 0.
+     endif
+   enddo
+!
+!--  net mass flux[kg/m^2/s] in each grid points
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+#if defined SAS || defined KSAS
+         mflux(i,k) = fcu(i,k) + fcd(i,k)
+#else
+#ifdef CCMCNV
+         mflux(i,k) = netflux(i,k)
+#endif
+#endif
+       endif
+     enddo
+   enddo
+!
+!---dbg_intput_data 
+!    
+!      do i = 1,im
+!        if(i .ge. 26 .and. i .le. 29) then
+!          if(gwdflg(i)) then 
+!            do k = 1,km
+!             print*,'======================================='
+!             print*, 'i, k',i,k
+!             print*, 'ktop, kbot',ktop(i),kbot(i)
+!#ifdef SAS
+!              if(zmdt(i,k) .ne. 0. .or. mflux(i,k) .ne. 0.) then
+!                print*, 'heating rate',zmdt(i,k)
+!                print*, 'netflux',mflux(i,k)
+!                print*, 'upflux, downflux',fcu(i,k),fcd(i,k) 
+!              endif
+!#endif
+!#ifdef CCMCNV
+!              if(hrate(i,k) .ne. 0. .or. mflux(i,k) .ne. 0.) then
+!                print*, 'heating rate',hrate(i,k)
+!                print*, 'netflux',mflux(i,k)
+!              endif
+!#endif             
+!            enddo
+!          endif
+!        endif
+!      enddo      
+! 
+!--  ln(press.) & press. diffrence in each vertical lev.
+!
+   do k = 1,kmp
+     do i = 1,im
+       if(gwdflg(i)) then
+         if( k .ne. kmp ) then
+           plnmid(i,k) = log(pmid(i,k))
+           plnint(i,k) = log(pint(i,k))
+         else
+           plnint(i,kmp) = log(pint(i,kmp))
+         endif
+       endif
+     enddo
+   enddo
+! 
+   do k = 2,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         dpint(i,k) = pmid(i,k-1) -  pmid(i,k)
+       endif
+     enddo
+   enddo
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         dpmid(i,k) = pint(i,k) - pint(i,k+1)
+       endif
+     enddo
+   enddo
+!
+!-- density in each middel level       
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         rhom(i,k) = pmid(i,k)/(rd_*t(i,k))
+       endif
+     enddo
+   enddo
+!
+!-- inter1_int, inter2_int :: interpolation factor for interface lev.values
+!-- inter1_mid, inter2_mid :: interpolation factor for middle lev. values
+!
+   do k = 2,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         dlnpinv_int = 1. / (plnmid(i,k-1) - plnmid(i,k))
+         dlnpinv_mid = 1. / (plnint(i,k) - plnint(i,k+1))
+         inter1_int(i,k) = (plnint(i,k) - plnmid(i,k)) * dlnpinv_int
+         inter2_int(i,k) = (plnmid(i,k-1) - plnint(i,k)) * dlnpinv_int
+         inter1_mid(i,k) = (plnint(i,k) - plnmid(i,k)) * dlnpinv_mid
+         inter2_mid(i,k) = (plnmid(i,k) - plnint(i,k+1)) * dlnpinv_mid
+       endif
+     enddo
+   enddo
+!
+!-- temparature, density,
+!-- &  Brunt-Vaisala frequencies at inerface level
+!
+   do k = 2,km  
+     do i = 1,im
+       if(gwdflg(i)) then
+         ti(i,k) = t(i,k)*inter2_int(i,k) + t(i,k-1)*inter1_int(i,k)
+         rhoi(i,k) = pint(i,k) / (rd_*ti(i,k))
+         dtdp = (t(i,k-1)-t(i,k))/(pmid(i,k-1)-pmid(i,k))
+         n2 = g_*g_ / ti(i,k)*( 1.*cpinv - rhoi(i,k)*dtdp )
+         bruni(i,k) = max(sqrt(max(n2min,n2)), brunmin)
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       ti(i,1)    = t(i,1)
+       rhoi(i,1)  = pint(i,1) / (rd_*ti(i,1))
+       bruni(i,1) = max(sqrt(g_*g_ / (cp_*ti(i,1))), brunmin)
+     endif
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       ti(i,kmp)    = t(i,km)
+       rhoi(i,kmp)  = pint(i,km) / (rd_*ti(i,km))
+       bruni(i,kmp) = max(sqrt(g_*g_ / (cp_*ti(i,km))), brunmin)
+     endif
+   enddo
+!
+!--  Brunt-Vaisala frequencies at mid level
+!
+   do k = 1,km-1 
+     do i = 1,im
+       if(gwdflg(i)) then
+         brunm(i,k) = bruni(i,k)*inter2_mid(i,k)                               &
+                    +bruni(i,k+1)*inter1_mid(i,k)
+       endif
+     enddo
+   enddo
+   do i = 1,im
+     if(gwdflg(i)) then
+       brunm(i,km) = bruni(i,km)
+     endif
+   enddo
+!
+! mcbar :: vertical integration of pressure diffences
+! dpsum :: vertical integration of convective mass flux
+! cldbar :: cloud coverage, maximum = 0.8
+!
+   do k = 2,km 
+     do i = 1,im  
+       if(gwdflg(i)) then
+         mcbar(i) = mcbar(i) + max(mflux(i,k-1)*g_*864., 0.)                   &
+                                 * dpmid(i,k)
+         dpsum(i) = dpsum(i) + dpmid(i,k)
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       mcbar(i)  = max( mcbar(i)/dpsum(i), 1.0e-15 )
+       cldbar(i) = min( 0.035*log(1.0+mcbar(i) ), 0.85 )
+     endif
+   enddo
+!
+!  Main loop start !!!  
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       ucltop(i)    = u(i,kk(i))
+       vcltop(i)    = v(i,kk(i))
+       windcltop(i) = sqrt(ucltop(i)*ucltop(i)+vcltop(i)*vcltop(i)) 
+       if (windcltop(i) .lt. 1.) then
+         windcltop(i) = 1.
+       else
+         windcltop(i) = windcltop(i)
+       endif
+       cosphi(i) = ucltop(i)/windcltop(i)
+       sinphi(i) = vcltop(i)/windcltop(i)
+     endif
+   enddo
+!
+!--  calculate basic state wind projected in the direction of
+!--  the cld top wind & basic state wind at interface lev.
+!
+!-- jjh :: new correction !!
+!-- calculate basic state wind projected in the direction of the cloud top 
+!   wave stress 
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if ( k .ne. kk(i) ) then
+           basicum(i,k) = (u1(i,k)*ucltop(i)+v1(i,k)*vcltop(i))/windcltop(i)
+         else
+           basicum(i,kk(i)) = u1(i,kk(i))*cosphi(i)+v1(i,kk(i))*sinphi(i)
+         endif
+       endif
+     enddo
+   enddo
+!          
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if (basicum(i,k) .le. 0. ) then
+           if ( abs(basicum(i,k)) .lt. 1.) then
+             basicum(i,k) = -1.
+           else
+             basicum(i,k) = basicum(i,k)
+           endif
+         else
+           if ( abs(basicum(i,k)) .lt. 1.) then
+             basicum(i,k) = 1.
+           else
+             basicum(i,k) = basicum(i,k)
+           endif
+         endif
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       basicui(i,1) = basicum(i,1)
+     endif
+   enddo
+!
+   do k = 2,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         basicui(i,k) = basicum(i,k)*inter2_int(i,k)                           &
+                        + basicum(i,k-1)*inter1_int(i,k)
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       basicui(i,kmp) = basicum(i,km)
+     endif
+   enddo
+!
+!-- Local Ricahrdson number
+!       
+   do k = 2,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         shear(i) = ( basicum(i,k-1) - basicum(i,k))/dpint(i,k) *              &
+                    ( rhoi(i,k) * g_ )
+         if ( abs(shear(i)) .eq. 0. ) then
+           riloc(i,k) = 1.e+20
+         else
+           riloc(i,k) = ( bruni(i,k)**2 )/(shear(i)**2)
+         endif
+         if (riloc(i,k) .ge. 1.e+20) then
+           riloc(i,k) = 0.9e+20
+         endif
+       endif
+     enddo
+   enddo
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       riloc(i,1)    = riloc(i,2)
+       riloc(i,kmp)  = riloc(i,km)
+     endif
+   enddo
+!
+!-- zmdt :: same value with dct(dT/dt) [k/s] (deep conv. heating rate)
+!-- sum1 :: maximum zmdt, In other words,
+!           maximum deep conv. heating rate in any cumulus colume
+!-- qmax :: a revised term of sum1 used cloud factor
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       sum1(i)  = 1.e-28
+     endif
+   enddo
+!
+!-- case #1
+!-- haeting rate = Max. value in a grid colume
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if(k.ge.kcldbot(i) .and. k.le.kk(i)) then
+#if defined SAS || defined KSAS
+           zmdt(i,k) = dct(i,k)
+#else
+#ifdef CCMCNV
+           zmdt(i,k) = hrate(i,k)
+#endif
+#endif
+           if( zmdt(i,k) .gt. sum1(i) ) then
+             sum1(i) = zmdt(i,k)
+#ifdef CB2002
+             brunq(i) = max(bruni(i,k), brunmin)
+#endif
+           endif
+         endif
+       endif
+     enddo
+   enddo
+!
+!-- case #2
+!-- heating rate = Ave. value in a grid colume
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if(k.ge.kcldbot(i) .and. k.le.kk(i)) then
+           if (zmdt(i,k) .gt. hrate_cr) then
+#if defined SAS || defined KSAS
+             zmdt_sum(i) = zmdt_sum(i) + dct(i,k)
+#else
+#ifdef CCMCNV
+             zmdt_sum(i) = zmdt_sum(i) + hrate(i,k)
+#endif
+#endif
+           else
+             zmdt_sum(i) = zmdt_sum(i) + hrate_cr
+           endif           
+         endif
+       endif
+     enddo
+   enddo
+   do i = 1,im
+     if (gwdflg(i)) then 
+       zmdt_ave(i) = zmdt_sum(i)/abs(kk(i)-kcldbot(i))
+     endif
+   enddo
+!
+!-- cld_factor :: new correction term
+!-- to linearly reduce the heating rate in shallow clouds
+!                 
+   do i = 1,im
+     if(gwdflg(i)) then
+       cld_factor(i) = max(min(cldepth(i)/cldepth_cr                           &
+                   *(1.e5-pmid(i,kk(i)))/cldepth_cr,1.),0.)
+     endif
+   enddo
+!
+!-- qmax :: diabatic heating rate [K/s]
+!-- correction ver.
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+#ifdef MAX_HEAT
+!
+! only max. heating rate (no cloud effect)
+!
+       qmax(i) = sum1(i)
+#else
+#ifdef AVE_HEAT
+!
+! only ave. heating rate (no cloud effect)
+!
+       qmax(i) = zmdt_ave(i)
+#endif
+#endif
+#ifdef CLD_FACT
+!
+! ave. or max. heating rate + cloud factor
+!
+       qmax(i) = qmax(i)*cld_factor(i)
+#endif        
+     endif
+   enddo
+!
+#ifdef DG3
+   do k = 1,km
+     do i = 1,im
+       if (gwdflg(i)) then
+         maxheat(i,k)      = sum1(i)
+         aveheat(i,k)      = zmdt_ave(i)
+         cldfactlev(i,k)   = cld_factor(i)
+       else
+         maxheat(i,k)      = 0.
+         aveheat(i,k)      = 0.
+         cldfactlev(i,k)   = 0.
+       endif
+     enddo
+   enddo
+#endif
+!
+   rcs    = sqrt(rcl)
+   erad   = 6371.315e+3
+#ifdef RMP
+   delx   = rdelx
+   dely   = rdely
+#else
+   delx   = 2.*pi_*erad/ float(lonf_) / rcs 
+   dely   = pi_*erad / float(latg_)
+#endif
+   dlength = sqrt( delx**2 + dely**2 )
+!
+!-- calculate of wave stress at cloud top
+!
+#ifdef CB2002
+   do i = 1,im
+     if(gwdflg(i)) then
+       ks(i) = 1./dlength
+       a1(i) = cldbar(i)*dlength 
+       a2(i) = 5.*a1(i) 
+     endif
+   enddo
+#endif
+!
+   do i = 1,im
+     if(gwdflg(i)) then 
+       if ( basicui(i,kk(i)) .gt. 0. ) then
+         if (riloc(i,kk(i)) .gt. 0.25 ) then
+#ifdef CB2002
+           c1 = pi_*log( (a1(i)+a2(i))**2 ) +                                  &
+                pi_*log(4.*a1(i)*a2(i)) 
+           nfact = max(brunq(i)/bruni(i,kk(i)), brunmin)
+           c2 = nfact/(1.+nfact)
+           brunq2(i) = max(brunq(i)*brunq(i), brunmin)
+           nonlinct(i) = (g_*qmax(i)*a1(i)*bruni(i,kk(i)))/                    &
+                         ( brunq2(i)*tmp0!
+                           basicum(i,kk(i))*basicum(i,kk(i)) )
+           tauct(i)= -((rhom(i,kk(i))*(basicum(i,kk(i))**2))/brunq(i))*        &
+                       basicum(i,kk(i))*ks(i)!
+                       c1*c2*c2*nonlinct(i)*nonlinct(i)
+#else
+#ifdef CB98
+           nonlinct(i) = (g_*qmax(i)*cldbar(i)*dlength) /                      &
+                   (bruni(i,kk(i))*t(i,kk(i))*(basicum(i,kk(i))**2))
+           tauct(i)  = -(rhom(i,kk(i))*(basicum(i,kk(i))**2)) /                &
+                      (bruni(i,kk(i))*dlength)           *                     &
+                       basicum(i,kk(i)) * c1 * c2*c2      *                    &
+                       nonlinct(i)*nonlinct(i)
+#endif
+#endif
+           tauctx(i) = tauct(i) * cosphi(i)
+           taucty(i) = tauct(i) * sinphi(i)
+         else
+           tauct(i)  = 0.
+           tauctx(i) = 0. 
+           taucty(i) = 0.
+           gwdflg(i) = .false.
+         endif
+       else  
+         tauct(i)  = 0.
+         tauctx(i) = 0.
+         taucty(i) = 0.
+         gwdflg(i) = .false.
+       endif
+     endif
+   enddo
+!
+!   In CCM3, limitation of wavestress at cloud top is -20[N/m^2]
+!   maximum -20 wave stress at cld top is in order to prevent 
+!   numerical instability
+! 
+   do i = 1,im
+     if(gwdflg(i)) then 
+       if ( tauct(i) .lt. -20. ) then
+         tauct(i)  = -20.
+         tauctx(i) = -20. * cosphi(i)
+         taucty(i) = -20. * sinphi(i)
+       endif
+     endif
+   enddo
+#ifdef DG3
+   do k =1,km
+     do i = 1,im
+       if (gwdflg(i)) then
+         tautop(i,k) = abs(tauct(i))
+       else
+         tautop(i,k) = 0.
+       endif
+     enddo
+   enddo
+#endif
+!
+!--dbg ::  check of wave stress on cloud top lev.
+!        count_num = 0
+!        do i = 1,im
+!          if (gwdflg(i)) then
+!            if(abs(tauct(i)) .gt. 0.2) then
+!               count_num = count_num + 1
+!            else
+!               count_num = count_num
+!            endif
+!          endif
+!        enddo
+!        print*,'num of wave stress > 0.2', count_num 
+!
+!-- calculate min. value of Richardson number including
+!-- both basic-state condition and wave effects.
+!
+   do k = 1,kmp     
+     do i = 1,im
+       if(gwdflg(i)) then
+         if( k .ge. kk(i)) then
+           if ( k .ne. kmp ) then
+             crit1(i) = ucltop(i) * ( u1(i,k-1) + u1(i,k) ) * 0.5
+             crit2(i) = vcltop(i) * ( v1(i,k-1) + v1(i,k) ) * 0.5
+           else
+             crit1(i) = ucltop(i) * u1(i,km)
+             crit2(i) = vcltop(i) * v1(i,km) 
+           endif
+#ifdef CB2002
+           nfact = max(brunq(i)/bruni(i,k), brunmin)
+           c2 = nfact/(1.+nfact)
+#endif
+           if (basicui(i,k) .gt. 0. .and.                                      &
+               crit1(i) .gt. 0. .and. crit2(i) .gt. 0.) then
+#ifdef CB2002
+             nonlin(i) = ( q*qmax(i)*a1(i)*bruni(i,k) ) /                      &
+                       ( tmp0*brunq(i)**2 *basicui(i,k)**2 )
+#else 
+#ifdef CB98
+             nonlin(i) = ( g_*qmax(i)*cldbar(i)*dlength )   /                  &
+                    (bruni(i,k)*ti(i,k)*(basicui(i,k)**2) )
+#endif
+#endif
+             if ( riloc(i,k) .lt. 1.e+20 ) then
+               rimin(i,k) = riloc(i,k)*( 1 - nonlin(i)*abs(c2) ) /             &
+                        ( 1 + nonlin(i)*sqrt(riloc(i,k))*abs(c2) )**2
+             else if (riloc(i,k).eq.1.e+20) then
+                  rimin(i,k) = ( 1 - nonlin(i)*abs(c2)  ) /                    &
+                        ( (nonlin(i)**2)*(c2**2) )
+             endif
+             if ( rimin(i,k) .le. -1.e+20 ) then
+               rimin(i,k) = -0.9e+20
+             endif
+           else  
+             rimin(i,k)  = -1.e+20
+           endif
+         endif
+       endif
+     enddo
+   enddo
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if ( k .lt. kk(i) ) then
+           rimin(i,k) = 0.
+         endif
+       endif
+     enddo
+   enddo
+!
+!-- the wave saturation hypothesis of Lindzen
+!
+   do i = 1,im
+     if (gwdflg(i)) then           
+       taugwci(i,kk(i)) = tauct(i)
+     endif
+   enddo
+!
+#ifdef CB2002
+   c1=0.
+   c2=0. 
+   nfact=0.
+#endif
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if(k.ge.kk(i)+1 ) then
+           if ( taugwci(i,k-1) .ne. 0. ) then
+             if ( riloc(i,k) .gt. 0.25 )   then
+               if ( rimin(i,k) .gt. 0.25 )   then
+                 taugwci(i,k) = taugwci(i,k-1)
+               else if (rimin(i,k).gt.-1.e+20.and.rimin(i,k).le.0.25) then
+#ifdef CB2002
+                 c1 = pi_*log( (a1(i)+a2(i))**2 ) +                            &
+                      pi_*log(4.*a1(i)*a2(i))
+                 nfact = max(brunq(i)/bruni(i,k), brunmin)
+                 c2 = nfact/(1.+nfact)
+                 nonlins(i) =  (1./abs(c2))*( 2.*sqrt(2.+1./                   &
+                              sqrt(riloc(i,k)) ) -                             &
+                             ( 2. + 1./ sqrt(riloc(i,k))) )
+                 taus(i) = -(( rhoi(i,k)*(basicui(i,k)**2)*ks(i))/             &
+                             bruni(i,k)) *                                     &
+                             basicui(i,k)*c1*c2*c2 *nonlins(i)*nonlins(i)
+#else
+#ifdef CB98
+                 nonlins(i) =  (1.0/abs(c2))*( 2.*sqrt(2.+1./                  &
+                              sqrt(riloc(i,k)) ) -                             &
+                             ( 2. + 1./ sqrt(riloc(i,k))) )
+                 taus(i)  = -( rhoi(i,k)*(basicui(i,k)**2) )/                  &
+                            ( bruni(i,k)*dlength) *                            &
+                            basicui(i,k)*c1*c2*c2*nonlins(i)*nonlins(i)
+#endif
+#endif
+                 taugwci(i,k) = taus(i)
+               else if (rimin(i,k) .eq. -1.e+20 ) then
+                 taugwci(i,k) = 0.
+               endif                    !! RImin
+             else
+               taugwci(i,k) = 0.              
+             endif
+           else
+             taugwci(i,k) = 0.
+           endif
+         endif
+       endif
+     enddo
+   enddo   
+!                  
+!-- check!!!!!
+!-- jjh :: correction
+! innerp :: inner product with lev._k wind and cldtop wind.
+!
+   do i = 1,im
+     cosine(i) = 1.0                   ! initialization
+   enddo
+!
+!! Version JJH :: The critical level in this version is a level which the 
+!                abs(ucltop-u0) is zero.  
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if(k.ge.kk(i)+1 ) then
+           if(cosine(i) .gt. 0.) then
+             wind(i)     = sqrt(u1(i,k)*u1(i,k) + v1(i,k)*v1(i,k))
+             innerp(i)   = u1(i,k)*ucltop(i) + v1(i,k)*vcltop(i)
+             cosine(i)   = innerp(i)/ wind(i)*windcltop(i)
+             if (cosine(i) .gt. 0. ) then
+               taugwci(i,k) = taugwci(i,k)
+             else
+               taugwci(i,k) = taugwci(i,k-1)
+             endif
+#ifdef CRITICAL
+!
+!! if stationary waves mode and you want to use a wave fitering effect 
+!  by critical level,  use this option
+!
+             if ( u1(i,k)*u1(i,k-1) .lt. 0. ) then
+               cosine(i) = -1.
+             else
+               cosine(i) = 1.
+             endif
+#endif
+             if ( abs(taugwci(i,k)) .gt. abs(taugwci(i,k-1)) ) then
+               taugwci(i,k) = taugwci(i,k-1)
+             endif
+           endif
+         endif
+       endif
+     enddo
+   enddo
+!
+!! version CB98 :: the same as version of CB98.
+!
+!       do k = 1,km
+!        do i = 1,im
+!         if(gwdflg(i)) then
+!          if(k.ge.kk(i)+1 ) then
+!            if ( abs(taugwci(i,k)) .gt. abs(taugwci(i,k-1)) ) then
+!              taugwci(i,k) = taugwci(i,k-1)
+!            endif
+!          endif
+!         endif
+!        enddo
+!       enddo 
+!
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       taugwci(i,kmp) = taugwci(i,km)
+     endif
+   enddo
+!
+! calculate zonal and meridional wind tendency
+!
+   do k = 1,kmp
+     do i = 1,im
+       if(gwdflg(i)) then 
+         taugwcxi(i,k) = taugwci(i,k) * cosphi(i)
+         taugwcyi(i,k) = taugwci(i,k) * sinphi(i)
+       endif
+     enddo
+   enddo 
+!
+   do k = 1,km-1
+     do i = 1,im
+       if(gwdflg(i)) then
+         if(k .ge. kk(i)) then         
+           utgwc(i,k) = g_*(taugwcxi(i,k)-taugwcxi(i,k+1))/dpmid(i,k)
+           vtgwc(i,k) = g_*(taugwcyi(i,k)-taugwcyi(i,k+1))/dpmid(i,k)
+!
+! jjh -- filtering of exceeded value for model stability from cld top to model top level
+!
+           fact1 = utgwc(i,k)*u1(i,k)
+           fact2 = vtgwc(i,k)*v1(i,k)
+           if (fact1 .gt. 0. ) then
+             utgwc(i,k) = 0.
+           else 
+             utgwc(i,k) = utgwc(i,k)
+           endif
+           if (fact2 .gt. 0.) then
+             vtgwc(i,k) = 0.
+           else
+             vtgwc(i,k) = vtgwc(i,k)
+           endif 
+#ifdef WNDLMT
+#ifdef UWND
+           if ( abs(utgwc(i,k))*dt2 .gt. abs(u1(i,k))*lmt                      &
+                 .and. abs(utgwc(i,k)) .ne. 0. )         then
+             if ( fact1 .gt. 0. ) then
+!                    utgwc(i,k) = u1(i,k)*lmt/dt2
+               utgwc(i,k) = 0.
+             else
+               utgwc(i,k) = (-1)*u1(i,k)*lmt/dt2
+             endif
+           else
+             utgwc(i,k) = utgwc(i,k)
+           endif
+#endif
+#ifdef VWND
+           if ( abs(vtgwc(i,k))*dt2 .gt. abs(v1(i,k))*lmt                      &
+                .and. abs(vtgwc(i,k)) .ne. 0. )         then
+             if ( fact2 .gt. 0. ) then
+!                   vtgwc(i,k) = v1(i,k)*lmt/dt2
+               vtgwc(i,k) = 0.
+             else
+               vtgwc(i,k) = (-1)*v1(i,k)*lmt/dt2
+             endif
+           else
+             vtgwc(i,k) = vtgwc(i,k)
+           endif
+#endif 
+#endif
+         endif
+       endif
+     enddo
+   enddo
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if(k .le. kk(i)-1) then 
+           utgwc(i,k) = 0.
+           vtgwc(i,k) = 0.
+         endif
+       endif
+     enddo
+   enddo
+!
+!-- wind tendency is zero at model top for model stability !!
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       utgwc(i,km) = 0.
+       vtgwc(i,km) = 0. 
+     endif
+   enddo
+!
+!-- calculate momentum deposition into the cloud region 
+!--  for the momentum conservation.
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i)) then
+         if( k .ge. kk(i) ) then
+           umomentum(i) = umomentum(i) + utgwc(i,k) * dpmid(i,k) / g_
+           vmomentum(i) = vmomentum(i) + vtgwc(i,k) * dpmid(i,k) / g_ 
+         endif
+       endif
+     enddo
+   enddo
+!
+!-- calculate wind tendency to close the momentum budget below cloud top
+!
+   do i = 1,im
+     if(gwdflg(i)) then
+       utgwc(i,kk(i)-1) = - umomentum(i)*g_ / dpmid(i,kk(i)-1)  
+       vtgwc(i,kk(i)-1) = - vmomentum(i)*g_ / dpmid(i,kk(i)-1)
+     endif
+   enddo
+!
+! End of main loop !!!    
+!
+   do k = 1,km
+     do i = 1,im 
+       if(gwdflg(i)) then 
+         utend(i,k) = utgwc(i,k)
+         vtend(i,k) = vtgwc(i,k)
+       else
+         utend(i,k) = 0.
+         vtend(i,k) = 0.
+       endif
+     enddo
+   enddo
+!
+! output update :  zonal and meridional (u, v)wind [m/s]
+!               : or wind tendency (dudt, dvdt)[m/s2]
+!
+   do k = 1,km
+     do i = 1,im
+       if(gwdflg(i))then
+         u(i,k) = u(i,k) + utend(i,k)*dt2
+         v(i,k) = v(i,k) + vtend(i,k)*dt2
+#ifdef DG3
+         dudt1(i,k) = utend(i,k)
+         dvdt1(i,k) = vtend(i,k)
+#endif
+       endif
+     enddo
+   enddo
+!
+!dbg :: output DG3 magnitude
+!
+#ifdef GWDC_DBG
+   do i = 1,im
+     if(i .ge. 25 .and. i .le. 30) then
+       if(gwdflg(i)) then
+         print*,'=================DG3 DBG======================='
+         do k = 1,km
+           print*, 'i, k',i,k
+           print*, 'ktop, kbot',ktop(i),kbot(i)
+#if defined SAS || defined KSAS
+           if(zmdt(i,k) .ne. 0. .or. mflux(i,k) .ne. 0.) then
+             print*, 'heating rate',zmdt(i,k)
+             print*, 'netflux',mflux(i,k)
+             print*, 'dudt1, dvdt1',dudt1(i,k),dvdt1(i,k)
+             print*, 'tautop',tautop(i,k)
+             print*, 'cldtoplev',cldtoplev(i,k)
+             print*, 'cldepthlev',cldepthlev(i,k)
+             print*, 'cldfactlev',cldfactlev(i,k)
+             print*, 'maxheat',maxheat(i,k)
+             print*, 'aveheat',aveheat(i,k)
+           endif
+#endif
+#ifdef CCMCNV
+           if(hrate(i,k) .ne. 0. .or. mflux(i,k) .ne. 0.) then
+             print*, 'heating rate',hrate(i,k)
+             print*, 'netflux',mflux(i,k)
+             print*, 'dudt1, dvdt1',dudt1(i,k),dvdt1(i,k)
+             print*, 'tautop',tautop(i,k)
+             print*, 'cldtoplev',cldtoplev(i,k)
+             print*, 'cldepthlev',cldepthlev(i,k)
+             print*, 'cldfactlev',cldfactlev(i,k)
+             print*, 'maxheat',maxheat(i,k)
+             print*, 'aveheat',aveheat(i,k)
+           endif
+#endif
+         enddo
+       endif
+     endif
+   enddo
+#endif
+!
+! dbg: input/output/local variables
+!
+#ifdef GWDC_TEST
+   do i = 1,im
+     if (i .ge. 25 .and. i .le. 30) then
+       if(gwdflg(i))then
+         print*,'=================GWDC DBG======================='
+         do k = 1,km
+           print*,'------------------------------------------------'
+           print*,'i,k',i,k
+           print*,'------------ input data --------------------'
+           print*,'ktop, kbot',ktop(i), kbot(i)
+           print*,'uwind, vwind',u1(i,k),v1(i,k)
+           print*,'tmp',t(i,k)
+#if defined SAS || defined KSAS
+           print*,'upflx, dwflx',fcu(i,k),fcd(i,k)
+#endif
+#ifdef CCMCNV
+           print*,'netflux',mflux(i,k)
+#endif
+           print*,'rcl, deltim',rcl,deltim
+           print*,'----------- local data --------------------'
+           print*,'pint, pmid',pint(i,k),pmid(i,k)
+           print*,'basicui, basicum',basicui(i,k),basicum(i,k)
+           print*,'riloc, rimin',riloc(i,k),rimin(i,k)
+           print*,'dpint, dpmid',dpint(i,k),dpmid(i,k)
+           print*,'taugwcxi,taugwcyi',taugwcxi(i,k),taugwcyi(i,k)
+           print*,'utgwc,vtgwc',utgwc(i,k),vtgwc(i,k)
+           print*,'output: u,v',u(i,k),v(i,k)
+         enddo
+         print*,'---------- var. at cld top ------------------'
+         print*,'ucltop, vcltop',ucltop(i),vcltop(i)
+         print*,'windcltop',windcltop(i)
+         print*,'cosphi,sinphi',cosphi(i),sinphi(i)
+         print*,'cldbar,mcbar',cldbar(i),mcbar(i)
+         print*,'tauct',tauct(i)
+         print*,'tauctx, taucty',tauctx(i), taucty(i)
+         print*,'dpsum, qmax',dpsum(i), qmax(i)
+         print*,'sum1, cld_factor',sum1(i),cld_factor(i)
+         print*,'umomentum,vmomentum',umomentum(i),vmomentum(i)
+         print*,'---------------------------------------------'
+       endif
+     endif
+   enddo
+#endif         
+!
+   return
+   end subroutine phys_gwd_chunbaik
+!
+!-------------------------------------------------------------------------------
+       
